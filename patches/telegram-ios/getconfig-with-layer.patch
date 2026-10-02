@@ -1,0 +1,19 @@
+diff --git a/submodules/TelegramCore/Sources/State/Serialization.swift b/submodules/TelegramCore/Sources/State/Serialization.swift
+index 8ef7a1e038..72d0c2e68a 100644
+--- a/submodules/TelegramCore/Sources/State/Serialization.swift
++++ b/submodules/TelegramCore/Sources/State/Serialization.swift
+@@ -293,7 +293,13 @@ public class Serialization: NSObject, MTSerialization {
+     
+     public func requestDatacenterAddress(with data: AutoreleasingUnsafeMutablePointer<NSData?>) -> MTRequestDatacenterAddressListParser! {        
+         let (_, buffer, parser) = Api.functions.help.getConfig()
+-        data.pointee = buffer.makeData() as NSData
++        // Without a layer the server answers with its newest Config, which an
++        // older client can't parse; discovery then retries forever.
++        let layered = Buffer()
++        layered.appendInt32(Int32(bitPattern: 0xda9b0d0d))
++        layered.appendInt32(Int32(self.currentLayer()))
++        layered.appendBuffer(buffer)
++        data.pointee = layered.makeData() as NSData
+         return { response -> MTDatacenterAddressListData? in
+             if let config = parser.parse(Buffer(data: response)) {
+                 switch config {

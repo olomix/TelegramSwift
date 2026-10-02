@@ -1,0 +1,22 @@
+diff --git a/submodules/TelegramCore/Sources/State/ManagedSynchronizePeerStoriesOperations.swift b/submodules/TelegramCore/Sources/State/ManagedSynchronizePeerStoriesOperations.swift
+index 7da8510625..c083bc790a 100644
+--- a/submodules/TelegramCore/Sources/State/ManagedSynchronizePeerStoriesOperations.swift
++++ b/submodules/TelegramCore/Sources/State/ManagedSynchronizePeerStoriesOperations.swift
+@@ -70,7 +70,7 @@ func managedSynchronizePeerStoriesOperations(postbox: Postbox, network: Network,
+     return Signal { _ in
+         let helper = Atomic<ManagedSynchronizePeerStoriesOperationsHelper>(value: ManagedSynchronizePeerStoriesOperationsHelper())
+         
+-        let disposable = postbox.mergedOperationLogView(tag: OperationLogTags.SynchronizePeerStories, limit: 10).start(next: { view in
++        let disposable = postbox.mergedOperationLogView(tag: OperationLogTags.SynchronizePeerStories, limit: 1).start(next: { view in
+             let (disposeOperations, beginOperations) = helper.with { helper -> (disposeOperations: [Disposable], beginOperations: [(PeerMergedOperationLogEntry, MetaDisposable)]) in
+                 return helper.update(view.entries)
+             }
+@@ -94,6 +94,8 @@ func managedSynchronizePeerStoriesOperations(postbox: Postbox, network: Network,
+                     }
+                     return .complete()
+                 })
++                // Pace story polls: a large account queues one per peer and floods the server.
++                |> then(Signal<Void, NoError>.complete() |> delay(0.5, queue: Queue.concurrentDefaultQueue()))
+                 |> then(postbox.transaction { transaction -> Void in
+                     let _ = transaction.operationLogRemoveEntry(peerId: entry.peerId, tag: OperationLogTags.SynchronizePeerStories, tagLocalIndex: entry.tagLocalIndex)
+                 })
