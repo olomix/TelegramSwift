@@ -179,7 +179,7 @@ class ChatCallRowItem: ChatRowItem {
                     guard let self else {
                         return
                     }
-                    self.requestSessionId.set(requestOrJoinConferenceCall(context: context, initialInfo: .init(id: info.id, accessHash: info.accessHash, participantCount: info.totalMemberCount, streamDcId: nil, title: nil, scheduleTimestamp: nil, subscribedToScheduled: false, recordingStartTimestamp: nil, sortAscending: false, defaultParticipantsAreMuted: nil, isVideoEnabled: false, unmutedVideoLimit: 0, isStream: false, isCreator: false), reference: .message(id: message.id)).start(next: { result in
+                    self.requestSessionId.set(requestOrJoinConferenceCall(context: context, initialInfo: .init(id: info.id, accessHash: info.accessHash, participantCount: info.totalMemberCount, streamDcId: nil, title: nil, scheduleTimestamp: nil, subscribedToScheduled: false, recordingStartTimestamp: nil, sortAscending: false, defaultParticipantsAreMuted: nil, messagesAreEnabled: nil, isVideoEnabled: false, unmutedVideoLimit: 0, isStream: false, isCreator: false, defaultSendAs: nil), reference: .message(id: message.id)).start(next: { result in
                         switch result {
                         case let .samePeer(callContext), let .success(callContext):
                             applyGroupCallResult(context.sharedContext, callContext)

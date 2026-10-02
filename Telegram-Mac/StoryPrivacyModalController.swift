@@ -386,7 +386,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
             return StoryPreviewHeaderItem(initialSize, stableId: stableId, viewType: .textTopItem, presentation: presentation, context: arguments.context, peer: peer)
         }))
         
-        let storyContentItem = StoryContentItem(position: nil, dayCounters: nil, peer: peer, storyItem: .init(id: 0, timestamp: 0, expirationTimestamp: 0, media: .init(media), alternativeMediaList: [], mediaAreas: [], text: "", entities: [], views: nil, privacy: nil, isPinned: false, isExpired: false, isPublic: false, isPending: false, isCloseFriends: false, isContacts: false, isSelectedContacts: false, isForwardingDisabled: false, isEdited: false, isMy: false, myReaction: nil, forwardInfo: nil, author: nil), entityFiles: [:], itemPeer: nil)
+        let storyContentItem = StoryContentItem(position: nil, dayCounters: nil, peer: peer, storyItem: .init(id: 0, timestamp: 0, expirationTimestamp: 0, media: .init(media), alternativeMediaList: [], mediaAreas: [], text: "", entities: [], views: nil, privacy: nil, isPinned: false, isExpired: false, isPublic: false, isPending: false, isCloseFriends: false, isContacts: false, isSelectedContacts: false, isForwardingDisabled: false, isEdited: false, isMy: false, myReaction: nil, forwardInfo: nil, music: nil, author: nil, folderIds: nil), entityFiles: [:], itemPeer: nil)
         
         entries.append(.custom(sectionId: sectionId, index: index, value: .none, identifier: _id_preview, equatable: .init(state), comparable: nil, item: { initialSize, stableId in
             return StoryPreviewRowItem(initialSize, stableId: stableId, viewType: .singleItem, presentation: presentation, context: arguments.context, story: storyContentItem, interactions: arguments.interactions, state: state.textState, updateState: arguments.updateState, showEmojis: arguments.showEmojis)
@@ -405,7 +405,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
         index += 1
         let sendAs = state.privacy.sendAsPeerId ?? arguments.context.peerId
         
-        let sendAsPeer = state.sendAsPeers.first(where: { $0.peer.id == sendAs })?.peer ?? state.peers[arguments.context.peerId]?._asPeer()
+        let sendAsPeer = state.sendAsPeers.first(where: { $0.peer.id == sendAs })?.peer._asPeer() ?? state.peers[arguments.context.peerId]?._asPeer()
         if let peer = sendAsPeer {
             entries.append(.custom(sectionId: sectionId, index: index, value: .none, identifier: _id_header, equatable: .init(state), comparable: nil, item: { initialSize, stableId in
                 return ShortPeerRowItem(initialSize, peer: peer, account: arguments.context.account, context: arguments.context, stableId: stableId, titleStyle: ControlStyle(font: .medium(.title), foregroundColor: presentation.colors.text, highlightColor: .white), statusStyle: ControlStyle(font: .normal(.text), foregroundColor: presentation.colors.grayText), status: strings().storyPrivacyPersonalAccount, inset: NSEdgeInsets(left: 20, right: 20), generalType: .next, viewType: .singleItem, action: arguments.showSendAs, customTheme: rowTheme)
@@ -708,7 +708,7 @@ func StoryPrivacyModalController(context: AccountContext, presentation: Telegram
             EngineDataMap(peers.map(\.id).map(TelegramEngine.EngineData.Item.Peer.ParticipantCount.init))
         )
         |> map { participantCountMap -> [SendAsPeer] in
-            return peers.map({ .init(peer: $0._asPeer(), subscribers: participantCountMap[$0.id]?.flatMap { Int32($0) }, isPremiumRequired: false) })
+            return peers.map({ .init(peer: $0, subscribers: participantCountMap[$0.id]?.flatMap { Int32($0) }, isPremiumRequired: false) })
         }
     }
 
@@ -821,7 +821,7 @@ func StoryPrivacyModalController(context: AccountContext, presentation: Telegram
             var peers = stateValue.with { $0.sendAsPeers }
             
             if let myPeer = myPeer {
-                peers.insert(.init(peer: myPeer._asPeer(), subscribers: nil, isPremiumRequired: false), at: 0)
+                peers.insert(.init(peer: myPeer, subscribers: nil, isPremiumRequired: false), at: 0)
             }
             
             if let index = peers.firstIndex(where: { $0.peer.id == currentPeerId }) {
@@ -848,7 +848,7 @@ func StoryPrivacyModalController(context: AccountContext, presentation: Telegram
                                 let signal = showModalProgress(signal: combineLatest(context.engine.peers.getChannelBoostStatus(peerId: peerId), context.engine.peers.getMyBoostStatus()), for: window)
                                 _ = signal.start(next: { stats, myStatus in
                                     if let stats = stats {
-                                        showModal(with: BoostChannelModalController(context: context, peer: peer.peer, boosts: stats, myStatus: myStatus, infoOnly: true, source: .story, presentation: presentation), for: window)
+                                        showModal(with: BoostChannelModalController(context: context, peer: peer.peer._asPeer(), boosts: stats, myStatus: myStatus, infoOnly: true, source: .story, presentation: presentation), for: window)
                                     }
                                 })
                             default:
@@ -950,7 +950,7 @@ func StoryPrivacyModalController(context: AccountContext, presentation: Telegram
                 
                 switch availability {
                 case .available:
-                    _ = context.engine.messages.uploadStory(target: target, media: .existing(media: story.storyItem.media._asMedia()), mediaAreas: [], text: textState.inputText, entities: textState.messageTextEntities(), pin: privacy.pin, privacy: selectedPrivacy, isForwardingDisabled: privacy.isForwardingDisabled, period: 24 * 60 * 60, randomId: arc4random64(), forwardInfo: forwardInfo).start()
+                    _ = context.engine.messages.uploadStory(target: target, media: .existing(media: story.storyItem.media._asMedia()), mediaAreas: [], text: textState.inputText, entities: textState.messageTextEntities(), pin: privacy.pin, privacy: selectedPrivacy, isForwardingDisabled: privacy.isForwardingDisabled, period: 24 * 60 * 60, randomId: arc4random64(), forwardInfo: forwardInfo, folders: [], music: nil).start()
                     showModalText(for: window, text: strings().storyPrivacySaveRepost)
                     close?()
                 default:
@@ -979,7 +979,7 @@ func StoryPrivacyModalController(context: AccountContext, presentation: Telegram
                 actionsDisposable.add((context.engine.messages.checkStoriesUploadAvailability(target: target) |> deliverOnMainQueue).start(next: { availability in
                     switch availability {
                     case .available:
-                        _ = context.engine.messages.uploadStory(target: target, media: inputMedia, mediaAreas: [], text: textState.inputText, entities: textState.messageTextEntities(), pin: privacy.pin, privacy: selectedPrivacy, isForwardingDisabled: privacy.isForwardingDisabled, period: 24 * 60 * 60, randomId: arc4random64(), forwardInfo: nil).start()
+                        _ = context.engine.messages.uploadStory(target: target, media: inputMedia, mediaAreas: [], text: textState.inputText, entities: textState.messageTextEntities(), pin: privacy.pin, privacy: selectedPrivacy, isForwardingDisabled: privacy.isForwardingDisabled, period: 24 * 60 * 60, randomId: arc4random64(), forwardInfo: nil, folders: [], music: nil).start()
                         showModalText(for: window, text: strings().storyPrivacySaveRepost)
                         close?()
                     default:

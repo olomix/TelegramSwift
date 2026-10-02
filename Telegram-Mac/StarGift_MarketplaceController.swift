@@ -80,7 +80,7 @@ fileprivate class EmptyRowView : GeneralRowView {
 private extension StarGift.UniqueGift.Attribute {
     var resaleAttr: ResaleGiftsContext.Attribute {
         switch self {
-        case let .model(_, file, _):
+        case let .model(_, file, _, _):
             return .model(file.fileId.id)
         case let .backdrop(_, id, _, _, _, _, _):
             return .backdrop(id)
@@ -95,7 +95,7 @@ private extension StarGift.UniqueGift.Attribute {
 private extension StarGift.UniqueGift.Attribute {
     var name: String {
         switch self {
-        case let .model(name, _, _):
+        case let .model(name, _, _, _):
             return name
         case let .backdrop(name, _, _, _, _, _, _):
             return name
@@ -162,7 +162,7 @@ private final class AttributeMenuRowItem : AppMenuRowItem {
                 }
             })!
             item.image = NSImage(cgImage: image, size: NSMakeSize(imageSize, imageSize))
-        case let .model(_, file, _), let .pattern(_, file, _):
+        case let .model(_, file, _, _), let .pattern(_, file, _):
             
             let isPattern: Bool
             switch item.attribute {
@@ -614,7 +614,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
             for (i, chunk) in chunks.enumerated() {
                 if !chunk.isEmpty {
                     entries.append(.custom(sectionId: sectionId, index: index, value: .none, identifier: _id_stars_gifts(i), equatable: .init(chunk), comparable: nil, item: { initialSize, stableId in
-                        return GiftOptionsRowItem(initialSize, stableId: stableId, context: arguments.context, options: chunk.map { .initialize($0.unique!, showNumber: true) }, insets: .init(left: 5, right: 5), callback: { option in
+                        return GiftOptionsRowItem(initialSize, stableId: stableId, context: arguments.context, options: chunk.map { GiftOptionsRowItem.Option.initialize($0.unique!, showNumber: true) }, insets: .init(left: 5, right: 5), callback: { option in
                             if let gift = option.nativeStarUniqueGift {
                                 arguments.open(gift)
                             }
@@ -658,7 +658,7 @@ func StarGift_MarketplaceController(context: AccountContext, peerId: PeerId, gif
         statePromise.set(stateValue.modify (f))
     }
     
-    let resaleContext = ResaleGiftsContext(account: context.account, giftId: gift.id)
+    let resaleContext = ResaleGiftsContext(account: context.account, giftId: gift.id, forCrafting: false)
     
     var getController:(()->InputDataController?)? = nil
     var close:(()->Void)? = nil
@@ -841,14 +841,14 @@ func StarGift_MarketplaceController(context: AccountContext, peerId: PeerId, gif
     
     controller.contextObject_second = view
     
-    controller.afterTransaction = { controller in
+    controller.afterTransaction = { (controller: InputDataController) in
         let view = controller.contextObject_second as? HeaderItemView
         let item = HeaderItem(controller.frame.size, stableId: InputDataEntryId.custom(_id_header), state: stateValue.with { $0 }, context: context, arguments: arguments)
         view?.set(item: item, animated: false)
     }
     
     
-    controller.didLoad = { [weak resaleContext] controller, _ in
+    controller.didLoad = { [weak resaleContext] (controller: InputDataController, _: [InputDataIdentifier: InputDataValue]) in
         controller.tableView.getBackgroundColor = {
             return theme.colors.background
         }
@@ -903,6 +903,3 @@ func StarGift_MarketplaceController(context: AccountContext, peerId: PeerId, gif
 /*
 
  */
-
-
-

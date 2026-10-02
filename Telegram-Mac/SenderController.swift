@@ -214,7 +214,7 @@ class Sender: NSObject {
 
             var attributes:[MessageAttribute] = [TextEntitiesMessageAttribute(entities: subState.messageTextEntities(parsingUrlType))]
             if let date = atDate {
-                attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970)))
+                attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970), repeatPeriod: nil))
             }
             if let attr = suggestPost?.attribute {
                 attributes.append(attr)
@@ -508,7 +508,7 @@ class Sender: NSObject {
         }
         
         if let date = atDate {
-            attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970)))
+            attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970), repeatPeriod: nil))
         }
         if let sendAsPeerId = sendAsPeerId {
             attributes.append(SendAsMessageAttribute(peerId: sendAsPeerId))
@@ -548,7 +548,7 @@ class Sender: NSObject {
                 attributes.append(NotificationInfoMessageAttribute(flags: [.muted]))
             }
             if let date = atDate {
-                attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970)))
+                attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970), repeatPeriod: nil))
             }
             if let sendAsPeerId = sendAsPeerId {
                 attributes.append(SendAsMessageAttribute(peerId: sendAsPeerId))
@@ -620,7 +620,7 @@ class Sender: NSObject {
             attributes.append(NotificationInfoMessageAttribute(flags: [.muted]))
         }
         if let date = atDate {
-            attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970)))
+            attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970), repeatPeriod: nil))
         }
         if let sendAsPeerId = sendAsPeerId {
             attributes.append(SendAsMessageAttribute(peerId: sendAsPeerId))
@@ -683,7 +683,7 @@ class Sender: NSObject {
                     attributes.append(NotificationInfoMessageAttribute(flags: [.muted]))
                 }
                 if let date = atDate {
-                    attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970)))
+                    attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970), repeatPeriod: nil))
                 }
                 if let sendAsPeerId = sendAsPeerId {
                     attributes.append(SendAsMessageAttribute(peerId: sendAsPeerId))

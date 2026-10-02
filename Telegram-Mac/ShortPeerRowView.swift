@@ -783,7 +783,7 @@ class ShortPeerRowView: TableRowView, Notifable, ViewDisplayDelegate {
             image.setSignal(photo)
         } else {
             if let monoforumPeer = item.monoforumPeer, item.peer.isMonoForum {
-                image.setState(account: item.account, state: .PeerAvatar(item.peer, monoforumPeer.displayLetters, monoforumPeer.smallProfileImage, monoforumPeer.nameColor, nil, item.photoSize, true, nil))
+                image.setState(account: item.account, state: .PeerAvatar(item.peer, monoforumPeer.displayLetters, monoforumPeer.smallProfileImage, monoforumPeer.nameColor?.presetValue, nil, item.photoSize, true, nil))
             } else {
                 image.setPeer(account: item.account, peer: item.peer, size: item.photoSize, cornerRadius: item.makeAvatarRound ? 6 : nil)
             }

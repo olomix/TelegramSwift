@@ -531,11 +531,11 @@ private func entries(state: State, arguments: Arguments) -> [InputDataEntry] {
                     default:
                         break
                     }
-                    return ShortPeerRowItem(initialSize, peer: item.participant.peer, account: arguments.context.account, context: arguments.context, stableId: stableId, enabled: item.enabled, status: text, inset: NSEdgeInsetsMake(0, 20, 0, 20), viewType: item.viewType, action: {
+                    return ShortPeerRowItem(initialSize, peer: item.participant.peer._asPeer(), account: arguments.context.account, context: arguments.context, stableId: stableId, enabled: item.enabled, status: text, inset: NSEdgeInsetsMake(0, 20, 0, 20), viewType: item.viewType, action: {
                         if item.canOpen {
                             arguments.openPeer(item.participant.participant)
                         } else {
-                            arguments.openPeerInfo(item.participant.peer)
+                            arguments.openPeerInfo(item.participant.peer._asPeer())
                         }
                     })
                 }))
@@ -901,7 +901,7 @@ final class ChannelPermissionsController : TableViewController {
                 if let p = behavior.participants[memberId] {
                     participant = p
                 } else if let temporary = behavior.result[memberId] {
-                    participant = RenderedChannelParticipant(participant: .member(id: memberId, invitedAt: 0, adminInfo: nil, banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: temporary.peer, peers: [memberId: temporary.peer], presences: temporary.presence != nil ? [memberId: temporary.presence!] : [:])
+                    participant = RenderedChannelParticipant(participant: .member(id: memberId, invitedAt: 0, adminInfo: nil, banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: EnginePeer(temporary.peer), peers: [memberId: EnginePeer(temporary.peer)], presences: temporary.presence != nil ? [memberId: temporary.presence!] : [:])
                 }
                 if let participant = participant {
                     restrict(participant.participant, false)

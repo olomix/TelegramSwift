@@ -223,7 +223,7 @@ class WallpaperPatternPreviewController: GenericViewController<WallpaperPatternP
             self.intensity = Int32(intensity * 100)
         }
         
-        let signal = telegramWallpapers(postbox: context.account.postbox, network: context.account.network) |> map { wallpapers -> [Wallpaper] in
+        let signal = context.engine.themes.wallpapers() |> map { wallpapers -> [Wallpaper] in
             return wallpapers.compactMap { wallpaper in
                 switch wallpaper {
                 case let .file(file):

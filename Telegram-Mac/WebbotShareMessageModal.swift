@@ -148,7 +148,7 @@ func WebbotShareMessageModal(context: AccountContext, bot: EnginePeer, preparedM
             } else if let image = reference.image {
                 media = [image]
             }
-        case let .text(textValue, entitiesValue, disableUrlPreview, previewParameters, _):
+        case let .text(textValue, entitiesValue, _, disableUrlPreview, previewParameters, _):
             text = textValue
             entities = entitiesValue
             let _ = disableUrlPreview
@@ -170,7 +170,7 @@ func WebbotShareMessageModal(context: AccountContext, bot: EnginePeer, preparedM
             if let content = reference.content {
                 media = [content]
             }
-        case let .text(textValue, entitiesValue, disableUrlPreview, previewParameters, _):
+        case let .text(textValue, entitiesValue, _, disableUrlPreview, previewParameters, _):
             text = textValue
             entities = entitiesValue
             let _ = disableUrlPreview

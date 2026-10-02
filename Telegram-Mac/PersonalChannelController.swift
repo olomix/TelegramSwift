@@ -159,7 +159,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
         
         for tuple in items {
             entries.append(.custom(sectionId: sectionId, index: index, value: .none, identifier: _id_channel(tuple.channel.peer.id), equatable: .init(tuple), comparable: nil, item: { initialSize, stableId in
-                return ShortPeerRowItem(initialSize, peer: tuple.channel.peer, account: arguments.context.account, context: arguments.context, height: 44, photoSize: NSMakeSize(30, 30), status: tuple.status, inset: NSEdgeInsets(left: 20, right: 20), generalType: .selectable(tuple.selected), viewType: tuple.viewType, action: {
+                return ShortPeerRowItem(initialSize, peer: tuple.channel.peer._asPeer(), account: arguments.context.account, context: arguments.context, height: 44, photoSize: NSMakeSize(30, 30), status: tuple.status, inset: NSEdgeInsets(left: 20, right: 20), generalType: .selectable(tuple.selected), viewType: tuple.viewType, action: {
                     arguments.select(tuple.channel.peer.id)
                 })
             }))
@@ -196,7 +196,7 @@ func PersonalChannelController(context: AccountContext) -> InputDataModalControl
 
     let adminedChannelsWithParticipants: Signal<[SendAsPeer], NoError> = context.engine.peers.adminedPublicChannels(scope: .forPersonalProfile)
     |> map { peers -> [SendAsPeer] in
-        return peers.map({ .init(peer: $0.peer._asPeer(), subscribers: $0.subscriberCount.flatMap { Int32($0) }, isPremiumRequired: false) })
+        return peers.map({ .init(peer: $0.peer, subscribers: $0.subscriberCount.flatMap { Int32($0) }, isPremiumRequired: false) })
 
     }
     

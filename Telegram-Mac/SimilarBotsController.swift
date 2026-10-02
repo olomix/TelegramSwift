@@ -132,7 +132,7 @@ func SimilarBotsController(context: AccountContext, peerId: PeerId, recommendedB
         jsonString += "}"
         
         if let data = jsonString.data(using: .utf8), let json = JSON(data: data) {
-            addAppLogEvent(postbox: context.account.postbox, type: "bots.open_recommended_bot", data: json)
+            context.engine.accountData.addAppLogEvent(type: "bots.open_recommended_bot", data: json)
         }
     }, premium: {
         prem(with: PremiumBoardingController(context: context, source: .recommended_channels), for: context.window)

@@ -275,7 +275,7 @@ private class PreviewRowItem: GeneralRowItem {
         
         let previewPeer: Peer?
         if let peer = peer as? TelegramUser {
-            previewPeer = TelegramUser(id: peerId, accessHash: peer.accessHash, firstName: peer.firstName, lastName: peer.lastName, username: peer.username, phone: peer.phone, photo: peer.photo, botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: emojiStatus, usernames: [], storiesHidden: nil, nameColor: nameColor, backgroundEmojiId: backgroundEmojiId, profileColor: nameColor, profileBackgroundEmojiId: backgroundEmojiId, subscriberCount: nil, verificationIconFileId: nil)
+            previewPeer = TelegramUser(id: peerId, accessHash: peer.accessHash, firstName: peer.firstName, lastName: peer.lastName, username: peer.username, phone: peer.phone, photo: peer.photo, botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: emojiStatus, usernames: [], storiesHidden: nil, nameColor: nameColor.flatMap { PeerColor.preset($0) }, backgroundEmojiId: backgroundEmojiId, profileColor: nameColor, profileBackgroundEmojiId: backgroundEmojiId, subscriberCount: nil, verificationIconFileId: nil)
         } else if let peer = peer as? TelegramChannel {
             previewPeer = TelegramChannel(id: peerId, accessHash: peer.accessHash, title: peer.title, username: peer.username, photo: peer.profileImageRepresentations, creationDate: peer.creationDate, version: peer.version, participationStatus: peer.participationStatus, info: peer.info, flags: peer.flags, restrictionInfo: peer.restrictionInfo, adminRights: peer.adminRights, bannedRights: peer.bannedRights, defaultBannedRights: peer.defaultBannedRights, usernames: peer.usernames, storiesHidden: peer.storiesHidden, nameColor: nameColor, backgroundEmojiId: backgroundEmojiId, profileColor: nameColor, profileBackgroundEmojiId: backgroundEmojiId, emojiStatus: emojiStatus, approximateBoostLevel: nil, subscriptionUntilDate: nil, verificationIconFileId: nil, sendPaidMessageStars: nil, linkedMonoforumId: nil)
         } else {
@@ -296,7 +296,7 @@ private class PreviewRowItem: GeneralRowItem {
             
             let media = TelegramMediaWebpage(webpageId: MediaId(namespace: 0, id: 0), content: TelegramMediaWebpageContent.Loaded(TelegramMediaWebpageLoadedContent(url: "", displayUrl: "", hash: 0, type: "photo", websiteName: appName, title: strings().selectColorMessage2PreviewTitle, text: strings().selectColorMessage2PreviewText, embedUrl: nil, embedType: nil, embedSize: nil, duration: nil, author: nil, isMediaLargeByDefault: nil, imageIsVideoCover: false, image: nil, file: nil, story: nil, attributes: [], instantPage: nil)))
 
-            let secondMessage = Message(stableId: 1, stableVersion: 0, id: MessageId(peerId: previewPeer.id, namespace: 0, id: 1), globallyUniqueId: 0, groupingKey: 0, groupInfo: nil, threadId: nil, timestamp: timestamp1, flags: [.Incoming], tags: [], globalTags: [], localTags: [], customTags: [], forwardInfo: nil, author: previewPeer, text: strings().selectColorMessage2, attributes: [ReplyMessageAttribute(messageId: firstMessage.id, threadMessageId: nil, quote: nil, isQuote: false, todoItemId: nil)], media: [media], peers:SimpleDictionary([previewPeer.id : previewPeer]) , associatedMessages: SimpleDictionary([firstMessage.id : firstMessage]), associatedMessageIds: [], associatedMedia: [:], associatedThreadInfo: nil, associatedStories: [:])
+            let secondMessage = Message(stableId: 1, stableVersion: 0, id: MessageId(peerId: previewPeer.id, namespace: 0, id: 1), globallyUniqueId: 0, groupingKey: 0, groupInfo: nil, threadId: nil, timestamp: timestamp1, flags: [.Incoming], tags: [], globalTags: [], localTags: [], customTags: [], forwardInfo: nil, author: previewPeer, text: strings().selectColorMessage2, attributes: [ReplyMessageAttribute(messageId: firstMessage.id, threadMessageId: nil, quote: nil, isQuote: false, innerSubject: nil)], media: [media], peers:SimpleDictionary([previewPeer.id : previewPeer]) , associatedMessages: SimpleDictionary([firstMessage.id : firstMessage]), associatedMessageIds: [], associatedMedia: [:], associatedThreadInfo: nil, associatedStories: [:])
             
             let secondEntry: ChatHistoryEntry = .MessageEntry(secondMessage, MessageIndex(secondMessage), true, theme.bubbled ? .bubble : .list, .Full(rank: nil, header: .normal), nil, ChatHistoryEntryData(nil, MessageEntryAdditionalData(), AutoplayMediaPreferences.defaultSettings))
             
@@ -818,7 +818,7 @@ private struct State : Equatable {
         if peer.profileColor != selected_profile {
             return false
         }
-        if peer.nameColor != selected {
+        if peer.nameColor?.presetValue != selected {
             return false
         }
         if peer.backgroundEmojiId != backgroundEmojiId {
@@ -963,7 +963,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
         entries.append(.desc(sectionId: sectionId, index: index, text: .plain(iconInfo), data: .init(color: theme.colors.listGrayText, viewType: .textBottomItem)))
         index += 1
         
-        if state.selected != state.peer.nameColor {
+        if state.selected != state.peer.nameColor?.presetValue {
             entries.append(.sectionId(sectionId, type: .normal))
             sectionId += 1
             
@@ -1300,7 +1300,7 @@ enum SelectColorSource {
     func nameColor(_ type: SelectColorType) -> PeerNameColor? {
         switch type {
         case .name:
-            return peer.nameColor
+            return peer.nameColor?.presetValue
         case .profile:
             return peer.profileColor
 
@@ -1355,7 +1355,7 @@ func SelectColorController(context: AccountContext, peer: Peer, callback: Select
                 current.peer = peer
                 current.emojiStatus = peer.emojiStatus
                 current.selected_profile = peer.profileColor
-                current.selected = peer.nameColor
+                current.selected = peer.nameColor?.presetValue
                 current.backgroundEmojiId_profile = peer.profileBackgroundEmojiId
                 current.backgroundEmojiId = peer.backgroundEmojiId
             }
@@ -1711,7 +1711,7 @@ func SelectColorController(context: AccountContext, peer: Peer, callback: Select
             var current = current
             switch type {
             case .name:
-                current.selected = current.peer.nameColor
+                current.selected = current.peer.nameColor?.presetValue
                 current.backgroundEmojiId = nil
             case .profile:
                 current.selected_profile = nil
@@ -1812,7 +1812,7 @@ func SelectColorController(context: AccountContext, peer: Peer, callback: Select
         
         
         
-        let nameColor = state.selected ?? state.peer.nameColor ?? .blue
+        let nameColor = state.selected ?? state.peer.nameColor?.presetValue ?? .blue
         let backgroundEmojiId = state.backgroundEmojiId
         let profileColor = state.selected_profile
         let profileBackgroundEmojiId = state.backgroundEmojiId_profile
@@ -1837,7 +1837,7 @@ func SelectColorController(context: AccountContext, peer: Peer, callback: Select
             
             switch source {
             case .account:
-                signals.append(context.engine.accountData.updateNameColorAndEmoji(nameColor: nameColor, backgroundEmojiId: backgroundEmojiId, profileColor: profileColor, profileBackgroundEmojiId: profileBackgroundEmojiId) |> ignoreValues |> `catch` { _ in return Signal<Never, NoError>.complete() })
+                signals.append(context.engine.accountData.updateNameColorAndEmoji(nameColor: .preset(color: nameColor, backgroundEmojiId: backgroundEmojiId), profileColor: profileColor, profileBackgroundEmojiId: profileBackgroundEmojiId) |> ignoreValues |> `catch` { _ in return Signal<Never, NoError>.complete() })
                 
             case .channel, .group:
                 signals.append(context.engine.peers.updatePeerNameColorAndEmoji(peerId: peerId, nameColor: nameColor, backgroundEmojiId: backgroundEmojiId, profileColor: profileColor, profileBackgroundEmojiId: profileBackgroundEmojiId) |> ignoreValues |> `catch` { _ in return Signal<Never, NoError>.complete() })
@@ -1940,7 +1940,7 @@ func SelectColorController(context: AccountContext, peer: Peer, callback: Select
                     }
                 }
                 
-                if stats.level < nameColorLevel, nameColor != peer.nameColor {
+                if stats.level < nameColorLevel, nameColor != peer.nameColor?.presetValue {
                     showModal(with: BoostChannelModalController(context: context, peer: peer, boosts: stats, myStatus: myStatus, infoOnly: true, source: .nameColor(nameColorLevel)), for: context.window)
                 } else if stats.level < nameIconLevel, backgroundEmojiId != peer.backgroundEmojiId {
                     showModal(with: BoostChannelModalController(context: context, peer: peer, boosts: stats, myStatus: myStatus, infoOnly: true, source: .nameIcon(nameIconLevel)), for: context.window)

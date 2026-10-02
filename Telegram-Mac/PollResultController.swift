@@ -167,7 +167,7 @@ private func pollResultEntries(_ state: PollResultState, context: AccountContext
                 let optionExpandedAtCount = state.expandedOptions[option.option.opaqueIdentifier]
                 
                 var peers = optionState.peers
-                let count = optionState.count
+                let count = optionState.count ?? 0
                 
                 let displayCount: Int
                 if peers.count > collapsedInitialLimit + 1 {
@@ -195,7 +195,7 @@ private func pollResultEntries(_ state: PollResultState, context: AccountContext
                 peers = Array(peers.prefix(displayCount))
                 
                 for (i, voter) in peers.enumerated() {
-                    if let peer = voter.peer {
+                    if let peer = voter.peer.peer {
                         var viewType = bestGeneralViewType(peers, for: i)
                         if i == peers.count - 1, optionState.canLoadMore {
                             if peers.count == 1 {

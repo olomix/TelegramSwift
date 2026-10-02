@@ -127,7 +127,7 @@ private enum ChannelEventFilterEntry : TableItemListNodeEntry {
             let interactions = SelectPeerInteraction()
             interactions.update { current in
                 var current = current
-                current = current.withToggledSelected(participant.peer.id, peer: participant.peer, toggle: enabled)
+                current = current.withToggledSelected(participant.peer.id, peer: participant.peer._asPeer(), toggle: enabled)
                 return current
             }
             
@@ -135,7 +135,7 @@ private enum ChannelEventFilterEntry : TableItemListNodeEntry {
                 arguments.toggleAdmin(peerId)
             }
             
-            return ShortPeerRowItem(initialSize, peer: participant.peer, account: arguments.context.account, context: arguments.context, stableId: stableId, height: 42, photoSize: NSMakeSize(30, 30), status: status, inset: NSEdgeInsets(left: 20, right: 20), interactionType: .selectable(interactions, side: .left), generalType: .none, viewType: viewType, action: {
+            return ShortPeerRowItem(initialSize, peer: participant.peer._asPeer(), account: arguments.context.account, context: arguments.context, stableId: stableId, height: 42, photoSize: NSMakeSize(30, 30), status: status, inset: NSEdgeInsets(left: 20, right: 20), interactionType: .selectable(interactions, side: .left), generalType: .none, viewType: viewType, action: {
                 arguments.toggleAdmin(participant.peer.id)
             })
         }
@@ -554,7 +554,7 @@ class ChannelEventFilterModalController: ModalViewController {
             antiSpamBotPeerPromise.set(context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: antiSpamBotId))
             |> map { peer in
                 if let peer = peer, case let .user(user) = peer {
-                    return RenderedChannelParticipant(participant: .member(id: user.id, invitedAt: 0, adminInfo: nil, banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: user)
+                    return RenderedChannelParticipant(participant: .member(id: user.id, invitedAt: 0, adminInfo: nil, banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: EnginePeer(user))
                 } else {
                     return nil
                 }

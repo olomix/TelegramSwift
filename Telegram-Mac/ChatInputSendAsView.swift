@@ -107,7 +107,7 @@ final class ChatInputSendAsView : Control {
             let avatar = AvatarControl(font: .avatar(18))
             avatar.frame = NSMakeRect(0, 0, 30, 30)
             avatar.userInteractionEnabled = false
-            avatar.setPeer(account: chatInteraction.context.account, peer: currentPeer?.peer)
+            avatar.setPeer(account: chatInteraction.context.account, peer: currentPeer?.peer._asPeer())
             self.addSubview(avatar)
             avatar.centerY(x: frame.width - avatar.frame.width)
             self.avatar = avatar

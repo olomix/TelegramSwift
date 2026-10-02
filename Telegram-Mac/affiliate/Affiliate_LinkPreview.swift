@@ -303,7 +303,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
     
     if let peer = state.getAs?.peer {
         entries.append(.custom(sectionId: sectionId, index: index, value: .none, identifier: _id_header, equatable: .init(state), comparable: nil, item: { initialSize, stableId in
-            return HeaderItem(initialSize, stableId: stableId, program: state.program, peer: .init(peer), sendas: state.sendAs, arguments: arguments)
+            return HeaderItem(initialSize, stableId: stableId, program: state.program, peer: peer, sendas: state.sendAs, arguments: arguments)
         }))
         
         entries.append(.sectionId(sectionId, type: .normal))
@@ -361,7 +361,7 @@ func Affiliate_LinkPreview(context: AccountContext, program: AffiliateProgram, p
     
     
     let sendas: Signal<[SendAsPeer], NoError> = context.engine.peers.getPossibleStarRefBotTargets() |> map {
-        return $0.map { .init(peer: $0._asPeer(), subscribers: nil, isPremiumRequired: false) }
+        return $0.map { .init(peer: $0, subscribers: nil, isPremiumRequired: false) }
     }
     
     
@@ -370,7 +370,7 @@ func Affiliate_LinkPreview(context: AccountContext, program: AffiliateProgram, p
             var current = current
             current.peer = peer
             if let peer {
-                current.getAs = .init(peer: peer._asPeer(), subscribers: nil, isPremiumRequired: false)
+                current.getAs = .init(peer: peer, subscribers: nil, isPremiumRequired: false)
             }
             return current
         }
@@ -437,6 +437,5 @@ func Affiliate_LinkPreview(context: AccountContext, program: AffiliateProgram, p
     
     return modalController
 }
-
 
 

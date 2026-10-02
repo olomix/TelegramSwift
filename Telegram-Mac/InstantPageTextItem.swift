@@ -565,6 +565,12 @@ func attributedStringForRichText(_ text: RichText, styleStack: InstantPageTextSt
         let result = attributedStringForRichText(text, styleStack: styleStack, url: url)
         styleStack.pop()
         return result
+    case let .textCustomEmoji(_, alt):
+        return attributedStringForRichText(.plain(alt), styleStack: styleStack, url: url, boundingWidth: boundingWidth)
+    case let .textAutoEmail(text), let .textAutoPhone(text), let .textAutoUrl(text), let .textBankCard(text), let .textBotCommand(text), let .textCashtag(text), let .textHashtag(text), let .textMention(text), let .textMentionName(text, _), let .textSpoiler(text), let .textDate(text, _, _):
+        return attributedStringForRichText(text, styleStack: styleStack, url: url, boundingWidth: boundingWidth)
+    case let .formula(latex):
+        return attributedStringForRichText(.plain(latex), styleStack: styleStack, url: url, boundingWidth: boundingWidth)
     }
 }
 
@@ -821,4 +827,3 @@ func layoutTextItemWithString(_ string: NSAttributedString, boundingWidth: CGFlo
     
     return (requiresScroll ? nil : textItem, items, textItem.frame.size)
 }
-

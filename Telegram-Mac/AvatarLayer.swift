@@ -144,7 +144,7 @@ class AvatarControl: NSView {
         self.disableForum = disableForum
         let state: AvatarNodeState
         if let peer = peer {
-            state = .PeerAvatar(peer, peer.displayLetters, peer.smallProfileImage, peer.nameColor, message, size, (peer.isForumOrMonoForum && !disableForum) || forceMonoforum, cornerRadius)
+            state = .PeerAvatar(peer, peer.displayLetters, peer.smallProfileImage, peer.nameColor?.presetValue, message, size, (peer.isForumOrMonoForum && !disableForum) || forceMonoforum, cornerRadius)
         } else {
             state = .Empty
         }
@@ -235,7 +235,7 @@ class AvatarControl: NSView {
                         self.setSignal(generateEmptyPhoto(updatedSize, type: .icon(colors: theme.colors.peerColors(Int(peer.id.id._internalGetInt64Value() % 7)), icon: icon, iconSize: icon.backingSize.aspectFitted(NSMakeSize(min(50, updatedSize.width - 20), min(updatedSize.height - 20, 50))), cornerRadius: nil), bubble: peer.isMonoForum) |> map {($0, false)})
                         return
                     } else {
-                        photo = .peer(peer, representation, nameColor, letters, message, cornerRadius)
+                        photo = .peer(peer, representation, nameColor.flatMap { PeerColor.preset($0) }, letters, message, cornerRadius)
                     }
                     updatedSize = size ?? frame.size
                 case .Empty:

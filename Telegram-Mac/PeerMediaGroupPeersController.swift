@@ -15,7 +15,7 @@ import TGUIKit
 
 extension PeerStoryStats {
     func subscriptionItem(_ peer: Peer) -> EngineStorySubscriptions.Item {
-        return .init(peer: .init(peer), hasUnseen: self.unseenCount > 0, hasUnseenCloseFriends: self.hasUnseenCloseFriends, hasPending: false, storyCount: self.totalCount, unseenCount: self.unseenCount, lastTimestamp: 0)
+        return .init(peer: .init(peer), hasUnseen: self.unseenCount > 0, hasUnseenCloseFriends: self.hasUnseenCloseFriends, hasLiveItems: false, hasPending: false, storyCount: self.totalCount, unseenCount: self.unseenCount, lastTimestamp: 0)
     }
 }
 
@@ -161,7 +161,7 @@ private func groupPeersEntries(state: GroupPeersState, isEditing: Bool, viewAndS
             if !state.temporaryParticipants.isEmpty {
                 for participant in state.temporaryParticipants {
                     if !existingParticipantIds.contains(participant.peer.id) {
-                        updatedParticipants.append(.member(id: participant.peer.id, invitedBy: arguments.context.account.peerId, invitedAt: participant.timestamp))
+                        updatedParticipants.append(.member(id: participant.peer.id, invitedBy: arguments.context.account.peerId, invitedAt: participant.timestamp, rank: nil))
                         if let presence = participant.presence, peerPresences[participant.peer.id] == nil {
                             peerPresences[participant.peer.id] = presence
                         }
@@ -276,7 +276,7 @@ private func groupPeersEntries(state: GroupPeersState, isEditing: Bool, viewAndS
             if !state.temporaryParticipants.isEmpty {
                 for participant in state.temporaryParticipants {
                     if !existingParticipantIds.contains(participant.peer.id) {
-                        updatedParticipants.append(RenderedChannelParticipant(participant: .member(id: participant.peer.id, invitedAt: participant.timestamp, adminInfo: nil, banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: participant.peer))
+                        updatedParticipants.append(RenderedChannelParticipant(participant: .member(id: participant.peer.id, invitedAt: participant.timestamp, adminInfo: nil, banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: EnginePeer(participant.peer)))
                         if let presence = participant.presence, peerPresences[participant.peer.id] == nil {
                             peerPresences[participant.peer.id] = presence
                         }
@@ -399,7 +399,7 @@ private func groupPeersEntries(state: GroupPeersState, isEditing: Bool, viewAndS
                 }
                 
                 
-                usersBlock.append(GroupInfoEntry.member(section: Int(sectionId), index: i, peerId: sortedParticipants[i].peer.id, peer: sortedParticipants[i].peer, presence: sortedParticipants[i].presences[sortedParticipants[i].peer.id], activity: inputActivities[sortedParticipants[i].peer.id], stories: memberListState.peerStoryStats[sortedParticipants[i].peer.id], memberStatus: memberStatus, editing: editing, menuItems: menuItems, enabled: !disabledPeerIds.contains(sortedParticipants[i].peer.id), viewType: .singleItem))
+                usersBlock.append(GroupInfoEntry.member(section: Int(sectionId), index: i, peerId: sortedParticipants[i].peer.id, peer: sortedParticipants[i].peer._asPeer(), presence: sortedParticipants[i].presences[sortedParticipants[i].peer.id], activity: inputActivities[sortedParticipants[i].peer.id], stories: memberListState.peerStoryStats[sortedParticipants[i].peer.id], memberStatus: memberStatus, editing: editing, menuItems: menuItems, enabled: !disabledPeerIds.contains(sortedParticipants[i].peer.id), viewType: .singleItem))
             }
             
             let membersHidden: ()->Bool = {

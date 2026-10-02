@@ -992,7 +992,7 @@ func BusinessChatbotController(context: AccountContext) -> InputDataController {
     |> mapToSignal { username in
         if let username = username, !username.isEmpty {
             return .single(.loading) |> then(context.engine.contacts.searchRemotePeers(query: username) |> map {
-                return .found(($0.0 + $0.1).prefix(5).filter { $0.peer.isBot }.map { EnginePeer($0.peer) })
+                return .found(($0.0 + $0.1).prefix(5).filter { $0.peer.isBot }.map { EnginePeer($0.peer._asPeer()) })
             })
         } else {
             return .single(nil)

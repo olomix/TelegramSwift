@@ -578,6 +578,8 @@ func PaymentsCheckoutController(context: AccountContext, source: BotPaymentInvoi
                     switch error {
                     case .alreadyPaid:
                         text = strings().checkoutErrorInvoiceAlreadyPaid
+                    case let .serverProvided(message):
+                        text = message
                     case .generic:
                         text = strings().unknownError
                     case .paymentFailed:

@@ -551,7 +551,7 @@ class ShareObject {
             attributes.append(NotificationInfoMessageAttribute(flags: [.muted]))
         }
         if let date = scheduleDate {
-            attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970)))
+            attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970), repeatPeriod: nil))
         }
         if let sendPaidMessageStars = sendPaidMessageStars, peerId != context.peerId {
             attributes.append(PaidStarsMessageAttribute(stars: sendPaidMessageStars, postponeSending: false))
@@ -633,7 +633,7 @@ class SharefilterCallbackObject : ShareObject {
     }
     
     override func possibilityPerformTo(_ peer: Peer) -> Bool {
-        if !canSendMessagesToPeer(peer) {
+        if !canSendMessagesToPeer(EnginePeer(peer)) {
             return false
         }
         if peer.isBot {
@@ -843,22 +843,22 @@ class ShareCallbackPeerTypesObject : ShareObject {
         }
         if peer.isUser {
             if peerTypes.contains(.users) {
-                return canSendMessagesToPeer(peer)
+                return canSendMessagesToPeer(EnginePeer(peer))
             }
         }
         if peer.isGroup || peer.isSupergroup || peer.isGigagroup {
             if peerTypes.contains(.groups) {
-                return canSendMessagesToPeer(peer)
+                return canSendMessagesToPeer(EnginePeer(peer))
             }
         }
         if peer.isChannel {
             if peerTypes.contains(.channels) {
-                return canSendMessagesToPeer(peer)
+                return canSendMessagesToPeer(EnginePeer(peer))
             }
         }
         if peer.isBot {
             if peerTypes.contains(.bots) {
-                return canSendMessagesToPeer(peer)
+                return canSendMessagesToPeer(EnginePeer(peer))
             }
         }
         return false
@@ -1072,7 +1072,7 @@ class ShareStoryObject : ShareObject {
                         attributes.append(NotificationInfoMessageAttribute(flags: [.muted]))
                     }
                     if let date = date {
-                        attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970)))
+                        attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(date.timeIntervalSince1970), repeatPeriod: nil))
                     }
                     caption = Sender.enqueue(message: EnqueueMessage.message(text: comment.inputText, attributes: attributes, inlineStickers: [:], mediaReference: nil, threadId: threadId, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: []), context: context, peerId: peerId)
                 }

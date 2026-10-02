@@ -1335,7 +1335,7 @@ func Star_ListScreen(context: AccountContext, currency: CurrencyAmount.Currency 
         case let .gift(peer):
             invoiceSource = .starsGift(peerId: peer.id, count: option.native.count, currency: option.native.currency, amount: option.native.amount)
         default:
-            invoiceSource = .stars(option: option.native)
+            invoiceSource = .stars(option: option.native, peerId: nil)
         }
         
         let signal = showModalProgress(signal: context.engine.payments.fetchBotPaymentInvoice(source: invoiceSource), for: window)
@@ -1381,7 +1381,7 @@ func Star_ListScreen(context: AccountContext, currency: CurrencyAmount.Currency 
         case let .gift(peer):
             purpose = .starsGift(peerId: peer.id, count: option.native.count, currency: storeProduct.priceCurrencyAndAmount.currency, amount: storeProduct.priceCurrencyAndAmount.amount)
         default:
-            purpose = .stars(count: option.amount, currency: storeProduct.priceCurrencyAndAmount.currency, amount: storeProduct.priceCurrencyAndAmount.amount)
+            purpose = .stars(count: option.amount, currency: storeProduct.priceCurrencyAndAmount.currency, amount: storeProduct.priceCurrencyAndAmount.amount, peerId: nil)
         }
         
         let _ = (context.engine.payments.canPurchasePremium(purpose: purpose)
@@ -1535,6 +1535,4 @@ func Star_ListScreen(context: AccountContext, currency: CurrencyAmount.Currency 
     
     return modalController
 }
-
-
 

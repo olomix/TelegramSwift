@@ -174,8 +174,8 @@ final class PeerChannelMemberCategoriesContextsManager {
 
     }
     
-    func transferOwnership(peerId: PeerId, memberId: PeerId, password: String) -> Signal<Void, ChannelOwnershipTransferError> {
-        return engine.peers.updateChannelOwnership(channelId: peerId, memberId: memberId, password: password)
+    func transferOwnership(peerId: PeerId, memberId: PeerId, password: String) -> Signal<Void, ChatOwnershipTransferError> {
+        return engine.peers.updateChatOwnership(peerId: peerId, memberId: memberId, password: password)
             |> map(Optional.init)
             |> deliverOnMainQueue
             |> beforeNext { [weak self] results in
@@ -189,7 +189,7 @@ final class PeerChannelMemberCategoriesContextsManager {
                     }
                 }
             }
-            |> mapToSignal { _ -> Signal<Void, ChannelOwnershipTransferError> in
+            |> mapToSignal { _ -> Signal<Void, ChatOwnershipTransferError> in
                 return .complete()
         }
     }

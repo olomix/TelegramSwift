@@ -239,6 +239,8 @@ class ContextMediaRowView: TableRowView, ModalPreviewRowViewProtocol {
                             effectiveFile = FileMediaReference.standalone(media: file)
                         case .savedGif:
                             effectiveFile = FileMediaReference.savedGif(media: file)
+                        case let .savedMusic(peer, _):
+                            effectiveFile = FileMediaReference.savedMusic(peer: peer, media: file)
                         case let .stickerPack(stickerPack, _):
                             effectiveFile = FileMediaReference.stickerPack(stickerPack: stickerPack, media: file)
                         case let .webPage(webPage, _):

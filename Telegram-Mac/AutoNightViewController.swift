@@ -314,7 +314,7 @@ func AutoNightSettingsController(context: AccountContext) -> InputDataController
 
     
     let autoNight = autoNightSettings(accountManager: context.sharedContext.accountManager)
-    let cloudThemes = telegramThemes(postbox: context.account.postbox, network: context.account.network, accountManager: context.sharedContext.accountManager)
+    let cloudThemes = context.engine.themes.themes(accountManager: context.sharedContext.accountManager)
 
     let signal: Signal<[InputDataEntry], NoError> = combineLatest(queue: prepareQueue, appearanceSignal, autoNight, cloudThemes) |> map {
         autoNightEntries(appearance: $0, settings: $1, cloudThemes: $2, arguments: arguments)

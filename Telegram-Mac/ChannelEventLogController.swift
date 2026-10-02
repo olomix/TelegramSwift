@@ -373,7 +373,7 @@ private func eventLogItems(_ entries:[ChannelAdminEventLogEntry], state: State, 
                 }
                 
                 if i == group.count - 1, group.count > 1, !state.revealed.contains(groupId) {
-                    let attribute = ReplyMarkupMessageAttribute(rows: [.init(buttons: [.init(title: strings().eventLogServiceShowMoreCountable(group.count - 1), titleWhenForwarded: nil, action: .text)])], flags: [.inline], placeholder: nil)
+                    let attribute = ReplyMarkupMessageAttribute(rows: [.init(buttons: [.init(title: strings().eventLogServiceShowMoreCountable(group.count - 1), titleWhenForwarded: nil, action: .text, style: nil)])], flags: [.inline], placeholder: nil)
                     message = message.withUpdatedReplyMarkupAttribute(attribute)
                 }
                 if group.count == 1 || state.revealed.contains(groupId) || i == group.count - 1 {

@@ -241,7 +241,7 @@ class ChatWallpaperModalController: ModalViewController {
         })
         
 
-        let transition = combineLatest(queue: prepareQueue, telegramWallpapers(postbox: context.account.postbox, network: context.account.network), deleted.get(), appearanceSignal)
+        let transition = combineLatest(queue: prepareQueue, context.engine.themes.wallpapers(), deleted.get(), appearanceSignal)
             |> map { wallpapers, deletedWallpapers, appearance -> (ThemeGridEntryTransition, Bool) in
                 var entries: [ThemeGridControllerEntry] = []
                 var index = 0

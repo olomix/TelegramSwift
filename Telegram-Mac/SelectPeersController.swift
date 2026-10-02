@@ -711,17 +711,17 @@ class SelectGroupMembersBehavior : SelectPeersBehavior {
                                 
                                 switch participant {
                                 case .creator:
-                                    rendered = RenderedChannelParticipant(participant: .creator(id: peer.id, adminInfo: nil, rank: nil), peer: peer)
+                                    rendered = RenderedChannelParticipant(participant: .creator(id: peer.id, adminInfo: nil, rank: nil), peer: EnginePeer(peer))
                                 case .admin:
-                                    var peers: [PeerId: Peer] = [:]
-                                    peers[creator.id] = creator
-                                    peers[peer.id] = peer
-                                    rendered = RenderedChannelParticipant(participant: .member(id: peer.id, invitedAt: 0, adminInfo: ChannelParticipantAdminInfo(rights: TelegramChatAdminRights(rights: .internal_groupSpecific), promotedBy: creator.id, canBeEditedByAccountPeer: creator.id == account.peerId), banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: peer, peers: peers)
+                                    var peers: [PeerId: EnginePeer] = [:]
+                                    peers[creator.id] = EnginePeer(creator)
+                                    peers[peer.id] = EnginePeer(peer)
+                                    rendered = RenderedChannelParticipant(participant: .member(id: peer.id, invitedAt: 0, adminInfo: ChannelParticipantAdminInfo(rights: TelegramChatAdminRights(rights: .internal_groupSpecific), promotedBy: creator.id, canBeEditedByAccountPeer: creator.id == account.peerId), banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: EnginePeer(peer), peers: peers)
                                 case .member:
-                                    var peers: [PeerId: Peer] = [:]
-                                    peers[creator.id] = creator
-                                    peers[peer.id] = peer
-                                    rendered = RenderedChannelParticipant(participant: .member(id: peer.id, invitedAt: 0, adminInfo: nil, banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: peer, peers: peers)
+                                    var peers: [PeerId: EnginePeer] = [:]
+                                    peers[creator.id] = EnginePeer(creator)
+                                    peers[peer.id] = EnginePeer(peer)
+                                    rendered = RenderedChannelParticipant(participant: .member(id: peer.id, invitedAt: 0, adminInfo: nil, banInfo: nil, rank: nil, subscriptionUntilDate: nil), peer: EnginePeer(peer), peers: peers)
                                 }
                                 
                                 if search.request.isEmpty {
@@ -821,7 +821,7 @@ class SelectChannelMembersBehavior : SelectPeersBehavior {
 
             let foundLocalPeers = account.postbox.searchContacts(query: search.request.lowercased())
             
-            let foundRemotePeers:Signal<([Peer], [Peer], Bool), NoError> = context.engine.contacts.searchRemotePeers(query: search.request.lowercased()) |> map {($0.map{$0.peer}, $1.map{$0.peer}, false)}
+            let foundRemotePeers:Signal<([Peer], [Peer], Bool), NoError> = context.engine.contacts.searchRemotePeers(query: search.request.lowercased()) |> map {($0.map{$0.peer._asPeer()}, $1.map{$0.peer._asPeer()}, false)}
             
             
             let contactsSearch: Signal<([TemporaryPeer], [TemporaryPeer], Bool), NoError>
@@ -908,7 +908,7 @@ private func channelMembersEntries(_ participants:[RenderedChannelParticipant], 
         for participant in participants {
             if account.peerId != participant.peer.id {
                 
-                entries.append(.peer(SelectPeerValue(peer: participant.peer, presence: participant.presences[participant.peer.id], subscribers: nil), index, true))
+                entries.append(.peer(SelectPeerValue(peer: participant.peer._asPeer(), presence: participant.presences[participant.peer.id], subscribers: nil), index, true))
                 index += 1
             }
         }
@@ -1119,7 +1119,7 @@ class SelectContactsBehavior : SelectPeersBehavior {
             } else  {
                 
                 let foundLocalPeers = account.postbox.searchContacts(query: search.request.lowercased())
-                let foundRemotePeers:Signal<([Peer], [Peer], Bool), NoError> = settings.contains(.remote) ? .single(([], [], true)) |> then (context.engine.contacts.searchRemotePeers(query: search.request.lowercased()) |> map {($0.map{$0.peer}, $1.map{$0.peer}, false)} ) : .single(([], [], false))
+                let foundRemotePeers:Signal<([Peer], [Peer], Bool), NoError> = settings.contains(.remote) ? .single(([], [], true)) |> then (context.engine.contacts.searchRemotePeers(query: search.request.lowercased()) |> map {($0.map{$0.peer._asPeer()}, $1.map{$0.peer._asPeer()}, false)} ) : .single(([], [], false))
                 
                 return combineLatest(foundLocalPeers |> map {$0.0}, foundRemotePeers) |> map { values -> ([Peer], [Peer], Bool) in
                     return (uniquePeers(from: values.0), values.1.0 + values.1.1, values.1.2 && search.request.length >= 5)

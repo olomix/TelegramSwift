@@ -417,9 +417,9 @@ final class StoryContentContextImpl: StoryContentContext {
                     if let cachedUserData = cachedPeerDataView.cachedPeerData as? CachedUserData {
                         var isMuted = false
                         if let notificationSettings = peerView.notificationSettings as? TelegramPeerNotificationSettings {
-                            isMuted = resolvedAreStoriesMuted(globalSettings: globalNotificationSettings._asGlobalNotificationSettings(), peer: peer._asPeer(), peerSettings: notificationSettings, topSearchPeers: [])
+                            isMuted = resolvedAreStoriesMuted(globalSettings: globalNotificationSettings._asGlobalNotificationSettings(), peer: peer, peerSettings: notificationSettings, topSearchPeers: [])
                         } else {
-                            isMuted = resolvedAreStoriesMuted(globalSettings: globalNotificationSettings._asGlobalNotificationSettings(), peer: peer._asPeer(), peerSettings: nil, topSearchPeers: [])
+                            isMuted = resolvedAreStoriesMuted(globalSettings: globalNotificationSettings._asGlobalNotificationSettings(), peer: peer, peerSettings: nil, topSearchPeers: [])
                         }
                         additionalPeerData = StoryContentContextState.AdditionalPeerData(
                             isMuted: isMuted,
@@ -531,7 +531,9 @@ final class StoryContentContextImpl: StoryContentContext {
                         isMy: item.isMy,
                         myReaction: item.myReaction,
                         forwardInfo: forwardInfo, 
-                        author: item.authorId.flatMap { peers[$0].flatMap(EnginePeer.init) }
+                        music: nil,
+                        author: item.authorId.flatMap { peers[$0].flatMap(EnginePeer.init) },
+                        folderIds: nil
                     )
                 }
                 var totalCount = peerStoryItemsView.items.count
@@ -568,7 +570,9 @@ final class StoryContentContextImpl: StoryContentContext {
                                 isMy: true,
                                 myReaction: nil,
                                 forwardInfo: pendingForwardsInfo[item.randomId],
-                                author: nil
+                                music: nil,
+                                author: nil,
+                                folderIds: nil
                             ))
                             totalCount += 1
                         }
@@ -857,6 +861,7 @@ final class StoryContentContextImpl: StoryContentContext {
                         peer: peer,
                         hasUnseen: state.hasUnseen,
                         hasUnseenCloseFriends: state.hasUnseenCloseFriends,
+                        hasLiveItems: false,
                         hasPending: false,
                         storyCount: state.items.count,
                         unseenCount: 0,
@@ -1465,7 +1470,7 @@ final class SingleStoryContentContextImpl: StoryContentContext {
                 return
             }
 
-            let isMuted = resolvedAreStoriesMuted(globalSettings: globalNotificationSettings._asGlobalNotificationSettings(), peer: peer._asPeer(), peerSettings: notificationSettings._asNotificationSettings(), topSearchPeers: [])
+            let isMuted = resolvedAreStoriesMuted(globalSettings: globalNotificationSettings._asGlobalNotificationSettings(), peer: peer, peerSettings: notificationSettings._asNotificationSettings(), topSearchPeers: [])
             
             let additionalPeerData = StoryContentContextState.AdditionalPeerData(
                 isMuted: isMuted,
@@ -1552,7 +1557,9 @@ final class SingleStoryContentContextImpl: StoryContentContext {
                     isMy: itemValue.isMy,
                     myReaction: itemValue.myReaction,
                     forwardInfo: itemValue.forwardInfo.flatMap { EngineStoryItem.ForwardInfo($0, peers: peers) }, 
-                    author: itemValue.authorId.flatMap { peers[$0].flatMap(EnginePeer.init) }
+                    music: nil,
+                    author: itemValue.authorId.flatMap { peers[$0].flatMap(EnginePeer.init) },
+                    folderIds: nil
                 )
                 
                 let mainItem = StoryContentItem(
@@ -1696,7 +1703,7 @@ final class PeerStoryListContentContextImpl: StoryContentContext {
                 return
             }
             
-            let isMuted = resolvedAreStoriesMuted(globalSettings: globalNotificationSettings._asGlobalNotificationSettings(), peer: peer._asPeer(), peerSettings: notificationSettings._asNotificationSettings(), topSearchPeers: [])
+            let isMuted = resolvedAreStoriesMuted(globalSettings: globalNotificationSettings._asGlobalNotificationSettings(), peer: peer, peerSettings: notificationSettings._asNotificationSettings(), topSearchPeers: [])
             
             let additionalPeerData = StoryContentContextState.AdditionalPeerData(
                 isMuted: isMuted,
@@ -2444,7 +2451,9 @@ private func getCachedStory(storyId: StoryId, transaction: Transaction) -> Engin
             isMy: item.isMy,
             myReaction: item.myReaction,
             forwardInfo: item.forwardInfo.flatMap { EngineStoryItem.ForwardInfo($0, transaction: transaction) }, 
-            author: item.authorId.flatMap { transaction.getPeer($0).flatMap(EnginePeer.init) }
+            music: nil,
+            author: item.authorId.flatMap { transaction.getPeer($0).flatMap(EnginePeer.init) },
+            folderIds: nil
         )
     } else {
         return nil

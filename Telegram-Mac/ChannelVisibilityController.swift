@@ -345,7 +345,7 @@ private enum ChannelVisibilityEntry: TableItemListNodeEntry {
         case let .existingLinksInfo(_, text, viewType):
             return GeneralTextRowItem(initialSize, stableId: stableId, text: text, viewType: viewType)
         case let .existingLinkPeerItem(_, _, peer, _, _, viewType):
-            return ShortPeerRowItem(initialSize, peer: peer.peer, account: arguments.context.account, context: arguments.context, status: "t.me/\(peer.peer.addressName ?? "unknown")", inset: NSEdgeInsets(left: 20, right: 20), interactionType:.deletable(onRemove: { peerId in
+            return ShortPeerRowItem(initialSize, peer: peer.peer._asPeer(), account: arguments.context.account, context: arguments.context, status: "t.me/\(peer.peer.addressName ?? "unknown")", inset: NSEdgeInsets(left: 20, right: 20), interactionType:.deletable(onRemove: { peerId in
                 arguments.revokePeerId(peerId)
             }, deletable: true), viewType: viewType)
         case let .manageLinks(_, viewType):
@@ -503,7 +503,7 @@ private func entries(arguments: Arguments, state: State) -> [ChannelVisibilityEn
                     })
                     
                     for (i, peer) in sorted.enumerated() {
-                        entries.append(.existingLinkPeerItem(sectionId: sectionId, index, FoundPeer(peer: peer.peer, subscribers: nil), nil, state.revokingPeerId == nil, bestGeneralViewType(sorted, for: i)))
+                        entries.append(.existingLinkPeerItem(sectionId: sectionId, index, FoundPeer(peer: EnginePeer(peer.peer), subscribers: nil), nil, state.revokingPeerId == nil, bestGeneralViewType(sorted, for: i)))
                         index += 1
                     }
                 } else {
@@ -626,7 +626,7 @@ private func entries(arguments: Arguments, state: State) -> [ChannelVisibilityEn
                         return lhsDate > rhsDate
                     })
                     for (i, peer) in sorted.enumerated() {
-                        entries.append(.existingLinkPeerItem(sectionId: sectionId, index, FoundPeer(peer: peer.peer, subscribers: nil), nil, state.revokingPeerId == nil, bestGeneralViewType(sorted, for: i)))
+                        entries.append(.existingLinkPeerItem(sectionId: sectionId, index, FoundPeer(peer: EnginePeer(peer.peer), subscribers: nil), nil, state.revokingPeerId == nil, bestGeneralViewType(sorted, for: i)))
                         index += 1
                     }
                 } else {

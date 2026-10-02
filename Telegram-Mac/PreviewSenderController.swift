@@ -1970,7 +1970,7 @@ class PreviewSenderController: ModalViewController, Notifable {
                                 return data
                             }}
                             self?.urls[index] = new
-                            addAppLogEvent(postbox: context.account.postbox, time: Date().timeIntervalSince1970, type: AppLogEvents.imageEditor.rawValue, peerId: context.peerId, data: [:])
+                            context.engine.accountData.addAppLogEvent(time: Date().timeIntervalSince1970, type: AppLogEvents.imageEditor.rawValue, peerId: context.peerId, data: [:])
                         }
                     }))
                 }, alone: true)
@@ -1992,7 +1992,7 @@ class PreviewSenderController: ModalViewController, Notifable {
                             return data
                         }}
                         self.urls[index] = new
-                        addAppLogEvent(postbox: context.account.postbox, time: Date().timeIntervalSince1970, type: AppLogEvents.imageEditor.rawValue, peerId: context.peerId, data: [:])
+                        context.engine.accountData.addAppLogEvent(time: Date().timeIntervalSince1970, type: AppLogEvents.imageEditor.rawValue, peerId: context.peerId, data: [:])
                     }
                 }))
             }

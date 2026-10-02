@@ -110,7 +110,7 @@ class ContextCommandRowView : TableRowView {
     override func set(item: TableRowItem, animated: Bool) {
         super.set(item: item, animated:animated)
         if let item = item as? ContextCommandRowItem {
-            photoView.setPeer(account: item.account, peer: item.command.peer)
+            photoView.setPeer(account: item.account, peer: item.command.peer._asPeer())
         }
         textView.background = backdorColor
         descView.background = backdorColor

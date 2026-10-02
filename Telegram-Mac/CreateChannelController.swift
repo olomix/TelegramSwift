@@ -297,8 +297,8 @@ func CreateChannelController(context: AccountContext, requires: CreateChannelReq
         } |> mapToSignal { peerId in
             if let picture = picture {
                 let resource = LocalFileReferenceMediaResource(localFilePath: picture, randomId: arc4random64())
-                let signal:Signal<(PeerId, Bool)?, CreateChannelError> = context.engine.peers.updatePeerPhoto(peerId: peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: resource), mapResourceToAvatarSizes: { resource, representations in
-                    return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource, representations: representations)
+                let signal:Signal<(PeerId, Bool)?, CreateChannelError> = context.engine.peers.updatePeerPhoto(peerId: peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: EngineMediaResource(resource)), mapResourceToAvatarSizes: { resource, representations in
+                    return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource._asResource(), representations: representations)
                 }) |> mapError { _ in CreateChannelError.generic } |> map { value in
                     switch value {
                     case .complete:

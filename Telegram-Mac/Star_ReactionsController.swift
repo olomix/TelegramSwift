@@ -985,7 +985,7 @@ private final class FromPeerView: Control {
             self.contextMenu = {
                 let menu = ContextMenu()
                 for senda in sendas {
-                    menu.addItem(ContextSendAsMenuItem(peer: .init(peer: senda._asPeer(), subscribers: nil, isPremiumRequired: false), context: context, isSelected: peer.id == senda._asPeer().id, handler: {
+                    menu.addItem(ContextSendAsMenuItem(peer: .init(peer: senda, subscribers: nil, isPremiumRequired: false), context: context, isSelected: peer.id == senda.id, handler: {
                         selectAction(senda)
                     }))
                 }
@@ -1394,7 +1394,6 @@ func Star_ReactionsController(context: AccountContext, message: Message) -> Inpu
     
     return modalController
 }
-
 
 
 

@@ -31,16 +31,16 @@ func searchPeerMembers(context: AccountContext, peerId: PeerId, chatLocation: Ch
                                         return nil
                                     }
                                     if normalizedQuery.isEmpty {
-                                        return participant.peer
+                                        return participant.peer._asPeer()
                                     }
                                     if normalizedQuery.isEmpty {
-                                        return participant.peer
+                                        return participant.peer._asPeer()
                                     } else {
                                         if participant.peer.indexName.matchesByTokens(normalizedQuery) {
-                                            return participant.peer
+                                            return participant.peer._asPeer()
                                         }
                                         if let addressName = participant.peer.addressName, addressName.lowercased().hasPrefix(normalizedQuery) {
-                                            return participant.peer
+                                            return participant.peer._asPeer()
                                         }
                                         
                                         return nil
@@ -65,7 +65,7 @@ func searchPeerMembers(context: AccountContext, peerId: PeerId, chatLocation: Ch
                                     if participant.peer.isDeleted {
                                         return nil
                                     }
-                                    return participant.peer
+                                    return participant.peer._asPeer()
                                 }, true))
                             }
                         })
@@ -80,7 +80,7 @@ func searchPeerMembers(context: AccountContext, peerId: PeerId, chatLocation: Ch
                                     if participant.peer.isDeleted {
                                         return nil
                                     }
-                                    return participant.peer
+                                    return participant.peer._asPeer()
                                 }, true))
                             }
                         })

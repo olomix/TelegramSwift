@@ -28,7 +28,7 @@ final class SearchStoryFoundItem : GeneralRowItem {
         
         let items: [EngineStorySubscriptions.Item] = list.items.prefix(3).compactMap { item in
             if let peer = item.peer {
-                return .init(peer: peer, hasUnseen: true, hasUnseenCloseFriends: false, hasPending: false, storyCount: 1, unseenCount: 0, lastTimestamp: 0)
+                return .init(peer: peer, hasUnseen: true, hasUnseenCloseFriends: false, hasLiveItems: false, hasPending: false, storyCount: 1, unseenCount: 0, lastTimestamp: 0)
             } else {
                 return nil
             }

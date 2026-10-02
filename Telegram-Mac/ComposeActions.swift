@@ -24,8 +24,8 @@ func createGroup(with context: AccountContext, selectedPeers:Set<PeerId> = Set()
     } |> mapToSignal{ result, picture -> Signal<(CreateGroupResult?, Bool), CreateGroupError> in
             if let result = result, let picture = picture {
                 let resource = LocalFileReferenceMediaResource(localFilePath: picture, randomId: arc4random64())
-                let signal:Signal<(CreateGroupResult?, Bool), NoError> = context.engine.peers.updatePeerPhoto(peerId: result.peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: resource), mapResourceToAvatarSizes: { resource, representations in
-                    return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource, representations: representations)
+                let signal:Signal<(CreateGroupResult?, Bool), NoError> = context.engine.peers.updatePeerPhoto(peerId: result.peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: EngineMediaResource(resource)), mapResourceToAvatarSizes: { resource, representations in
+                    return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource._asResource(), representations: representations)
                 }) |> `catch` {_ in .complete()} |> map { value in
                     switch value {
                     case .complete:
@@ -106,8 +106,8 @@ func createGroupDirectly(with context: AccountContext, selectedPeers: [PeerId] =
                 
                 if let picture = picture {
                     let resource = LocalFileReferenceMediaResource(localFilePath: picture, randomId: arc4random64())
-                    let signal:Signal<Void, NoError> = context.engine.peers.updatePeerPhoto(peerId: groupResult.peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: resource), mapResourceToAvatarSizes: { resource, representations in
-                        return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource, representations: representations)
+                    let signal:Signal<Void, NoError> = context.engine.peers.updatePeerPhoto(peerId: groupResult.peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: EngineMediaResource(resource)), mapResourceToAvatarSizes: { resource, representations in
+                        return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource._asResource(), representations: representations)
                     }) |> `catch` { _ in .complete() } |> map { _ in }
                     additionalSignals.append(signal)
                 }
@@ -157,8 +157,8 @@ func createSupergroup(with context: AccountContext, defaultText: String = "") ->
                 
                 if let picture = picture {
                     let resource = LocalFileReferenceMediaResource(localFilePath: picture, randomId: arc4random64())
-                    let signal:Signal<Void, NoError> = context.engine.peers.updatePeerPhoto(peerId: peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: resource), mapResourceToAvatarSizes: { resource, representations in
-                        return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource, representations: representations)
+                    let signal:Signal<Void, NoError> = context.engine.peers.updatePeerPhoto(peerId: peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: EngineMediaResource(resource)), mapResourceToAvatarSizes: { resource, representations in
+                        return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource._asResource(), representations: representations)
                     }) |> `catch` { _ in .complete() } |> map { _ in }
                     additionalSignals.append(signal)
                 }

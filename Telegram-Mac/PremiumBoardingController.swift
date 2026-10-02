@@ -243,16 +243,16 @@ enum PremiumLogEvents  {
         let type = "premium.\(self.value)"
         switch self {
         case let .promo_screen_show(source):
-            addAppLogEvent(postbox: context.account.postbox, time: Date().timeIntervalSince1970, type: type, peerId: context.peerId, data: [
+            context.engine.accountData.addAppLogEvent(time: Date().timeIntervalSince1970, type: type, peerId: context.peerId, data: [
                 "premium_promo_order": context.premiumOrder.premiumValues.map { $0.rawValue },
                 "source":source.value
             ])
         case let .promo_screen_tap(value):
-            addAppLogEvent(postbox: context.account.postbox, time: Date().timeIntervalSince1970, type: type, peerId: context.peerId, data: [
+            context.engine.accountData.addAppLogEvent(time: Date().timeIntervalSince1970, type: type, peerId: context.peerId, data: [
                 "item":value.rawValue
             ])
         case .promo_screen_fail, .promo_screen_accept:
-            addAppLogEvent(postbox: context.account.postbox, time: Date().timeIntervalSince1970, type: type, peerId: context.peerId, data: [:])
+            context.engine.accountData.addAppLogEvent(time: Date().timeIntervalSince1970, type: type, peerId: context.peerId, data: [:])
         }
 
     }
@@ -1727,7 +1727,7 @@ final class PremiumBoardingController : ModalViewController {
                 }
                 
             } else {
-                addAppLogEvent(postbox: context.account.postbox, type: PremiumLogEvents.promo_screen_accept.value)
+                context.engine.accountData.addAppLogEvent(type: PremiumLogEvents.promo_screen_accept.value)
                 
                 #if APP_STORE
                 buyAppStore()

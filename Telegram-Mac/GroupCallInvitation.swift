@@ -127,9 +127,9 @@ final class GroupCallAddMembersBehaviour : SelectPeersBehavior {
             } else if let peer = peer, peer.groupAccess.canAddMembers {
                 globalSearch = engine.contacts.searchRemotePeers(query: search.request.lowercased()) |> map {
                     return $0.0.map {
-                        $0.peer
+                        $0.peer._asPeer()
                     } + $0.1.map {
-                        $0.peer
+                        $0.peer._asPeer()
                     }
                 }
             } else {
@@ -147,7 +147,7 @@ final class GroupCallAddMembersBehaviour : SelectPeersBehavior {
                     (disposable, _) = peerMemberContextsManager.recent(peerId: peerId, searchQuery: search.request.isEmpty ? nil : search.request, updated:  { state in
                         if case .ready = state.loadingState {
                             subscriber.putNext(state.list.map {
-                                return Participant(peer: $0.peer, presence: $0.presences[$0.peer.id])
+                                return Participant(peer: $0.peer._asPeer(), presence: $0.presences[$0.peer.id])
                             })
                             subscriber.putCompletion()
                         }
@@ -364,9 +364,9 @@ final class GroupCallInviteMembersBehaviour : SelectPeersBehavior {
             } else {
                 globalSearch = engine.contacts.searchRemotePeers(query: search.request.lowercased()) |> map {
                     return $0.0.map {
-                        $0.peer
+                        $0.peer._asPeer()
                     } + $0.1.map {
-                        $0.peer
+                        $0.peer._asPeer()
                     }
                 }
             }

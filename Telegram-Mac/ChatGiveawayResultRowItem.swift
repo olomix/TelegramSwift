@@ -111,7 +111,7 @@ final class ChatGiveawayResultRowItem : ChatRowItem {
         var channels:[Channel] = []
         for peerId in media.winnersPeerIds {
             if let peer = object.message?.peers[peerId] {
-                let color = isIncoming || object.renderType == .list ? context.peerNameColors.get(peer.nameColor ?? .blue).main : theme.colors.accentIconBubble_outgoing
+                let color = isIncoming || object.renderType == .list ? context.peerNameColors.get(giveawayPeerNameColor(peer.nameColor)).main : theme.colors.accentIconBubble_outgoing
                 channels.append(.init(peer: peer, text: .init(.initialize(string: peer.displayTitle, color: color, font: .medium(.text)), maximumNumberOfLines: 1), rect: .zero))
             }
         }
@@ -289,7 +289,7 @@ private final class ChatGiveawayResultRowView: ChatRowView {
             self.avatar.setPeer(account: item.context.account, peer: channel.peer)
             self.textView.update(channel.text)
             
-            let color = item.context.peerNameColors.get(channel.peer.nameColor ?? .blue)
+            let color = item.context.peerNameColors.get(giveawayPeerNameColor(channel.peer.nameColor))
             
             self.backgroundColor = color.main.withAlphaComponent(0.2)
             self.setFrameSize(channel.size)
@@ -407,4 +407,3 @@ private final class ChatGiveawayResultRowView: ChatRowView {
         fatalError("init(coder:) has not been implemented")
     }
 }
-

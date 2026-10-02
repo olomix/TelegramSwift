@@ -12,6 +12,12 @@ import Postbox
 import TGUIKit
 import SwiftSignalKit
 
+extension ProfileGiftsContext.Filters {
+    static var limited: ProfileGiftsContext.Filters {
+        return [.limitedUpgradable, .limitedNonUpgradable]
+    }
+}
+
 
 
 private final class FilterRowItem : GeneralRowItem {
@@ -1315,7 +1321,6 @@ func PeerMediaGiftsController(context: AccountContext, peerId: PeerId, starGifts
     return controller
     
 }
-
 
 
 

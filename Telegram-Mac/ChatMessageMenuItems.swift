@@ -354,6 +354,7 @@ func chatMenuItems(for message: Message, entry: ChatHistoryEntry?, textLayout: (
                                         text: "",
                                         media: .update(.message(message: MessageReference(message), media: mediaUpdated)),
                                         entities: nil,
+                                        richText: nil,
                                         inlineStickers: [:]
                                     )
                                 }
@@ -390,7 +391,7 @@ func chatMenuItems(for message: Message, entry: ChatHistoryEntry?, textLayout: (
                     let entities = messageTextEntitiesInRange(entities: ChatTextInputState(attributedText: attributed, selectionRange: 0..<0).messageTextEntities(), range: attributed.range, onlyQuoteable: true)
                     
                     let quote = EngineMessageReplyQuote(text: attributed.string, offset: nil, entities: entities, media: message.media.first)
-                    chatInteraction.setupReplyMessage(message, .init(messageId: message.id, quote: quote, todoItemId: nil))
+                    chatInteraction.setupReplyMessage(message, .init(messageId: message.id, quote: quote, innerSubject: nil))
 
                 }
                 
@@ -569,7 +570,7 @@ func chatMenuItems(for message: Message, entry: ChatHistoryEntry?, textLayout: (
             if data.message.pendingProcessingAttribute == nil {
                 firstBlock.append(ContextMenuItem(strings().chatContextScheduledReschedule, handler: {
                     showModal(with: DateSelectorModalController(context: context, defaultDate: message.timestamp == scheduleWhenOnlineTimestamp ? Date() : Date(timeIntervalSince1970: TimeInterval(message.timestamp)), mode: .schedule(peer.id), selectedAt: { date in
-                        _ = showModalProgress(signal: context.engine.messages.requestEditMessage(messageId: messageId, text: data.message.text, media: .keep, entities: data.message.textEntities, inlineStickers: data.message.associatedMedia, scheduleTime: Int32(min(date.timeIntervalSince1970, Double(scheduleWhenOnlineTimestamp)))), for: context.window).start()
+                        _ = showModalProgress(signal: context.engine.messages.requestEditMessage(messageId: messageId, text: data.message.text, media: .keep, entities: data.message.textEntities, richText: nil, inlineStickers: data.message.associatedMedia, scheduleInfoAttribute: OutgoingScheduleInfoMessageAttribute(scheduleTime: Int32(min(date.timeIntervalSince1970, Double(scheduleWhenOnlineTimestamp))), repeatPeriod: nil)), for: context.window).start()
                    }), for: context.window)
                 }, itemImage: MenuAnimation.menu_schedule_message.value))
             }
@@ -587,14 +588,14 @@ func chatMenuItems(for message: Message, entry: ChatHistoryEntry?, textLayout: (
             }
             
             firstBlock.append(ContextMenuItem(strings().messageContextReply1, handler: {
-                data.chatInteraction.setupReplyMessage(data.message, .init(messageId: data.message.id, quote: nil, todoItemId: todoItemId))
+                data.chatInteraction.setupReplyMessage(data.message, .init(messageId: data.message.id, quote: nil, innerSubject: todoItemId.map { .todoItem($0) }))
             }, itemImage: MenuAnimation.menu_reply.value, keyEquivalent: .cmdr))
         }
         
         
         if let poll = data.message.anyMedia as? TelegramMediaPoll {
             if !poll.isClosed && isNotFailed {
-                if let _ = poll.results.voters?.first(where: {$0.selected}), poll.kind != .quiz {
+                if let _ = poll.results.voters?.first(where: {$0.selected}), !poll.kind.isQuiz {
                     let isLoading = data.additionalData.pollStateData.isLoading
                     add_secondBlock.append(ContextMenuItem(strings().chatPollUnvote, handler: {
                         if !isLoading, isNotFailed {
@@ -605,8 +606,8 @@ func chatMenuItems(for message: Message, entry: ChatHistoryEntry?, textLayout: (
                 if data.message.forwardInfo == nil {
                     let canClose: Bool = canEditMessage(data.message, chatInteraction: data.chatInteraction, context: context, ignorePoll: true)
                     if canClose {
-                        add_secondBlock.append(ContextMenuItem(poll.kind == .quiz ? strings().chatQuizStop : strings().chatPollStop, handler: { [weak chatInteraction] in
-                            verifyAlert_button(for: context.window, header: poll.kind == .quiz ? strings().chatQuizStopConfirmHeader : strings().chatPollStopConfirmHeader, information: poll.kind == .quiz ? strings().chatQuizStopConfirmText : strings().chatPollStopConfirmText, ok: strings().alertConfirmStop, successHandler: { [weak chatInteraction] _ in
+                        add_secondBlock.append(ContextMenuItem(poll.kind.isQuiz ? strings().chatQuizStop : strings().chatPollStop, handler: { [weak chatInteraction] in
+                            verifyAlert_button(for: context.window, header: poll.kind.isQuiz ? strings().chatQuizStopConfirmHeader : strings().chatPollStopConfirmHeader, information: poll.kind.isQuiz ? strings().chatQuizStopConfirmText : strings().chatPollStopConfirmText, ok: strings().alertConfirmStop, successHandler: { [weak chatInteraction] _ in
                                 chatInteraction?.closePoll(messageId)
                             })
                         }, itemImage: MenuAnimation.menu_stop_poll.value))

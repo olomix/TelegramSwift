@@ -138,7 +138,7 @@ func RTMPStartController(context: AccountContext, peerId: PeerId, scheduleDate: 
         modalController?.close()
     })
     
-    let getSignal = context.engine.calls.getGroupCallStreamCredentials(peerId: EnginePeer.Id.init(peerId.toInt64()), revokePreviousCredentials: false)
+    let getSignal = context.engine.calls.getGroupCallStreamCredentials(peerId: EnginePeer.Id.init(peerId.toInt64()), isLiveStream: true, revokePreviousCredentials: false)
     
     actionsDisposable.add(getSignal.start(next: { credentials in
         updateState { current in
@@ -162,5 +162,4 @@ func RTMPStartController(context: AccountContext, peerId: PeerId, scheduleDate: 
     
     return modalController
 }
-
 

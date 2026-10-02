@@ -19,7 +19,7 @@ extension StarGift.UniqueGift {
     var file: TelegramMediaFile? {
         for attribute in self.attributes {
             inner: switch attribute {
-            case .model(_, let file, _):
+            case .model(_, let file, _, _):
                 return file
             default:
                 break inner
@@ -1496,12 +1496,12 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
         case let .unique(gift):
             for attr in gift.attributes {
                 switch attr {
-                case .model(let name, _, let rarity):
-                    rows.append(.init(left: .init(.initialize(string: strings().giftUniqueModel, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity) / 10).string)%", callback: {}))))
+                case .model(let name, _, let rarity, _):
+                    rows.append(.init(left: .init(.initialize(string: strings().giftUniqueModel, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity.permilleValue) / 10).string)%", callback: {}))))
                 case .pattern(let name, _, let rarity):
-                    rows.append(.init(left: .init(.initialize(string: strings().giftUniqueSymbol, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity) / 10).string)%", callback: {}))))
+                    rows.append(.init(left: .init(.initialize(string: strings().giftUniqueSymbol, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity.permilleValue) / 10).string)%", callback: {}))))
                 case .backdrop(let name, _, _, _, _, _, let rarity):
-                    rows.append(.init(left: .init(.initialize(string: strings().giftUniqueBackdrop, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity) / 10).string)%", callback: {}))))
+                    rows.append(.init(left: .init(.initialize(string: strings().giftUniqueBackdrop, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity.permilleValue) / 10).string)%", callback: {}))))
                 default:
                     break
                 }
@@ -1868,8 +1868,11 @@ func Star_TransactionScreen(context: AccountContext, fromPeerId: PeerId, peer: E
     }, upgrade: {
         if let gift = transaction.starGift, let id = gift.generic?.id, let peer, let reference {
             _ = showModalProgress(signal: context.engine.payments.starGiftUpgradePreview(giftId: id), for: window).startStandalone(next: { attributes in
+                guard let attributes else {
+                    return
+                }
                 close?()
-                showModal(with: StarGift_Nft_Controller(context: context, gift: gift, source: .upgrade(peer, attributes, reference), transaction: transaction, giftsContext: profileContext), for: window)
+                showModal(with: StarGift_Nft_Controller(context: context, gift: gift, source: .upgrade(peer, attributes.attributes, reference), transaction: transaction, giftsContext: profileContext), for: window)
             })
         }
     }, transferUnqiue: { gift in
@@ -1990,7 +1993,7 @@ func Star_TransactionScreen(context: AccountContext, fromPeerId: PeerId, peer: E
         return controller
     }
     
-    controller.didLoad = { controller, _ in
+    controller.didLoad = { (controller: InputDataController, _: [InputDataIdentifier: InputDataValue]) in
         gallery = .init(tableView: controller.tableView)
         controller.tableView.supplyment = gallery
         getTableView = { [weak controller] in
@@ -2024,3 +2027,10 @@ func Star_TransactionScreen(context: AccountContext, fromPeerId: PeerId, peer: E
 }
 
 
+
+
+extension StarGift.UniqueGift {
+    var resellStars: Int64? {
+        return self.resellAmounts?.first(where: { $0.currency == .stars })?.amount.value
+    }
+}

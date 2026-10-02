@@ -16,8 +16,8 @@ import InAppSettings
 extension SearchMessagesLocation {
     func withUpdatedSouce(_ source: SearchController.MessaagesSourceValue) -> SearchMessagesLocation {
         switch self {
-        case let .general(_, tags, minDate, maxDate):
-            return .general(scope: source.scope, tags: tags, minDate: minDate, maxDate: maxDate)
+        case let .general(_, _, tags, minDate, maxDate, _, _):
+            return .general(scope: source.scope, groupId: nil, tags: tags, minDate: minDate, maxDate: maxDate, folderId: nil, communityId: nil)
         default:
             return self
         }
@@ -320,7 +320,7 @@ fileprivate enum ChatListSearchEntry: Comparable, Identifiable {
                 return false
             }
         case let .globalPeer(lhsPeer, badge, index, adPeer):
-            if case .globalPeer(let rhsPeer, badge, index, adPeer) = rhs, lhsPeer.peer.isEqual(rhsPeer.peer) && lhsPeer.subscribers == rhsPeer.subscribers {
+            if case .globalPeer(let rhsPeer, badge, index, adPeer) = rhs, lhsPeer.peer == rhsPeer.peer && lhsPeer.subscribers == rhsPeer.subscribers {
                 return true
             } else {
                 return false
@@ -568,8 +568,8 @@ fileprivate func prepareEntries(from:[AppearanceWrapperEntry<ChatListSearchEntry
                     status = strings().searchGlobalGroup1Countable(username, Int(subscribers))
                 }
             }
-            return RecentPeerRowItem(initialSize, peer: foundPeer.peer, account: arguments.context.account, context: arguments.context, stableId: entry.stableId, statusStyle:ControlStyle(font:.normal(.text), foregroundColor: theme.colors.grayText, highlightColor:.white), status: status, borderType: [.Right], contextMenuItems: {
-                return peerContextMenuItems(peer: foundPeer.peer, pinnedItems: pinnedItems, arguments: arguments, isRecent: false)
+            return RecentPeerRowItem(initialSize, peer: foundPeer.peer._asPeer(), account: arguments.context.account, context: arguments.context, stableId: entry.stableId, statusStyle:ControlStyle(font:.normal(.text), foregroundColor: theme.colors.grayText, highlightColor:.white), status: status, borderType: [.Right], contextMenuItems: {
+                return peerContextMenuItems(peer: foundPeer.peer._asPeer(), pinnedItems: pinnedItems, arguments: arguments, isRecent: false)
             }, unreadBadge: badge, adPeer: adPeer, removeAd: arguments.removeAd)
         case let .localPeer(renderedPeer, _, secretChat, badge, drawBorder, canAddAsTag, storyStats):
             
@@ -781,7 +781,7 @@ struct SearchTags : Hashable {
         if let peerTag = peerTag {
             return .peer(peerId: peerTag, fromId: nil, tags: messageTags, reactions: nil, threadId: nil, minDate: nil, maxDate: nil)
         } else {
-            return .general(scope: scope(value), tags: messageTags, minDate: nil, maxDate: nil)
+            return .general(scope: scope(value), groupId: nil, tags: messageTags, minDate: nil, maxDate: nil, folderId: nil, communityId: nil)
         }
     }
     
@@ -975,11 +975,11 @@ class SearchController: GenericViewController<TableView>,TableViewDelegate {
                             }
                         }
                     }
-                }) |> map { result in
+                }) |> map { result -> [RenderedPeer] in
                     return Array(result.joined())
-                } |> mapToSignal { peers in
+                } |> mapToSignal { peers -> Signal<([PeerView], [RenderedPeer]), NoError> in
                     return combineLatest(peers.map { context.account.postbox.peerView(id: $0.peerId) |> take(1) }) |> map { ($0, peers) }
-                } |> mapToSignal { peerViews, peers in
+                } |> mapToSignal { peerViews, peers -> Signal<([RenderedPeer], [PeerId: UnreadSearchBadge], EngineDataMap<TelegramEngine.EngineData.Item.Peer.StoryStats>.Result), NoError> in
                     
                     let items: [UnreadMessageCountsItem] = peers.map { peer in
                         return .peer(id: peer.peerId, handleThreads: peer.peer?.isForum == true)
@@ -995,7 +995,7 @@ class SearchController: GenericViewController<TableView>,TableViewDelegate {
                             }
                         }
                         return (peers, unread)
-                    } |> mapToSignal { peers, unread in
+                    } |> mapToSignal { peers, unread -> Signal<([RenderedPeer], [PeerId: UnreadSearchBadge], EngineDataMap<TelegramEngine.EngineData.Item.Peer.StoryStats>.Result), NoError> in
                         
                         return context.engine.data.subscribe(
                             EngineDataMap(
@@ -1055,7 +1055,7 @@ class SearchController: GenericViewController<TableView>,TableViewDelegate {
                     }
                     
                     if groupId != .root {
-                        location = .group(groupId: groupId, tags: nil, minDate: nil, maxDate: nil)
+                        location = .general(scope: .everywhere, groupId: groupId, tags: nil, minDate: nil, maxDate: nil, folderId: nil, communityId: nil)
                         foundRemotePeers = .single(([], [], false))
                     } else {
                         location = globalTags.location(.allChats)
@@ -1134,7 +1134,7 @@ class SearchController: GenericViewController<TableView>,TableViewDelegate {
                                     index = 10001
                                     if !adPeers.isEmpty {
                                         for adPeer in adPeers {
-                                            remote.append(.globalPeer(.init(peer: adPeer.peer._asPeer(), subscribers: nil), .none, index, adPeer))
+                                            remote.append(.globalPeer(.init(peer: adPeer.peer, subscribers: nil), .none, index, adPeer))
                                             index += 1
                                         }
                                     }
@@ -1380,7 +1380,7 @@ class SearchController: GenericViewController<TableView>,TableViewDelegate {
             } else if query.isEmpty, let listType = globalTags.listType {
                 let channels: Signal<[FoundPeer], NoError> = context.engine.peers.recommendedChannels(peerId: nil) |> map {
                     $0?.channels.map {
-                        .init(peer: $0.peer._asPeer(), subscribers: $0.subscribers)
+                        .init(peer: $0.peer, subscribers: $0.subscribers)
                     } ?? []
                 }
                 

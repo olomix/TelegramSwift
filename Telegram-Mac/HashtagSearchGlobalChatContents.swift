@@ -78,7 +78,7 @@ final class HashtagSearchGlobalChatContents: ChatCustomContentsProtocol {
             
             let search: Signal<(SearchMessagesResult, SearchMessagesState), NoError>
             if self.onlyMy {
-                search = self.context.engine.messages.searchMessages(location: .general(scope: .everywhere, tags: nil, minDate: nil, maxDate: nil), query: "#\(self.query)", state: initialState?.1)
+                search = self.context.engine.messages.searchMessages(location: .general(scope: .everywhere, groupId: nil, tags: nil, minDate: nil, maxDate: nil, folderId: nil, communityId: nil), query: "#\(self.query)", state: initialState?.1)
             } else {
                 search = self.context.engine.messages.searchHashtagPosts(hashtag: self.query, state: initialState?.1)
             }
@@ -125,7 +125,7 @@ final class HashtagSearchGlobalChatContents: ChatCustomContentsProtocol {
             
             let search: Signal<(SearchMessagesResult, SearchMessagesState), NoError>
             if self.onlyMy {
-                search = self.context.engine.messages.searchMessages(location: .general(scope: .everywhere, tags: nil, minDate: nil, maxDate: nil), query: "#\(self.query)", state: currentSearchState.1)
+                search = self.context.engine.messages.searchMessages(location: .general(scope: .everywhere, groupId: nil, tags: nil, minDate: nil, maxDate: nil, folderId: nil, communityId: nil), query: "#\(self.query)", state: currentSearchState.1)
             } else {
                 search = self.context.engine.messages.searchHashtagPosts(hashtag: self.query, state: currentSearchState.1)
             }

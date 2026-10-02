@@ -1354,7 +1354,7 @@ class NStickersViewController: TelegramGenericViewController<NStickersView>, Tab
                 |> mapToSignal { result -> Signal<ItemCollectionId, NoError> in
                     switch result {
                     case let .result(info, items, _):
-                        return context.engine.stickers.addStickerPackInteractively(info: info._parse(), items: items) |> map { info.id }
+                        return context.engine.stickers.addStickerPackInteractively(info: info._parse(), items: items) |> map { _ in info.id }
                     default:
                         return .complete()
                     }

@@ -763,7 +763,7 @@ fileprivate func prepareTransition(left:[AppearanceWrapperEntry<ChannelAdminEntr
     return TableUpdateTransition(deleted: removed, inserted: inserted, updated: updated, animated: true)
 }
 
-private func getTransferErrorText(_ error: ChannelOwnershipTransferError, isGroup: Bool) -> String? {
+private func getTransferErrorText(_ error: ChatOwnershipTransferError, isGroup: Bool) -> String? {
     var errorText: String? = nil
     switch error {
     case .generic:

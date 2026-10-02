@@ -317,7 +317,7 @@ func PeerMediaSavedMessagesController(context: AccountContext, peerId: PeerId) -
                 
             }, error: { error in
                 switch error {
-                case .generic:
+                case .generic, .restrictedToSubscribers:
                     alert(for: context.window, info: strings().unknownError)
                 }
                 updateState { state in

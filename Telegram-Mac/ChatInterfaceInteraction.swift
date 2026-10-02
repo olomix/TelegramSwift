@@ -785,7 +785,7 @@ final class ChatInteraction : InterfaceObserver  {
                        
                     case .text:
                         let replyId = strongSelf.presentation.interfaceState.messageActionsState.processedSetupReplyMessageId
-                        _ = (enqueueMessages(account: strongSelf.context.account, peerId: strongSelf.peerId, messages: [EnqueueMessage.message(text: button.title, attributes: [], inlineStickers: [:], mediaReference: nil, threadId: threadId, replyToMessageId: replyId.flatMap { .init(messageId: $0, quote: nil, todoItemId: nil) }, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])]) |> deliverOnMainQueue).start(next: { [weak strongSelf] _ in
+                        _ = (enqueueMessages(account: strongSelf.context.account, peerId: strongSelf.peerId, messages: [EnqueueMessage.message(text: button.title, attributes: [], inlineStickers: [:], mediaReference: nil, threadId: threadId, replyToMessageId: replyId.flatMap { .init(messageId: $0, quote: nil, innerSubject: nil) }, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])]) |> deliverOnMainQueue).start(next: { [weak strongSelf] _ in
                             strongSelf?.scrollToLatest(true)
                         })
                     case .requestPhone:
@@ -835,10 +835,13 @@ final class ChatInteraction : InterfaceObserver  {
                         _ = showModalProgress(signal: context.engine.messages.requestMessageActionUrlAuth(subject: .message(id: keyboardMessage.id, buttonId: buttonId)), for: context.window).start(next: { result in
                             switch result {
                             case let .accepted(url):
-                                execute(inapp: inApp(for: url.nsstring, context: strongSelf.context, openInfo: strongSelf.openInfo, hashtag: strongSelf.modalSearch, command: strongSelf.sendPlainText, applyProxy: strongSelf.applyProxy))
+                                if let url {
+                                    execute(inapp: inApp(for: url.nsstring, context: strongSelf.context, openInfo: strongSelf.openInfo, hashtag: strongSelf.modalSearch, command: strongSelf.sendPlainText, applyProxy: strongSelf.applyProxy))
+                                }
                             case .default:
                                 execute(inapp: inApp(for: url.nsstring, context: strongSelf.context, openInfo: strongSelf.openInfo, hashtag: strongSelf.modalSearch, command: strongSelf.sendPlainText, applyProxy: strongSelf.applyProxy, confirm: true))
-                            case let .request(requestURL, peer, writeAllowed):
+                            case let .request(requestURL, peer, _, flags, _, _):
+                                let writeAllowed = flags.contains(.requestWriteAccess)
                                 var options: [ModalAlertData.Option] = []
                                 options.append(.init(string: strings().botInlineAuthOptionLogin(requestURL, context.myPeer?.displayTitle ?? ""), isSelected: true, mandatory: false, uncheckEverything: true))
                                 if writeAllowed {
@@ -853,12 +856,14 @@ final class ChatInteraction : InterfaceObserver  {
                                     } else {
                                         let allowWriteAccess = result.selected[1] == true
                                         
-                                        _ = showModalProgress(signal: context.engine.messages.acceptMessageActionUrlAuth(subject: .url(url), allowWriteAccess: allowWriteAccess), for: context.window).start(next: { result in
+                                        _ = showModalProgress(signal: context.engine.messages.acceptMessageActionUrlAuth(subject: .url(url: url, inAppOrigin: nil), allowWriteAccess: allowWriteAccess, sharePhoneNumber: false), for: context.window).start(next: { result in
                                             switch result {
                                             case .default:
                                                 execute(inapp: .external(link: url, true))
                                             case let .accepted(url):
-                                                execute(inapp: .external(link: url, false))
+                                                if let url {
+                                                    execute(inapp: .external(link: url, false))
+                                                }
                                             default:
                                                 break
                                             }

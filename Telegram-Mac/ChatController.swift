@@ -2619,14 +2619,14 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
             if let suggest = presentation.interfaceState.suggestPost {
                 switch suggest.mode {
                 case let .edit(id), let .suggest(id):
-                    reply = .init(messageId: id, quote: nil, todoItemId: nil)
+                    reply = .init(messageId: id, quote: nil, innerSubject: nil)
                 default:
                     break
                 }
             }
             
             if reply == nil, let threadId64 = threadId64(), !presentation.isMonoforum {
-                reply = .init(messageId: MessageId(peerId: chatLocation().peerId, namespace: Namespaces.Message.Cloud, id: Int32(clamping: threadId64)), quote: nil, todoItemId: nil)
+                reply = .init(messageId: MessageId(peerId: chatLocation().peerId, namespace: Namespaces.Message.Cloud, id: Int32(clamping: threadId64)), quote: nil, innerSubject: nil)
             }
             return reply
         }
@@ -2747,7 +2747,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
         
         let currentAccountPeer = self.context.account.postbox.loadedPeerWithId(self.context.account.peerId)
         |> map { peer in
-            return [SendAsPeer(peer: peer, subscribers: nil, isPremiumRequired: false)]
+            return [SendAsPeer(peer: EnginePeer(peer), subscribers: nil, isPremiumRequired: false)]
         }
         
         let signal: Signal<[SendAsPeer]?, NoError> = peerView.get()
@@ -3828,7 +3828,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
             
             
             if atDate == nil {
-                self.context.account.pendingUpdateMessageManager.add(messageId: state.message.id, text: inputState.inputText, media: media, entities: TextEntitiesMessageAttribute(entities: inputState.messageTextEntities()), inlineStickers: inputState.inlineMedia, webpagePreviewAttribute: webpagePreviewAttribute, invertMediaAttribute: invertMediaAttribute, disableUrlPreview: presentation.interfaceState.composeDisableUrlPreview != nil)
+                self.context.account.pendingUpdateMessageManager.add(messageId: state.message.id, text: inputState.inputText, media: media, entities: TextEntitiesMessageAttribute(entities: inputState.messageTextEntities()), richText: nil, inlineStickers: inputState.inlineMedia, webpagePreviewAttribute: webpagePreviewAttribute, invertMediaAttribute: invertMediaAttribute, disableUrlPreview: presentation.interfaceState.composeDisableUrlPreview != nil)
                 
                 self.chatInteraction.beginEditingMessage(nil)
                 self.chatInteraction.update({
@@ -3846,7 +3846,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                 self.chatInteraction.update({$0.updatedUrlPreview(nil).updatedInterfaceState({$0.updatedEditState({$0?.withUpdatedLoadingState(state.editMedia == .keep ? .loading : .progress(0.2))})})})
                                 
                 
-                self.chatInteraction.editDisposable.set((context.engine.messages.requestEditMessage(messageId: state.message.id, text: inputState.inputText, media: media, entities: TextEntitiesMessageAttribute(entities: inputState.messageTextEntities()), inlineStickers: inputState.inlineMedia, webpagePreviewAttribute: webpagePreviewAttribute, invertMediaAttribute: invertMediaAttribute, disableUrlPreview: presentation.interfaceState.composeDisableUrlPreview != nil, scheduleTime: scheduleTime) |> deliverOnMainQueue).start(next: { [weak self] progress in
+                self.chatInteraction.editDisposable.set((context.engine.messages.requestEditMessage(messageId: state.message.id, text: inputState.inputText, media: media, entities: TextEntitiesMessageAttribute(entities: inputState.messageTextEntities()), richText: nil, inlineStickers: inputState.inlineMedia, webpagePreviewAttribute: webpagePreviewAttribute, invertMediaAttribute: invertMediaAttribute, disableUrlPreview: presentation.interfaceState.composeDisableUrlPreview != nil, scheduleInfoAttribute: scheduleTime.map { OutgoingScheduleInfoMessageAttribute(scheduleTime: $0, repeatPeriod: nil) }) |> deliverOnMainQueue).start(next: { [weak self] progress in
                     guard let `self` = self else {return}
                     switch progress {
                     case let .progress(progress):
@@ -4274,7 +4274,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                         flags.remove(.autoArchived)
                         flags.remove(.canBlock)
                         flags.remove(.canReport)
-                        return cachedData.withUpdatedPeerStatusSettings(PeerStatusSettings(flags: flags, geoDistance: current?.geoDistance, managingBot: nil))
+                        return cachedData.withUpdatedPeerStatusSettings(PeerStatusSettings(flags: flags, managingBot: nil))
                     }
                     if let cachedData = cachedData as? CachedChannelData {
                         let current = cachedData.peerStatusSettings
@@ -4282,7 +4282,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                         flags.remove(.autoArchived)
                         flags.remove(.canBlock)
                         flags.remove(.canReport)
-                        return cachedData.withUpdatedPeerStatusSettings(PeerStatusSettings(flags: flags, geoDistance: current?.geoDistance, managingBot: nil))
+                        return cachedData.withUpdatedPeerStatusSettings(PeerStatusSettings(flags: flags, managingBot: nil))
                     }
                     if let cachedData = cachedData as? CachedGroupData {
                         let current = cachedData.peerStatusSettings
@@ -4290,7 +4290,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                         flags.remove(.autoArchived)
                         flags.remove(.canBlock)
                         flags.remove(.canReport)
-                        return cachedData.withUpdatedPeerStatusSettings(PeerStatusSettings(flags: flags, geoDistance: current?.geoDistance, managingBot: nil))
+                        return cachedData.withUpdatedPeerStatusSettings(PeerStatusSettings(flags: flags, managingBot: nil))
                     }
                     return cachedData
                 })
@@ -4853,7 +4853,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
         
         chatInteraction.clearReactions = { [weak self] in
             guard let `self` = self else {return}
-            _ = clearPeerUnseenReactionsInteractively(account: context.account, peerId: self.chatInteraction.peerId, threadId: chatLocation().threadId).start()
+            _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: context.account, peerId: self.chatInteraction.peerId, threadId: chatLocation().threadId).start()
         }
         
         chatInteraction.reactionPressed = { [weak self] in
@@ -5318,6 +5318,8 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                     switch error {
                     case .generic:
                         alert(for: context.window, info: strings().unknownError)
+                    case .restrictedToSubscribers:
+                        alert(for: context.window, info: strings().unknownError)
                     }
                     self?.updateState { state in
                         var state = state
@@ -5693,7 +5695,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                     let media = TelegramMediaContact(firstName: myPeer.firstName ?? "", lastName: myPeer.lastName ?? "", phoneNumber: myPeer.phone ?? "", peerId: myPeer.id, vCardData: nil)
                     let canSend = peer.canSendMessage(strongSelf.mode.isThreadMode, media: media, threadData: strongSelf.chatInteraction.presentation.threadInfo, cachedData: strongSelf.chatInteraction.presentation.cachedData)
                     if canSend {
-                        _ = Sender.enqueue(message: EnqueueMessage.message(text: "", attributes: [], inlineStickers: [:], mediaReference: AnyMediaReference.standalone(media: media), threadId: threadId64(), replyToMessageId: replyId.flatMap { .init(messageId: $0, quote: nil, todoItemId: nil) }, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: []), context: context, peerId: peerId).start(completed: scrollAfterSend)
+                        _ = Sender.enqueue(message: EnqueueMessage.message(text: "", attributes: [], inlineStickers: [:], mediaReference: AnyMediaReference.standalone(media: media), threadId: threadId64(), replyToMessageId: replyId.flatMap { .init(messageId: $0, quote: nil, innerSubject: nil) }, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: []), context: context, peerId: peerId).start(completed: scrollAfterSend)
                         strongSelf.nextTransaction.set(handler: afterSentTransition)
                     }
                 }
@@ -8030,7 +8032,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
         switch mode {
         case .history:
             if self.canInteractiveRead() {
-                self.interactiveReadingDisposable.set(context.engine.messages.installInteractiveReadMessagesAction(peerId: chatInteraction.peerId))
+                self.interactiveReadingDisposable.set(context.engine.messages.installInteractiveReadMessagesAction(peerId: chatInteraction.peerId, threadId: nil))
 
                 let visibleMessageRange = self.visibleMessageRange
                 self.interactiveReadReactionsDisposable.set(context.engine.messages.installInteractiveReadReactionsAction(peerId: chatInteraction.peerId, getVisibleRange: {
@@ -8299,7 +8301,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                 if message.requestsSetupReply {
                     if message.id != current.interfaceState.dismissedForceReplyId {
                         current = current.updatedInterfaceState({
-                            $0.withUpdatedReplyMessageId(.init(messageId: message.id, quote: nil, todoItemId: nil))
+                            $0.withUpdatedReplyMessageId(.init(messageId: message.id, quote: nil, innerSubject: nil))
                         })
                     }
                 }
@@ -9126,7 +9128,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
         
         chatInteraction.update(animated: false, {$0.withToggledSidebarEnabled(FastSettings.sidebarEnabled).withToggledSidebarShown(FastSettings.sidebarShown)})
         
-         self.failedMessageEventsDisposable.set((context.account.pendingMessageManager.failedMessageEvents(peerId: chatInteraction.peerId)
+         self.failedMessageEventsDisposable.set((context.account.pendingMessageManager.failedMessageEvents(peerId: chatInteraction.peerId, isScheduled: false)
          |> deliverOnMainQueue).start(next: { [weak self] reason in
             if let strongSelf = self {
                 let text: String
@@ -9234,7 +9236,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                 let result:KeyHandlerResult = currentReplyId != nil ? .invoked : .rejected
                 let subject: EngineMessageReplySubject?
                 if let currentReplyId = currentReplyId {
-                    subject = .init(messageId: currentReplyId.id, quote: nil, todoItemId: nil)
+                    subject = .init(messageId: currentReplyId.id, quote: nil, innerSubject: nil)
                 } else {
                     subject = nil
                 }
@@ -9262,7 +9264,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
                 let result:KeyHandlerResult = currentReplyId != nil ? .invoked : .rejected
                 let subject: EngineMessageReplySubject?
                 if let currentReplyId = currentReplyId {
-                    subject = .init(messageId: currentReplyId.id, quote: nil, todoItemId: nil)
+                    subject = .init(messageId: currentReplyId.id, quote: nil, innerSubject: nil)
                 } else {
                     subject = nil
                 }
@@ -9691,7 +9693,7 @@ class ChatController: EditableViewController<ChatControllerView>, Notifable, Tab
             context.account.viewTracker.updateMarkMentionsSeenForMessageIds(messageIds: messageIds.filter({$0.namespace == Namespaces.Message.Cloud}))
         }
         self.messageReactionsMentionProcessingManager.process = { [weak self] messageIds in
-            context.account.viewTracker.updateMarkReactionsSeenForMessageIds(messageIds: messageIds.filter({$0.namespace == Namespaces.Message.Cloud}))
+            context.account.viewTracker.updateMarkReactionsAndVotesSeenForMessageIds(messageIds: messageIds.filter({$0.namespace == Namespaces.Message.Cloud}))
             self?.playUnseenReactions(messageIds, checkUnseen: true)
         }
         self.refreshStoriesProcessingManager.process = { [weak self] messageIds in

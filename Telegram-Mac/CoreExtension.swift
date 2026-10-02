@@ -53,15 +53,15 @@ extension SuggestedPostMessageAttribute {
         } else {
             if isIncoming {
                 rows.append(.init(buttons: [
-                    .init(title: strings().chatMessageSuggestMarkupDecline, titleWhenForwarded: nil, action: .url(SuggestedPostMessageAttribute.commandDecline)),
-                    .init(title: strings().chatMessageSuggestMarkupApprove, titleWhenForwarded: nil, action: .url(SuggestedPostMessageAttribute.commandApprove))
+                    .init(title: strings().chatMessageSuggestMarkupDecline, titleWhenForwarded: nil, action: .url(SuggestedPostMessageAttribute.commandDecline), style: nil),
+                    .init(title: strings().chatMessageSuggestMarkupApprove, titleWhenForwarded: nil, action: .url(SuggestedPostMessageAttribute.commandApprove), style: nil)
                 ]))
                 rows.append(.init(buttons: [
-                    .init(title: strings().chatMessageSuggestMarkupSuggestChanges, titleWhenForwarded: nil, action: .url(SuggestedPostMessageAttribute.commandChanges))
+                    .init(title: strings().chatMessageSuggestMarkupSuggestChanges, titleWhenForwarded: nil, action: .url(SuggestedPostMessageAttribute.commandChanges), style: nil)
                 ]))
             } else {
                 rows.append(.init(buttons: [
-                    .init(title: strings().chatMessageSuggestMarkupEdit, titleWhenForwarded: nil, action: .url(SuggestedPostMessageAttribute.commandChanges))
+                    .init(title: strings().chatMessageSuggestMarkupEdit, titleWhenForwarded: nil, action: .url(SuggestedPostMessageAttribute.commandChanges), style: nil)
                 ]))
             }
         }
@@ -84,7 +84,7 @@ extension RenderedChannelParticipant {
     }
     
     func withUpdatedAdditionalPeers(_ additional:[PeerId:Peer]) -> RenderedChannelParticipant {
-        return RenderedChannelParticipant(participant: participant, peer: peer, peers: peers + additional, presences: presences)
+        return RenderedChannelParticipant(participant: participant, peer: peer, peers: peers + additional.mapValues { EnginePeer($0) }, presences: presences)
     }
     
     var isCreator: Bool {
@@ -207,7 +207,7 @@ extension TelegramChatBannedRights {
 
 extension RenderedPeer {
     convenience init(_ foundPeer: FoundPeer) {
-        self.init(peerId: foundPeer.peer.id, peers: SimpleDictionary([foundPeer.peer.id : foundPeer.peer]), associatedMedia: [:])
+        self.init(peerId: foundPeer.peer.id, peers: SimpleDictionary([foundPeer.peer.id : foundPeer.peer._asPeer()]), associatedMedia: [:])
     }
 }
 
@@ -4098,6 +4098,8 @@ extension MessageTextEntity {
             default:
                 return false
             }
+        case .FormattedDate:
+            return self.type == rhs.type
         }
     }
 
@@ -4149,6 +4151,8 @@ extension MessageTextEntity {
             return 21
         case .BlockQuote:
             return 22
+        case .FormattedDate:
+            return 23
         }
     }
 }

@@ -689,7 +689,7 @@ func Star_PurschaseInApp(context: AccountContext, invoice: TelegramMediaInvoice?
         let photo = state.photoRepresentation.flatMap({ [$0] }) ?? []
         updateState { current in
             var current = current
-            current.peer = .init(TelegramUser(id: .init(0), accessHash: nil, firstName: state.title, lastName: nil, username: nil, phone: nil, photo: photo, botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: state.nameColor, backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil))
+            current.peer = .init(TelegramUser(id: .init(0), accessHash: nil, firstName: state.title, lastName: nil, username: nil, phone: nil, photo: photo, botInfo: nil, restrictionInfo: nil, flags: [], emojiStatus: nil, usernames: [], storiesHidden: nil, nameColor: state.nameColor.map(PeerColor.preset), backgroundEmojiId: nil, profileColor: nil, profileBackgroundEmojiId: nil, subscriberCount: nil, verificationIconFileId: nil))
             current.formId = state.subscriptionFormId
             return current
         }
@@ -793,6 +793,8 @@ func Star_PurschaseInApp(context: AccountContext, invoice: TelegramMediaInvoice?
                             text = strings().giftSendDisallowError
                         case .starGiftUserLimit:
                             text = strings().giftOptionsGiftBuyLimitReached
+                        @unknown default:
+                            text = strings().unknownError
                         }
                         showModalText(for: window, text: text)
                         completion(.failed)
@@ -830,6 +832,4 @@ func Star_PurschaseInApp(context: AccountContext, invoice: TelegramMediaInvoice?
     
     return modalController
 }
-
-
 

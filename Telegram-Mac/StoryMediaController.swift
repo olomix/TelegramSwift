@@ -914,10 +914,10 @@ final class StoryMediaController : TelegramGenericViewController<StoryMediaView>
         
         if let window = self.window {
             showModalAlert(for: window, data: data, completion: { [weak self] result in
-                self?.peerListContext?.addFolder(title: text, completion: { id in
+                self?.peerListContext?.addFolder(title: text, items: [], completion: { id in
                     self?.updateState { current in
                         var current = current
-                        current.selectedCollection = id
+                        current.selectedCollection = id ?? current.selectedCollection
                         return current
                     }
                 })

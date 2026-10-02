@@ -283,7 +283,7 @@ private final class ChannelRecentPostRowView : GeneralContainableRowView {
                 self.addSubview(current)
                 self.haloView = current
             }
-            let component = AvatarStoryIndicatorComponent(stats: .init(totalCount: 1, unseenCount: 1, hasUnseenCloseFriends: false), presentation: theme)
+            let component = AvatarStoryIndicatorComponent(stats: .init(totalCount: 1, unseenCount: 1, hasUnseenCloseFriends: false, hasLiveItems: false), presentation: theme)
             current.update(component: component, availableSize: imageSize, transition: .immediate)
         } else if let view = self.haloView {
             performSubviewRemoval(view, animated: animated)

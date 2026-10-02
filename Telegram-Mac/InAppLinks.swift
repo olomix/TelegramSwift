@@ -1354,13 +1354,16 @@ func execute(inapp:inAppLink, window: Window? = nil, afterComplete: @escaping(Bo
         }
         afterComplete(true)
     case let .urlAuth(link, context):
-        _ = showModalProgress(signal: context.engine.messages.requestMessageActionUrlAuth(subject: .url(link)), for: getWindow(context)).start(next: { result in
+        _ = showModalProgress(signal: context.engine.messages.requestMessageActionUrlAuth(subject: .url(url: link, inAppOrigin: nil)), for: getWindow(context)).start(next: { result in
             switch result {
             case let .accepted(url):
-                execute(inapp: .external(link: url, false))
+                if let url {
+                    execute(inapp: .external(link: url, false))
+                }
             case .default:
                 execute(inapp: .external(link: link, true))
-            case let .request(requestURL, peer, writeAllowed):
+            case let .request(requestURL, peer, _, flags, _, _):
+                let writeAllowed = flags.contains(.requestWriteAccess)
                 
                 var options: [ModalAlertData.Option] = []
                 options.append(.init(string: strings().botInlineAuthOptionLogin(requestURL, context.myPeer?.displayTitle ?? ""), isSelected: true, mandatory: false, uncheckEverything: true))
@@ -1376,12 +1379,14 @@ func execute(inapp:inAppLink, window: Window? = nil, afterComplete: @escaping(Bo
                     } else {
                         let allowWriteAccess = result.selected[1] == true
                         
-                        _ = showModalProgress(signal: context.engine.messages.acceptMessageActionUrlAuth(subject: .url(link), allowWriteAccess: allowWriteAccess), for: getWindow(context)).start(next: { result in
+                        _ = showModalProgress(signal: context.engine.messages.acceptMessageActionUrlAuth(subject: .url(url: link, inAppOrigin: nil), allowWriteAccess: allowWriteAccess, sharePhoneNumber: false), for: getWindow(context)).start(next: { result in
                             switch result {
                             case .default:
                                 execute(inapp: .external(link: link, true))
                             case let .accepted(url):
-                                execute(inapp: .external(link: url, false))
+                                if let url {
+                                    execute(inapp: .external(link: url, false))
+                                }
                             default:
                                 break
                             }
@@ -1481,11 +1486,9 @@ func execute(inapp:inAppLink, window: Window? = nil, afterComplete: @escaping(Bo
         afterComplete(true)
     case let .nft(_, slug, context):
         _ = showModalProgress(signal: context.engine.payments.getUniqueStarGift(slug: slug), for: getWindow(context)).start(next: { gift in
-            if let gift {
-                showModal(with: StarGift_Nft_Controller(context: context, gift: .unique(gift), source: .quickLook(nil, gift), transaction: nil), for: getWindow(context))
-            } else {
-                showModalText(for: getWindow(context), text: strings().unknownError)
-            }
+            showModal(with: StarGift_Nft_Controller(context: context, gift: .unique(gift), source: .quickLook(nil, gift), transaction: nil), for: getWindow(context))
+        }, error: { _ in
+            showModalText(for: getWindow(context), text: strings().unknownError)
         })
         afterComplete(true)
     case let .joinCall(_, slug, context):

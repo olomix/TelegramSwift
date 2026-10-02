@@ -69,6 +69,8 @@ class WPArticleLayout: WPLayout {
                     break
                 case .starGift:
                     break
+                default:
+                    break
                 }
             }
             

@@ -456,7 +456,7 @@ func NewTodoController(chatInteraction: ChatInteraction, source: NewTodoSourceTy
         if state.isEnabled {
             switch source {
             case let .edit(message, _):
-                context.account.pendingUpdateMessageManager.add(messageId: message.id, text: "", media: .update(.message(message: MessageReference(message), media: state.media)), entities: nil, inlineStickers: [:])
+                context.account.pendingUpdateMessageManager.add(messageId: message.id, text: "", media: .update(.message(message: MessageReference(message), media: state.media)), entities: nil, richText: nil, inlineStickers: [:])
                 close?()
             case let .addOption(message):
                 _ = context.engine.messages.appendTodoMessageItems(messageId: message.id, items: state.added).start()

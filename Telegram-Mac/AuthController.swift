@@ -379,7 +379,7 @@ class AuthController : GenericViewController<AuthView> {
                     return current
                 }
                 
-                _ = resetAuthorizationState(account: account, to: .empty).start()
+                _ = resetAuthorizationState(account: account).start()
             })
         }
         
@@ -709,7 +709,7 @@ class AuthController : GenericViewController<AuthView> {
                             }
                             switch error {
                             case .codeExpired:
-                                _ = resetAuthorizationState(account: account, to: .empty).start()
+                                _ = resetAuthorizationState(account: account).start()
                             default:
                                 break
                             }
@@ -753,7 +753,7 @@ class AuthController : GenericViewController<AuthView> {
                             return current
                         }
                         if let account = self?.account {
-                            _ = resetAuthorizationState(account: account, to: .empty).start()
+                            _ = resetAuthorizationState(account: account).start()
                         }
                     }, takeNext: { [weak self] code in
                         guard let account = self?.account else {
@@ -802,7 +802,7 @@ class AuthController : GenericViewController<AuthView> {
                             }
                             switch error {
                             case .codeExpired:
-                                _ = resetAuthorizationState(account: account, to: .empty).start()
+                                _ = resetAuthorizationState(account: account).start()
                             default:
                                 break
                             }

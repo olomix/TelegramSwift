@@ -231,7 +231,7 @@ extension CacheUsageStats : Equatable {
         } else {
             for (key, lhsPeer) in lhs.peers {
                 if let rhsPeer = rhs.peers[key] {
-                    if !lhsPeer.isEqual(rhsPeer) {
+                    if lhsPeer != rhsPeer {
                         return false
                     }
                 } else {
@@ -1487,7 +1487,7 @@ class StorageUsageController: TelegramGenericViewController<StorageUsageView> {
                     }
                 }
                 
-                let signal = context.engine.resources.clearStorage(peerIds: peerIds, includeMessages: includeMessages, excludeMessages: excludeMessages)
+                let signal = context.engine.resources.clearStorage(peerIds: peerIds, includeMessages: includeMessages.map(EngineMessage.init), excludeMessages: excludeMessages.map(EngineMessage.init))
                 
                 _ = signal.start(completed: updateStats)
                 
@@ -1527,7 +1527,7 @@ class StorageUsageController: TelegramGenericViewController<StorageUsageView> {
         }, clearMessage: { message in
             verifyAlert_button(for: context.window, information: strings().storageUsageClearConfirmInfo, ok: strings().storageUsageClearConfirmOKPart, successHandler: { _ in
                 
-                let msgs = context.engine.resources.clearStorage(messages: [message])
+                let msgs = context.engine.resources.clearStorage(messages: [message].map(EngineMessage.init))
                 
                 _ = msgs.start(completed: updateStats)
                 
@@ -1647,7 +1647,7 @@ class StorageUsageController: TelegramGenericViewController<StorageUsageView> {
             if let stats = state.stats {
                 let selected = stats.categories.map { $0.key }
                 
-                return context.engine.resources.renderStorageUsageStatsMessages(stats: stats, categories: selected, existingMessages: state.messages)
+                return context.engine.resources.renderStorageUsageStatsMessages(stats: stats, categories: selected, existingMessages: state.messages.mapValues(EngineMessage.init)) |> map { $0.mapValues { $0._asMessage() } }
             } else {
                 return .single([:])
             }

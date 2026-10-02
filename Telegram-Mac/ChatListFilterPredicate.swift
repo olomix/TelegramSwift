@@ -286,7 +286,7 @@ func chatListViewForLocation(chatListLocation: ChatListControllerLocation, locat
                            ),
                            ChatListEntryMessageTagSummaryKey(
                                tag: .unseenReaction,
-                               actionType: PendingMessageActionType.readReaction
+                               actionType: PendingMessageActionType.readReactionOrPollVote
                            ): ChatListEntrySummaryComponents.Component(
                                tagSummary: ChatListEntryMessageTagSummaryComponent(namespace: Namespaces.Message.Cloud),
                                actionsSummary: ChatListEntryPendingMessageActionsSummaryComponent(namespace: Namespaces.Message.Cloud)
@@ -339,7 +339,7 @@ func chatListViewForLocation(chatListLocation: ChatListControllerLocation, locat
                 var hasUnseenReactions = false
                 if let info = item.tagSummaryInfo[ChatListEntryMessageTagSummaryKey(
                     tag: .unseenReaction,
-                    actionType: PendingMessageActionType.readReaction
+                    actionType: PendingMessageActionType.readReactionOrPollVote
                 )] {
                     hasUnseenReactions = (info.tagSummaryCount ?? 0) != 0// > (info.actionsSummaryCount ?? 0)
                 }
@@ -374,6 +374,7 @@ func chatListViewForLocation(chatListLocation: ChatListControllerLocation, locat
                     presence: nil,
                     hasUnseenMentions: hasUnseenMentions,
                     hasUnseenReactions: hasUnseenReactions,
+                    hasUnseenPollVotes: false,
                     forumTopicData: nil,
                     topForumTopicItems: [],
                     hasFailed: false,
@@ -457,6 +458,7 @@ func chatListViewForLocation(chatListLocation: ChatListControllerLocation, locat
                     presence: nil,
                     hasUnseenMentions: false,
                     hasUnseenReactions: false,
+                    hasUnseenPollVotes: false,
                     forumTopicData: nil,
                     topForumTopicItems: [],
                     hasFailed: false,

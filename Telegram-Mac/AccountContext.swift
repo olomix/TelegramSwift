@@ -873,7 +873,7 @@ final class AccountContext {
 
         
         
-        let cloudThemes: Signal<[TelegramTheme], NoError> = telegramThemes(postbox: account.postbox, network: account.network, accountManager: sharedContext.accountManager) |> distinctUntilChanged(isEqual: { lhs, rhs in
+        let cloudThemes: Signal<[TelegramTheme], NoError> = engine.themes.themes(accountManager: sharedContext.accountManager) |> distinctUntilChanged(isEqual: { lhs, rhs in
             return lhs.count == rhs.count
         })
         

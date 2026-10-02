@@ -1424,6 +1424,8 @@
 		C291942F1DCC6E2200359491 /* DeclareEncodables.swift in Sources */ = {isa = PBXBuildFile; fileRef = C291942E1DCC6E2200359491 /* DeclareEncodables.swift */; };
 		C291E2731E8AFA2C00D397BA /* ShareApplicationContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C291E2721E8AFA2C00D397BA /* ShareApplicationContext.swift */; };
 		C291E2741E8B051100D397BA /* ImageUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2EA17801E2FD50A00887153 /* ImageUtils.swift */; };
+		31291DEDABECAFEE39B41643 /* CoreCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827604C458612830CBA3AEDD /* CoreCompat.swift */; };
+		27D89354CB14B418339C4CA5 /* CoreCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827604C458612830CBA3AEDD /* CoreCompat.swift */; };
 		C29340F11F506C310074991E /* EmptyGroupstickerSearchRowItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C29340F01F506C310074991E /* EmptyGroupstickerSearchRowItem.swift */; };
 		C295C65F1F75808600BA309D /* ChatAdditionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C295C65E1F75808600BA309D /* ChatAdditionController.swift */; };
 		C296AF7F1D8D38E5001DBB59 /* ChatRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C296AF7E1D8D38E5001DBB59 /* ChatRowView.swift */; };
@@ -3200,6 +3202,7 @@
 		C2E8BA091FB5F15900DEB5E2 /* GalleryThumbsControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryThumbsControlView.swift; sourceTree = "<group>"; };
 		C2EA177E1E2FD50000887153 /* TransformImageView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TransformImageView.swift; sourceTree = "<group>"; };
 		C2EA17801E2FD50A00887153 /* ImageUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageUtils.swift; sourceTree = "<group>"; };
+		827604C458612830CBA3AEDD /* CoreCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreCompat.swift; sourceTree = "<group>"; };
 		C2EBBEA01FB5CA94009AD8ED /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = System/Library/Frameworks/CoreServices.framework; sourceTree = SDKROOT; };
 		C2F4ED1A1EC5AE1D005F2696 /* CallRatingModalViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CallRatingModalViewController.swift; sourceTree = "<group>"; };
 		C2F6190C1E844DCD007A051B /* TelegramAccountAuxiliaryMethods.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TelegramAccountAuxiliaryMethods.swift; sourceTree = "<group>"; };
@@ -6403,6 +6406,7 @@
 			isa = PBXGroup;
 			children = (
 				C2EA17801E2FD50A00887153 /* ImageUtils.swift */,
+				827604C458612830CBA3AEDD /* CoreCompat.swift */,
 				C2EA177E1E2FD50000887153 /* TransformImageView.swift */,
 			);
 			name = image;
@@ -7740,6 +7744,7 @@
 				C23BC36C1E9ACC0800D79F92 /* MimeTypes.swift in Sources */,
 				C23BC3701E9ACCF900D79F92 /* SEPasslockController.swift in Sources */,
 				C291E2741E8B051100D397BA /* ImageUtils.swift in Sources */,
+				31291DEDABECAFEE39B41643 /* CoreCompat.swift in Sources */,
 				C232EABF1E1D13F500C4D38C /* ChatListNothingItem.swift in Sources */,
 				C232EABC1E1D134C00C4D38C /* AvatarLayer.swift in Sources */,
 				C232EABA1E1D12B100C4D38C /* GeneralRowItem.swift in Sources */,
@@ -8139,6 +8144,7 @@
 				9F7D422A22240404007B68BB /* AccountContext.swift in Sources */,
 				9F21A7CF21C1552D0037784F /* InstantPageTheme.swift in Sources */,
 				C2EA17811E2FD50A00887153 /* ImageUtils.swift in Sources */,
+				27D89354CB14B418339C4CA5 /* CoreCompat.swift in Sources */,
 				9F147F7C2231543800D71BD1 /* PeerUtils.swift in Sources */,
 				C219E1E41D8AC8370042F0C8 /* ChatUnreadRowItem.swift in Sources */,
 				274B831826F0C0A700E6E474 /* EmojiScreenEffect.swift in Sources */,

@@ -231,7 +231,7 @@ private func webAuthorizationEntries(webSessions: WebSessionsContextState, state
     
     for auth in webSessions.sessions {
         if let peer = webSessions.peers[auth.botId] {
-            entries.append(.session(sectionId: sectionId, index: index, authorization: auth, peer: peer, viewType: bestGeneralViewType(authorizations, for: auth)))
+            entries.append(.session(sectionId: sectionId, index: index, authorization: auth, peer: peer._asPeer(), viewType: bestGeneralViewType(authorizations, for: auth)))
             index += 1
         }
     }

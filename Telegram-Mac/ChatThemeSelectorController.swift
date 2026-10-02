@@ -383,7 +383,7 @@ final class ChatThemeSelectorController : TelegramGenericViewController<ChatThem
             
             let isBubbled = self?.genericView.colorful ?? theme.bubbled
             
-            let updateSignal = context.engine.themes.setChatTheme(peerId: peerId, emoticon: self?.currentSelected?.0)
+            let updateSignal = context.engine.themes.setChatTheme(peerId: peerId, chatTheme: self?.currentSelected?.0.flatMap { ChatTheme.emoticon($0) })
             |> deliverOnMainQueue
             _ = updateSignal.start(next: { [weak self] in
                 self?.close(true)

@@ -178,7 +178,7 @@ extension PeerNameColors {
 let graphicsThreadPool = ThreadPool(threadCount: 5, threadPriority: 1)
 
 enum PeerPhoto {
-    case peer(Peer, TelegramMediaImageRepresentation?, PeerNameColor?, [String], Message?, CGFloat?)
+    case peer(Peer, TelegramMediaImageRepresentation?, PeerColor?, [String], Message?, CGFloat?)
     case topic(EngineMessageHistoryThread.Info, Bool)
 }
 
@@ -322,7 +322,7 @@ private func peerImage(account: Account, peer: Peer, displayDimensions: NSSize, 
         }
         
         //peer.nameColor?.index ??
-        let number = peer.nameColor.flatMap { Int64($0.rawValue) } ?? peer.id.id._internalGetInt64Value()
+        let number = peer.nameColor?.presetValue.flatMap { Int64($0.rawValue) } ?? peer.id.id._internalGetInt64Value()
         let index = Int(abs(number % 7))
         let color = theme.colors.peerColors(index)
 
@@ -353,7 +353,8 @@ private func peerImage(account: Account, peer: Peer, displayDimensions: NSSize, 
 func peerAvatarImage(account: Account, photo: PeerPhoto, displayDimensions: CGSize = CGSize(width: 60.0, height: 60.0), scale:CGFloat = 1.0, font:NSFont = .medium(17), genCap: Bool = true, synchronousLoad: Bool = false, disableForum: Bool = false) -> Signal<(CGImage?, Bool), NoError> {
    
     switch photo {
-    case let .peer(peer, representation, peerNameColor, displayLetters, message, cornerRadius):
+    case let .peer(peer, representation, peerColor, displayLetters, message, cornerRadius):
+        let peerNameColor = peerColor?.presetValue
         return peerImage(account: account, peer: peer, displayDimensions: displayDimensions, representation: representation, message: message, displayLetters: displayLetters, font: font, scale: scale, genCap: genCap, synchronousLoad: synchronousLoad, disableForum: disableForum, cornerRadius: cornerRadius)
     case let .topic(info, isGeneral):
         #if !SHARE
@@ -517,7 +518,7 @@ func generateEmptyRoundAvatar(_ displayDimensions:NSSize, font: NSFont, account:
         let letters = peer.displayLetters
         
         //peer.nameColor?.index ??
-        let number = peer.nameColor.flatMap { Int64($0.rawValue) } ?? peer.id.id._internalGetInt64Value()
+        let number = peer.nameColor?.presetValue.flatMap { Int64($0.rawValue) } ?? peer.id.id._internalGetInt64Value()
         let index = Int(abs(number % 7))
         
         let color = theme.colors.peerColors(index)

@@ -124,7 +124,7 @@ func generatePeerNameColorImage(nameColor: PeerNameColors.Colors, isDark: Bool, 
 
 func generatePeerNameColorImage(colors: PeerNameColors, peer: Peer?) -> CGImage {
     let attr = NSMutableAttributedString()
-    let color = peer?.nameColor ?? .blue
+    let color = peer?.nameColor ?? .preset(.blue)
     
     
     let main = colors.get(color).main

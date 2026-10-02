@@ -177,7 +177,7 @@ class JoinLinkPreviewModalController: ModalViewController {
         return ModalInteractions(acceptTitle: strings().joinLinkJoin, accept: { [weak self] in
             if let strongSelf = self, let window = strongSelf.window {
                 _ = showModalProgress(signal: context.engine.peers.joinChatInteractively(with: strongSelf.joinhash), for: window).start(next: { [weak strongSelf] peer in
-                    if let peer = peer?._asPeer() {
+                    if let peer = peer.joinedPeer?._asPeer() {
                         strongSelf?.interaction(peer)
                     }
                     strongSelf?.close()

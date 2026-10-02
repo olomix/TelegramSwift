@@ -1083,7 +1083,7 @@ final class AvatarConstructorController : ModalViewController {
         let stickers = context.account.postbox.itemCollectionsView(orderedItemListCollectionIds: [Namespaces.OrderedItemList.CloudRecentStickers, Namespaces.OrderedItemList.CloudSavedStickers], namespaces: [Namespaces.ItemCollection.CloudStickerPacks], aroundIndex: nil, count: 1)
 
         
-        let wallpapers = telegramWallpapers(postbox: context.account.postbox, network: context.account.network) |> map { wallpapers -> [Wallpaper] in
+        let wallpapers = context.engine.themes.wallpapers() |> map { wallpapers -> [Wallpaper] in
             return wallpapers.compactMap { wallpaper in
                 switch wallpaper {
                 case let .file(file):

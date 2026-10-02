@@ -179,31 +179,31 @@ func <(lhs:GroupParticipant, rhs:GroupParticipant) -> Bool {
     switch lhs {
     case .creator:
         return false
-    case let .admin(lhsId, _, lhsInvitedAt):
+    case let .admin(lhsId, _, lhsInvitedAt, _):
         switch rhs {
         case .creator:
             return true
-        case let .admin(rhsId, _, rhsInvitedAt):
+        case let .admin(rhsId, _, rhsInvitedAt, _):
             if lhsInvitedAt == rhsInvitedAt {
                 return lhsId.id < rhsId.id
             }
             return lhsInvitedAt > rhsInvitedAt
-        case let .member(rhsId, _, rhsInvitedAt):
+        case let .member(rhsId, _, rhsInvitedAt, _):
             if lhsInvitedAt == rhsInvitedAt {
                 return lhsId.id < rhsId.id
             }
             return lhsInvitedAt > rhsInvitedAt
         }
-    case let .member(lhsId, _, lhsInvitedAt):
+    case let .member(lhsId, _, lhsInvitedAt, _):
         switch rhs {
         case .creator:
             return true
-        case let .admin(rhsId, _, rhsInvitedAt):
+        case let .admin(rhsId, _, rhsInvitedAt, _):
             if lhsInvitedAt == rhsInvitedAt {
                 return lhsId.id < rhsId.id
             }
             return lhsInvitedAt > rhsInvitedAt
-        case let .member(rhsId, _, rhsInvitedAt):
+        case let .member(rhsId, _, rhsInvitedAt, _):
             if lhsInvitedAt == rhsInvitedAt {
                 return lhsId.id < rhsId.id
             }

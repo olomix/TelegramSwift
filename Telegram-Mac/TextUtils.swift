@@ -767,7 +767,8 @@ func serviceMessageText(_ message:Message, account:Account, isReplied: Bool = fa
             } else {
                 text = strings().chatListServiceVoiceChatInvitation(authorName, list)
             }
-        case let .setChatTheme(emoji):
+        case let .setChatTheme(chatTheme):
+            let emoji = chatTheme.emoticonValue ?? ""
             if authorId == account.peerId {
                 if emoji.isEmpty {
                     text = strings().chatServiceDisabledThemeYou
@@ -993,13 +994,13 @@ func serviceMessageText(_ message:Message, account:Account, isReplied: Bool = fa
             text = strings().chatServiceRefundedBackCountable(peerName, currency + TINY_SPACE, Int(totalAmount))
         case let .prizeStars(amount, _, _, _, _):
             text = strings().chatServiceStarsPrize(authorName, strings().channelBoostBoosterStarsCountable(Int(amount)))
-        case let .starGift(gift, _, messageText, _, _, _, _, _, _, _, _, _, _, _, _):
+        case let .starGift(gift, _, messageText, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _):
             if authorId == account.peerId {
                 text = strings().chatServiceStarGiftSentYou(strings().starListItemCountCountable(Int(gift.generic!.price)))
             } else {
                 text = strings().chatServiceStarGiftSent(authorName, strings().starListItemCountCountable(Int(gift.generic!.price)))
             }
-        case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, peerId, senderId, savedId, _, _, _):
+        case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, savedId, _, _, _, _, _, _, _, _):
             
             let authorName = senderId.flatMap { message.peers[$0]?.displayTitle } ?? authorName
             
@@ -1265,6 +1266,9 @@ func serviceMessageText(_ message:Message, account:Account, isReplied: Bool = fa
             } else {
                 text = strings().chatServiceSuggestPostRefundedDeleted
             }
+        default:
+            // Service actions added after the Mac UI was written have no summary yet.
+            break
         }
     }
     return (text, entities, media)

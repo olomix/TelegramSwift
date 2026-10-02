@@ -1,0 +1,51 @@
+diff --git a/macos/PublicHeaders/TgVoipWebrtc/OngoingCallThreadLocalContext.h b/macos/PublicHeaders/TgVoipWebrtc/OngoingCallThreadLocalContext.h
+index 32e9215..0edca1b 100644
+--- a/macos/PublicHeaders/TgVoipWebrtc/OngoingCallThreadLocalContext.h
++++ b/macos/PublicHeaders/TgVoipWebrtc/OngoingCallThreadLocalContext.h
+@@ -269,6 +269,7 @@ typedef NS_ENUM(int32_t, OngoingCallDataSavingWebrtc) {
+ typedef struct {
+     bool isConnected;
+     bool isTransitioningFromBroadcastToRtc;
++    bool isBroadcast;
+ } GroupCallNetworkState;
+ 
+ typedef NS_ENUM(int32_t, OngoingGroupCallMediaChannelType) {
+diff --git a/macos/Sources/OngoingCallThreadLocalContext.mm b/macos/Sources/OngoingCallThreadLocalContext.mm
+index 8cc5f62..b3dfe00 100644
+--- a/macos/Sources/OngoingCallThreadLocalContext.mm
++++ b/macos/Sources/OngoingCallThreadLocalContext.mm
+@@ -1508,6 +1508,7 @@ - (instancetype _Nonnull)initWithQueue:(id<OngoingCallThreadLocalContextQueueWeb
+                     GroupCallNetworkState mappedState;
+                     mappedState.isConnected = networkState.isConnected;
+                     mappedState.isTransitioningFromBroadcastToRtc = networkState.isTransitioningFromBroadcastToRtc;
++                    mappedState.isBroadcast = networkState.connectionMode == tgcalls::GroupConnectionMode::GroupConnectionModeBroadcast;
+                     networkStateUpdated(mappedState);
+                 }];
+             },
+diff --git a/tgcalls/group/GroupInstanceCustomImpl.cpp b/tgcalls/group/GroupInstanceCustomImpl.cpp
+index 00913f1..6109acc 100644
+--- a/tgcalls/group/GroupInstanceCustomImpl.cpp
++++ b/tgcalls/group/GroupInstanceCustomImpl.cpp
+@@ -3230,8 +3230,9 @@ public:
+         GroupNetworkState effectiveNetworkState;
+         effectiveNetworkState.isConnected = isEffectivelyConnected;
+         effectiveNetworkState.isTransitioningFromBroadcastToRtc = isTransitioningFromBroadcastToRtc;
++        effectiveNetworkState.connectionMode = _connectionMode;
+ 
+-        if (_effectiveNetworkState.isConnected != effectiveNetworkState.isConnected || _effectiveNetworkState.isTransitioningFromBroadcastToRtc != effectiveNetworkState.isTransitioningFromBroadcastToRtc) {
++        if (_effectiveNetworkState.isConnected != effectiveNetworkState.isConnected || _effectiveNetworkState.isTransitioningFromBroadcastToRtc != effectiveNetworkState.isTransitioningFromBroadcastToRtc || _effectiveNetworkState.connectionMode != effectiveNetworkState.connectionMode) {
+             _effectiveNetworkState = effectiveNetworkState;
+ 
+             if (_networkStateUpdated) {
+diff --git a/tgcalls/group/GroupInstanceImpl.h b/tgcalls/group/GroupInstanceImpl.h
+index f69585a..8be1043 100644
+--- a/tgcalls/group/GroupInstanceImpl.h
++++ b/tgcalls/group/GroupInstanceImpl.h
+@@ -92,6 +92,7 @@ enum class GroupConnectionMode {
+ struct GroupNetworkState {
+     bool isConnected = false;
+     bool isTransitioningFromBroadcastToRtc = false;
++    GroupConnectionMode connectionMode = GroupConnectionMode::GroupConnectionModeNone;
+ };
+ 
+ enum class VideoContentType {

@@ -1024,7 +1024,10 @@ func PreviewStarGiftController(context: AccountContext, option: PreviewGiftSourc
     }, previewUpgrade: { gift in
         if let giftId = gift.native.generic?.id {
             _ = showModalProgress(signal: context.engine.payments.starGiftUpgradePreview(giftId: giftId), for: window).startStandalone(next: { attributes in
-                showModal(with: StarGift_Nft_Controller(context: context, gift: gift.native, source: .preview(peer, attributes)), for: window)
+                guard let attributes else {
+                    return
+                }
+                showModal(with: StarGift_Nft_Controller(context: context, gift: gift.native, source: .preview(peer, attributes.attributes)), for: window)
             })
         }
     }, buyStars: {
@@ -1129,6 +1132,8 @@ func PreviewStarGiftController(context: AccountContext, option: PreviewGiftSourc
                     text = strings().giftSendDisallowError
                 case .starGiftUserLimit:
                     text = strings().giftOptionsGiftBuyLimitReached
+                @unknown default:
+                    text = strings().unknownError
                 }
                 showModalText(for: window, text: text)
             })
@@ -1200,7 +1205,7 @@ func PreviewStarGiftController(context: AccountContext, option: PreviewGiftSourc
     }
     
     
-    controller.validateData = { _ in
+    controller.validateData = { (_: [InputDataIdentifier: InputDataValue]) in
         
         let state = stateValue.with { $0 }
         
@@ -1333,7 +1338,7 @@ func PreviewStarGiftController(context: AccountContext, option: PreviewGiftSourc
         }
     }
     
-    controller.afterTransaction = { [weak modalInteractions] _ in
+    controller.afterTransaction = { [weak modalInteractions] (_: InputDataController) in
         let state = stateValue.with { $0 }
         let okText: String
         switch option {
@@ -1384,6 +1389,3 @@ func PreviewStarGiftController(context: AccountContext, option: PreviewGiftSourc
 /*
 
  */
-
-
-

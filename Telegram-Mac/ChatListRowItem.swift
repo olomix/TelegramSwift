@@ -506,7 +506,7 @@ class ChatListRowItem: TableRowItem {
             let unseenCount: Int = storyState.items.reduce(0, {
                 $0 + ($1.unseenCount > 0 ? 1 : 0)
             })
-            self.avatarStoryIndicator = .init(stats: .init(totalCount: storyState.items.count, unseenCount: unseenCount, hasUnseenCloseFriends: false), presentation: theme)
+            self.avatarStoryIndicator = .init(stats: .init(totalCount: storyState.items.count, unseenCount: unseenCount, hasUnseenCloseFriends: false, hasLiveItems: false), presentation: theme)
         } else {
             self.avatarStoryIndicator = nil
         }
@@ -1093,9 +1093,9 @@ class ChatListRowItem: TableRowItem {
         
         if let peer = peer, peer.id != context.peerId && peer.id != repliesPeerId, !peer.id.isAnonymousSavedMessages, !isEmpty {
             if peer.isMonoForum, let photoPeer = renderedPeer.chatOrMonoforumMainPeer?._asPeer() {
-                self.photo = .PeerAvatar(peer, peer.displayLetters, photoPeer.smallProfileImage, photoPeer.nameColor, nil, nil, peer.groupAccess.canManageDirect, nil)
+                self.photo = .PeerAvatar(peer, peer.displayLetters, photoPeer.smallProfileImage, photoPeer.nameColor?.presetValue, nil, nil, peer.groupAccess.canManageDirect, nil)
             } else {
-                self.photo = .PeerAvatar(peer, peer.displayLetters, peer.smallProfileImage, peer.nameColor, nil, nil, peer.isForumOrMonoForum, nil)
+                self.photo = .PeerAvatar(peer, peer.displayLetters, peer.smallProfileImage, peer.nameColor?.presetValue, nil, nil, peer.isForumOrMonoForum, nil)
             }
         } else {
             self.photo = .Empty

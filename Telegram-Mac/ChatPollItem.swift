@@ -15,12 +15,11 @@ import Postbox
 import SwiftSignalKit
 import ColorPalette
 
-
 private extension TelegramMediaPoll {
     func translated(_ poll: TranslationMessageAttribute) -> TelegramMediaPoll {
         var options: [TelegramMediaPollOption] = self.options
         for (i, option) in options.enumerated() {
-            options[i] = .init(text: poll.additional[i].text, entities: poll.additional[i].entities, opaqueIdentifier: option.opaqueIdentifier)
+            options[i] = .init(text: poll.additional[i].text, entities: poll.additional[i].entities, opaqueIdentifier: option.opaqueIdentifier, media: option.media, date: option.date, addedBy: option.addedBy)
         }
         
         let solution: TelegramMediaPollResults.Solution?
@@ -30,8 +29,8 @@ private extension TelegramMediaPoll {
             solution = self.results.solution
         }
         
-        let result: TelegramMediaPollResults = .init(voters: self.results.voters, totalVoters: self.results.totalVoters, recentVoters: self.results.recentVoters, solution: solution)
-        return .init(pollId: self.pollId, publicity: self.publicity, kind: self.kind, text: poll.text, textEntities: poll.entities, options: options, correctAnswers: self.correctAnswers, results: result, isClosed: self.isClosed, deadlineTimeout: self.deadlineTimeout)
+        let result: TelegramMediaPollResults = .init(voters: self.results.voters, totalVoters: self.results.totalVoters, recentVoters: self.results.recentVoters, solution: solution, hasUnseenVotes: self.results.hasUnseenVotes, canViewStats: self.results.canViewStats)
+        return .init(pollId: self.pollId, publicity: self.publicity, kind: self.kind, text: poll.text, textEntities: poll.entities, options: options, correctAnswers: self.correctAnswers, results: result, isClosed: self.isClosed, deadlineTimeout: self.deadlineTimeout, deadlineDate: self.deadlineDate, pollHash: self.pollHash, openAnswers: self.openAnswers, revotingDisabled: self.revotingDisabled, shuffleAnswers: self.shuffleAnswers, hideResultsUntilClose: self.hideResultsUntilClose, isCreator: self.isCreator, attachedMedia: self.attachedMedia, restrictToSubscribers: self.restrictToSubscribers, countries: self.countries)
     }
 }
 
@@ -390,8 +389,8 @@ class ChatPollItem: ChatRowItem {
                 percent = maximum == 0 ? 0 : (Float(percents[i]) / Float(maximum))
                 realPercent = totalVoters == 0 ? 0 : Float(percents[i])
                 isSelected = vote.selected
-                votedCount = vote.count
-                if poll.kind == .quiz {
+                votedCount = vote.count ?? 0
+                if poll.isQuiz {
                     isCorrect = vote.isCorrect
                 } else {
                    isCorrect = nil
@@ -413,7 +412,7 @@ class ChatPollItem: ChatRowItem {
             
             
             
-            let wrapper = PollOption(option: option, nameText: nameLayout, percent: percent, realPercent: realPercent, voteCount: votedCount, isSelected: isSelected, isIncoming: isIncoming, isBubbled: renderType == .bubble, voted: voted, isLoading: object.additionalData.pollStateData.identifiers.contains(option.opaqueIdentifier) && object.additionalData.pollStateData.isLoading, presentation: self.presentation, isCorrect: isCorrect, isQuiz: poll.kind == .quiz, isMultipleSelected: object.additionalData.pollStateData.identifiers.contains(option.opaqueIdentifier), vote: { [weak self] control in
+            let wrapper = PollOption(option: option, nameText: nameLayout, percent: percent, realPercent: realPercent, voteCount: votedCount, isSelected: isSelected, isIncoming: isIncoming, isBubbled: renderType == .bubble, voted: voted, isLoading: object.additionalData.pollStateData.identifiers.contains(option.opaqueIdentifier) && object.additionalData.pollStateData.isLoading, presentation: self.presentation, isCorrect: isCorrect, isQuiz: poll.isQuiz, isMultipleSelected: object.additionalData.pollStateData.identifiers.contains(option.opaqueIdentifier), vote: { [weak self] control in
                 self?.voteOption(option, for: control)
             }, isTranslateLoading: isTranslateLoading)
             
@@ -650,7 +649,7 @@ final class ChatPollItemView : ChatRowView {
         let selected = item.options.first(where: { $0.isSelected })
         
         if let selected = selected {
-            if item.poll.kind == .quiz {
+            if item.poll.isQuiz {
                 if let isCorrect = selected.isCorrect {
                     if isCorrect {
                         doWhenCorrectAnswer()

@@ -1149,7 +1149,7 @@ class SESelectController: GenericViewController<ShareModalView>, Notifable, Tabl
                 } else {
                     let foundLocalPeers = account.postbox.searchPeers(query: search.request.lowercased()) |> map {$0.compactMap { $0.chatMainPeer} }
                     
-                    let foundRemotePeers:Signal<[Peer], NoError> = .single([]) |> then ( context.engine.contacts.searchRemotePeers(query: search.request.lowercased()) |> map { $0.map{$0.peer} + $1.map{$0.peer} } )
+                    let foundRemotePeers:Signal<[Peer], NoError> = .single([]) |> then ( context.engine.contacts.searchRemotePeers(query: search.request.lowercased()) |> map { $0.map{$0.peer._asPeer()} + $1.map{$0.peer._asPeer()} } )
 
                     signal = combineLatest(foundLocalPeers, foundRemotePeers) |> map {$0 + $1}
                     

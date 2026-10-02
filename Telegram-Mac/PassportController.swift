@@ -2668,7 +2668,7 @@ class PassportController: TelegramGenericViewController<PassportControllerView> 
                                                                     })
                                                                 }
                                                                 //return current
-                                                                return current.withUpdatedAccessContext(ctx).withUpdatedPasswordSettings(settings).withUpdatedVerifyDocumentContext(SecureIdVerificationDocumentsContext(postbox: context.account.postbox, network: context.account.network, context: ctx, update: updateVerifyDocumentState))
+                                                                return current.withUpdatedAccessContext(ctx).withUpdatedPasswordSettings(settings).withUpdatedVerifyDocumentContext(SecureIdVerificationDocumentsContext(engine: context.engine, context: ctx, update: updateVerifyDocumentState))
                                                             }
                                                             formValue.set(.single((nil, form)))
                                                             return Optional(config)
@@ -2689,7 +2689,7 @@ class PassportController: TelegramGenericViewController<PassportControllerView> 
                                                             current = values.reduce(current, { current, value -> PassportState in
                                                                 return current.withUpdatedValue(value)
                                                             })
-                                                            return current.withUpdatedViewState(.settings).withUpdatedPasswordSettings(settings).withUpdatedAccessContext(ctx).withUpdatedVerifyDocumentContext(SecureIdVerificationDocumentsContext(postbox: context.account.postbox, network: context.account.network, context: ctx, update: updateVerifyDocumentState))
+                                                            return current.withUpdatedViewState(.settings).withUpdatedPasswordSettings(settings).withUpdatedAccessContext(ctx).withUpdatedVerifyDocumentContext(SecureIdVerificationDocumentsContext(engine: context.engine, context: ctx, update: updateVerifyDocumentState))
                                                         }
                                                         return Optional(config)
                                                         } |> `catch` { _ in return .single(nil) }
@@ -2802,7 +2802,7 @@ class PassportController: TelegramGenericViewController<PassportControllerView> 
                                 }
                                 current = current.withUpdatedErrors(errors)
                             }
-                            return current.withUpdatedAccessContext(ctx).withUpdatedPasswordSettings(settings).withUpdatedVerifyDocumentContext(SecureIdVerificationDocumentsContext(postbox: context.account.postbox, network: context.account.network, context: ctx, update: updateVerifyDocumentState)).withUpdatedPasswordError(nil)
+                            return current.withUpdatedAccessContext(ctx).withUpdatedPasswordSettings(settings).withUpdatedVerifyDocumentContext(SecureIdVerificationDocumentsContext(engine: context.engine, context: ctx, update: updateVerifyDocumentState)).withUpdatedPasswordError(nil)
                         }
                         formValue.set(.single((nil, form)))
                     }, error: { error in
@@ -2862,7 +2862,7 @@ class PassportController: TelegramGenericViewController<PassportControllerView> 
                         current = values.reduce(current, { current, value -> PassportState in
                             return current.withUpdatedValue(value)
                         })
-                        return current.withUpdatedViewState(.settings).withUpdatedPasswordSettings(passwordSettings).withUpdatedAccessContext(ctx).withUpdatedVerifyDocumentContext(SecureIdVerificationDocumentsContext(postbox: context.account.postbox, network: context.account.network, context: ctx, update: updateVerifyDocumentState))
+                        return current.withUpdatedViewState(.settings).withUpdatedPasswordSettings(passwordSettings).withUpdatedAccessContext(ctx).withUpdatedVerifyDocumentContext(SecureIdVerificationDocumentsContext(engine: context.engine, context: ctx, update: updateVerifyDocumentState))
                     }
                 }, error: { error in
                     switch error {

@@ -129,7 +129,7 @@ func SimilarChannelsController(context: AccountContext, peerId: PeerId, recommen
         jsonString += "}"
         
         if let data = jsonString.data(using: .utf8), let json = JSON(data: data) {
-            addAppLogEvent(postbox: context.account.postbox, type: "channels.open_recommended_channel", data: json)
+            context.engine.accountData.addAppLogEvent(type: "channels.open_recommended_channel", data: json)
         }
     }, premium: {
         prem(with: PremiumBoardingController(context: context, source: .recommended_channels), for: context.window)

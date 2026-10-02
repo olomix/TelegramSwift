@@ -892,7 +892,9 @@ class ChatServiceItem: ChatRowItem {
                             attributedString.addAttribute(.font, value: NSFont.medium(theme.fontSize), range: range)
                         }
                     }
-                case let .setChatTheme(emoji):
+                case let .setChatTheme(chatTheme):
+                    // Gift-based themes have no emoticon; they read as a theme change without one.
+                    let emoji = chatTheme.emoticonValue ?? ""
                     let text: String
                     
                     if message.author?.id == context.peerId {
@@ -1419,7 +1421,7 @@ class ChatServiceItem: ChatRowItem {
                             attributedString.addAttribute(.font, value: NSFont.medium(theme.fontSize), range: range)
                         }
                     }
-                case let .starGift(gift, convertStars, text, entities, nameHidden, savedToProfile, convertedToStars, upgraded, canUpgrade, upgradeStars, isRefunded, upgradedMessageId, peerId, senderId, saverId):
+                case let .starGift(gift, convertStars, text, entities, nameHidden, savedToProfile, convertedToStars, upgraded, canUpgrade, upgradeStars, isRefunded, _, upgradedMessageId, peerId, senderId, saverId, _, _, _, _, _, _):
                     let info = NSMutableAttributedString()
                     let header = NSMutableAttributedString()
                     
@@ -1550,7 +1552,7 @@ class ChatServiceItem: ChatRowItem {
                         }
                     }
 
-                case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, peerId, senderId, saverId, resaleStars, canTransferDate, canResaleDate):
+                case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, saverId, resaleStars, canTransferDate, canResaleDate, _, _, _, _, _):
                     
                     
                     let authorPeer: EnginePeer?
@@ -1588,12 +1590,12 @@ class ChatServiceItem: ChatRowItem {
                             if let resaleStars {
                                 if message.author?.id == context.account.peerId {
                                     if message.id.peerId == context.account.peerId {
-                                        text = strings().chatServiceResaleYouSelf("\(gift.title) #\(gift.number)", strings().starListItemCountCountable(Int(resaleStars)))
+                                        text = strings().chatServiceResaleYouSelf("\(gift.title) #\(gift.number)", strings().starListItemCountCountable(Int(resaleStars.amount.value)))
                                     } else {
-                                        text = strings().chatServiceResaleYou("\(gift.title) #\(gift.number)", strings().starListItemCountCountable(Int(resaleStars)), peerName)
+                                        text = strings().chatServiceResaleYou("\(gift.title) #\(gift.number)", strings().starListItemCountCountable(Int(resaleStars.amount.value)), peerName)
                                     }
                                 } else {
-                                    text = strings().chatServiceResale(peerName, "\(gift.title) #\(gift.number)", strings().starListItemCountCountable(Int(resaleStars)))
+                                    text = strings().chatServiceResale(peerName, "\(gift.title) #\(gift.number)", strings().starListItemCountCountable(Int(resaleStars.amount.value)))
                                 }
                             } else if isUpgrade {
                                 if message.author?.id == context.account.peerId {
@@ -1660,7 +1662,7 @@ class ChatServiceItem: ChatRowItem {
                                 attributes.append(.init(name: .init(.initialize(string: strings().giftUniqueBackdrop, color: NSColor.white.withAlphaComponent(0.8), font: .normal(.text))),
                                                         value: .init(.initialize(string: name, color: NSColor.white, font: .medium(.text)))))
                                 backdropColor = NSColor(UInt32(outerColor)).withAlphaComponent(0.7)
-                            case let .model(name, _, _):
+                            case let .model(name, _, _, _):
                                 attributes.append(.init(name: .init(.initialize(string: strings().giftUniqueModel, color: NSColor.white.withAlphaComponent(0.8), font: .normal(.text))),
                                                         value: .init(.initialize(string: name, color: NSColor.white, font: .medium(.text)))))
                             case let .pattern(name, _, _):
@@ -2131,7 +2133,7 @@ class ChatServiceItem: ChatRowItem {
         jsonString += "}"
         
         if let data = jsonString.data(using: .utf8), let json = JSON(data: data) {
-            addAppLogEvent(postbox: context.account.postbox, type: "channels.open_recommended_channel", data: json)
+            context.engine.accountData.addAppLogEvent(type: "channels.open_recommended_channel", data: json)
         }
         
     }
@@ -2257,8 +2259,8 @@ class ChatServiceItem: ChatRowItem {
                 let updateSignal = controller.result |> map { path, _ -> TelegramMediaResource in
                     return LocalFileReferenceMediaResource(localFilePath: path.path, randomId: arc4random64())
                     } |> castError(UploadPeerPhotoError.self) |> mapToSignal { resource -> Signal<UpdatePeerPhotoStatus, UploadPeerPhotoError> in
-                        return context.engine.accountData.updateAccountPhoto(resource: resource, videoResource: nil, videoStartTimestamp: nil, markup: nil, mapResourceToAvatarSizes: { resource, representations in
-                            return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource, representations: representations)
+                        return context.engine.accountData.updateAccountPhoto(resource: EngineMediaResource(resource), videoResource: nil, videoStartTimestamp: nil, markup: nil, mapResourceToAvatarSizes: { resource, representations in
+                            return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource._asResource(), representations: representations)
                         })
                     } |> deliverOnMainQueue
                 
@@ -2292,8 +2294,8 @@ class ChatServiceItem: ChatRowItem {
                 case let .complete(thumb, video, keyFrame):
                     let (thumbResource, videoResource) = (LocalFileReferenceMediaResource(localFilePath: thumb, randomId: arc4random64(), isUniquelyReferencedTemporaryFile: true),
                                                           LocalFileReferenceMediaResource(localFilePath: video, randomId: arc4random64(), isUniquelyReferencedTemporaryFile: true))
-                    return context.engine.peers.updatePeerPhoto(peerId: peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: thumbResource), video: context.engine.peers.uploadedPeerVideo(resource: videoResource) |> map(Optional.init), videoStartTimestamp: keyFrame, mapResourceToAvatarSizes: { resource, representations in
-                        return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource, representations: representations)
+                    return context.engine.peers.updatePeerPhoto(peerId: peerId, photo: context.engine.peers.uploadedPeerPhoto(resource: EngineMediaResource(thumbResource)), video: context.engine.peers.uploadedPeerVideo(resource: EngineMediaResource(videoResource)) |> map(Optional.init), videoStartTimestamp: keyFrame, mapResourceToAvatarSizes: { resource, representations in
+                        return mapResourceToAvatarSizes(postbox: context.account.postbox, resource: resource._asResource(), representations: representations)
                     }) |> map { result in
                         switch result {
                         case let .progress(current):
@@ -3506,7 +3508,7 @@ class ChatServiceRowView: TableRowView {
     override func doubleClick(in location: NSPoint) {
         if let item = self.item as? ChatRowItem, item.chatInteraction.presentation.state == .normal {
             if self.hitTest(location) == nil || self.hitTest(location) == self, let message = item.message {
-                item.chatInteraction.setupReplyMessage(message, .init(messageId: message.id, quote: nil, todoItemId: nil) )
+                item.chatInteraction.setupReplyMessage(message, .init(messageId: message.id, quote: nil, innerSubject: nil) )
             }
         }
     }

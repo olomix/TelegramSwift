@@ -554,7 +554,7 @@ private final class HeaderItem : GeneralRowItem {
 
         for model in models {
             switch model {
-            case let .model(_, file, _):
+            case let .model(_, file, _, _):
                 _ = freeMediaFileInteractiveFetched(context: context, fileReference: .standalone(media: file)).start()
             default:
                 break
@@ -601,7 +601,7 @@ private final class HeaderItem : GeneralRowItem {
     
     var model: TelegramMediaFile {
         switch self.models[self.modelIndex] {
-        case let .model(_, file, _):
+        case let .model(_, file, _, _):
             return file
         default:
             fatalError()
@@ -1308,12 +1308,12 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
                 
                 for attr in gift.attributes {
                     switch attr {
-                    case .model(let name, _, let rarity):
-                        rows.append(.init(left: .init(.initialize(string: strings().giftUniqueModel, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity) / 10).string)%", callback: {}))))
+                    case .model(let name, _, let rarity, _):
+                        rows.append(.init(left: .init(.initialize(string: strings().giftUniqueModel, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity.permilleValue) / 10).string)%", callback: {}))))
                     case .pattern(let name, _, let rarity):
-                        rows.append(.init(left: .init(.initialize(string: strings().giftUniqueSymbol, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity) / 10).string)%", callback: {}))))
+                        rows.append(.init(left: .init(.initialize(string: strings().giftUniqueSymbol, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity.permilleValue) / 10).string)%", callback: {}))))
                     case .backdrop(let name, _, _, _, _, _, let rarity):
-                        rows.append(.init(left: .init(.initialize(string: strings().giftUniqueBackdrop, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity) / 10).string)%", callback: {}))))
+                        rows.append(.init(left: .init(.initialize(string: strings().giftUniqueBackdrop, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity.permilleValue) / 10).string)%", callback: {}))))
                     default:
                         break
                     }
@@ -1488,6 +1488,8 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                     current.isTonOwner = true
                     return current
                 }
+            case .none:
+                break
             }
         }
     }))
@@ -1539,7 +1541,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
     switch source {
     case let .quickLook(_, gift):
         if let _ = gift.resellStars {
-            let formAndMaybeValidatedInfo = context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId), themeParams: nil)
+            let formAndMaybeValidatedInfo = context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: false), themeParams: nil)
             
             actionsDisposable.add(formAndMaybeValidatedInfo.startStrict(next: { form in
                 updateState { current in
@@ -1576,7 +1578,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 sourceValue = .buy(suffix: nil, amount: resellStars)
                 showModal(with: Star_ListScreen(context: context, source: sourceValue), for: window)
             } else if let form = state.form {
-                _ = showModalProgress(signal: context.engine.payments.sendStarsPaymentForm(formId: form.id, source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId)), for: window).startStandalone(next: { result in
+                _ = showModalProgress(signal: context.engine.payments.sendStarsPaymentForm(formId: form.id, source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: false)), for: window).startStandalone(next: { result in
                     switch result {
                     case let .done(receiptMessageId, subscriptionPeerId, _):
                         PlayConfetti(for: window, stars: true)
@@ -1602,6 +1604,8 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                     switch error {
                     case .alreadyPaid:
                         text = strings().checkoutErrorInvoiceAlreadyPaid
+                    case let .serverProvided(message):
+                        text = message
                     case .generic:
                         text = strings().unknownError
                     case .paymentFailed:
@@ -1773,7 +1777,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 showModal(with: sellNft(context: context, resellPrice: gift.resellStars, gift: gift, callback: { value in
                     if !updatePrice {
                         verifyAlert(for: window, header: strings().giftSellConfirmTitle, information: strings().giftSellConfirmText(gift.title, strings().starListItemCountCountable(Int(value))), successHandler: { _ in
-                            _ = showModalProgress(signal: giftsContext.updateStarGiftResellPrice(reference: reference, price: value, id: gift.id), for: window).startStandalone(error: { error in
+                            _ = showModalProgress(signal: giftsContext.updateStarGiftResellPrice(reference: reference, price: CurrencyAmount(amount: StarsAmount(value: value, nanos: 0), currency: .stars), id: gift.id), for: window).startStandalone(error: { error in
                                 switch error {
                                 case let .starGiftResellTooEarly(value):
                                     showModalText(for: window, text: strings().giftResaleUnavailableText(stringForFullDate(timestamp: value)))
@@ -1785,7 +1789,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                             })
                         })
                     } else {
-                        _ = showModalProgress(signal: giftsContext.updateStarGiftResellPrice(reference: reference, price: value, id: gift.id), for: window).startStandalone(completed: {
+                        _ = showModalProgress(signal: giftsContext.updateStarGiftResellPrice(reference: reference, price: CurrencyAmount(amount: StarsAmount(value: value, nanos: 0), currency: .stars), id: gift.id), for: window).startStandalone(completed: {
                             showModalText(for: window, text: strings().giftResalePriceUpdate)
                         })
                     }
@@ -1846,13 +1850,13 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
     
     let controller = InputDataController(dataSignal: signal, title: "")
     
-    controller.didLoad = { controller, _ in
+    controller.didLoad = { (controller: InputDataController, _: [InputDataIdentifier: InputDataValue]) in
         controller.tableView.getBackgroundColor = {
             return theme.colors.background
         }
     }
     
-    controller.updateDatas = { data in
+    controller.updateDatas = { (data: [InputDataIdentifier: InputDataValue]) in
         updateState { current in
             var current = current
             current.tonAddress = data[_id_ton_input]?.stringValue
@@ -1869,7 +1873,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         actionsDisposable.dispose()
     }
     
-    controller.validateData = { [weak giftsContext] _ in
+    controller.validateData = { [weak giftsContext] (_: [InputDataIdentifier: InputDataValue]) in
         
         let state = stateValue.with { $0 }
         let closeOnOk = stateValue.with { $0.closeOnOk }
@@ -2002,7 +2006,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
     modalController._hasBorder = false
     
 
-    controller.afterTransaction = { [weak modalInteractions] _ in
+    controller.afterTransaction = { [weak modalInteractions] (_: InputDataController) in
         modalInteractions?.updateDone { button in
             let converted = stateValue.with({ $0.converted })
             button.set(text: stateValue.with { $0.okText }, for: .Normal)

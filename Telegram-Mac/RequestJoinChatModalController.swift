@@ -112,7 +112,7 @@ func RequestJoinChatModalController(context: AccountContext, joinhash: String, i
         controller.returnKeyInvocation = { _, _ in
             close?()
             _ = showModalProgress(signal: context.engine.peers.joinChatInteractively(with: joinhash), for: context.window).start(next: { peer in
-                if let peer = peer?._asPeer() {
+                if let peer = peer.joinedPeer?._asPeer() {
                     interaction(peer)
                 }
             }, error: { error in

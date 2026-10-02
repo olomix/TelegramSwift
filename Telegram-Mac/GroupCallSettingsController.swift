@@ -252,9 +252,9 @@ private func groupCallSettingsEntries(callState: GroupCallUIState, devices: IODe
             entries.append(.desc(sectionId: sectionId, index: index, text: .plain(strings().voiceChatSettingsDisplayAsTitle), data: .init(color: GroupCallTheme.grayStatusColor, viewType: .textTopItem)))
             index += 1
             
-            let tuple = Tuple(peer: FoundPeer(peer: accountPeer, subscribers: nil), viewType: uiState.displayAsList == nil || uiState.displayAsList?.isEmpty == false ? .firstItem : .singleItem, selected: accountPeer.id == joinAsPeerId, status: strings().voiceChatSettingsDisplayAsPersonalAccount)
+            let tuple = Tuple(peer: FoundPeer(peer: EnginePeer(accountPeer), subscribers: nil), viewType: uiState.displayAsList == nil || uiState.displayAsList?.isEmpty == false ? .firstItem : .singleItem, selected: accountPeer.id == joinAsPeerId, status: strings().voiceChatSettingsDisplayAsPersonalAccount)
             entries.append(.custom(sectionId: sectionId, index: index, value: .none, identifier: .init("self"), equatable: InputDataEquatable(tuple), comparable: nil, item: { initialSize, stableId in
-                return ShortPeerRowItem(initialSize, peer: tuple.peer.peer, account: context.account, context: context, stableId: stableId, height: 50, photoSize: NSMakeSize(36, 36), titleStyle: ControlStyle(font: .medium(.title), foregroundColor: theme.textColor, highlightColor: .white), statusStyle: ControlStyle(foregroundColor: theme.grayTextColor), status: tuple.status, inset: NSEdgeInsets(left: 20, right: 20), interactionType: .plain, generalType: .selectable(tuple.selected), viewType: tuple.viewType, action: {
+                return ShortPeerRowItem(initialSize, peer: tuple.peer.peer._asPeer(), account: context.account, context: context, stableId: stableId, height: 50, photoSize: NSMakeSize(36, 36), titleStyle: ControlStyle(font: .medium(.title), foregroundColor: theme.textColor, highlightColor: .white), statusStyle: ControlStyle(foregroundColor: theme.grayTextColor), status: tuple.status, inset: NSEdgeInsets(left: 20, right: 20), interactionType: .plain, generalType: .selectable(tuple.selected), viewType: tuple.viewType, action: {
                     arguments.switchAccount(tuple.peer.peer.id)
                 }, customTheme: theme)
             }))
@@ -285,7 +285,7 @@ private func groupCallSettingsEntries(callState: GroupCallUIState, devices: IODe
                 
                 
                 entries.append(.custom(sectionId: sectionId, index: index, value: .none, identifier: _id_peer(peer.peer.id), equatable: InputDataEquatable(tuple), comparable: nil, item: { initialSize, stableId in
-                    return ShortPeerRowItem(initialSize, peer: tuple.peer.peer, account: context.account, context: context, stableId: stableId, height: 50, photoSize: NSMakeSize(36, 36), titleStyle: ControlStyle(font: .medium(.title), foregroundColor: theme.textColor, highlightColor: .white), statusStyle: ControlStyle(foregroundColor: theme.grayTextColor), status: tuple.status, inset: NSEdgeInsets(left: 20, right: 20), interactionType: .plain, generalType: .selectable(tuple.selected), viewType: tuple.viewType, action: {
+                    return ShortPeerRowItem(initialSize, peer: tuple.peer.peer._asPeer(), account: context.account, context: context, stableId: stableId, height: 50, photoSize: NSMakeSize(36, 36), titleStyle: ControlStyle(font: .medium(.title), foregroundColor: theme.textColor, highlightColor: .white), statusStyle: ControlStyle(foregroundColor: theme.grayTextColor), status: tuple.status, inset: NSEdgeInsets(left: 20, right: 20), interactionType: .plain, generalType: .selectable(tuple.selected), viewType: tuple.viewType, action: {
                         arguments.switchAccount(tuple.peer.peer.id)
                     }, customTheme: theme)
 
@@ -877,7 +877,7 @@ final class GroupCallSettingsController : GenericViewController<GroupCallSetting
             if let window = self?.window, let peerId = self?.call.peerId {
                 verifyAlert_button(for: window, header: strings().voiceChatRTMPRevoke, information: strings().voiceChatRTMPRevokeInfo, ok: strings().alertYes, cancel: strings().alertNO, successHandler: { [weak self] _ in
                     
-                    let signal = self?.call.engine.calls.getGroupCallStreamCredentials(peerId: .init(peerId.toInt64()), revokePreviousCredentials: true)
+                    let signal = self?.call.engine.calls.getGroupCallStreamCredentials(peerId: .init(peerId.toInt64()), isLiveStream: true, revokePreviousCredentials: true)
                     if let signal = signal {
                         _ = showModalProgress(signal: signal, for: window).start(next: { value in
                             updateState { current in
@@ -933,7 +933,7 @@ final class GroupCallSettingsController : GenericViewController<GroupCallSetting
         let rtmp_credentials: Signal<GroupCallStreamCredentials?, NoError>
         
         if let peerId = self.call.peerId, let peer = self.call.peer, peer.groupAccess.isCreator {
-            let credentials = self.call.engine.calls.getGroupCallStreamCredentials(peerId: .init(peerId.toInt64()), revokePreviousCredentials: false)
+            let credentials = self.call.engine.calls.getGroupCallStreamCredentials(peerId: .init(peerId.toInt64()), isLiveStream: true, revokePreviousCredentials: false)
             |> map(Optional.init)
             |> `catch` { _ -> Signal<GroupCallStreamCredentials?, NoError> in
                 return .single(nil)

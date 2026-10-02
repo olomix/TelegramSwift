@@ -296,6 +296,8 @@ private final class SelectBotRequestEmptyView: GeneralRowView {
                 }
             }
             return true
+        case .createBot:
+            return false
         }
     }
     
@@ -393,6 +395,8 @@ private final class SelectBotRequestEmptyView: GeneralRowView {
                     }
                 }
             }
+        case .createBot:
+            break
         }
         
         
@@ -411,7 +415,7 @@ private final class SelectBotRequestEmptyView: GeneralRowView {
                 button = strings().choosePeerRequirementsGroupCreate
             case .group:
                 button = strings().choosePeerRequirementsChannelCreate
-            case .user:
+            case .user, .createBot:
                 button = ""
             }
             entries.append(.empty(GeneralRowItem.Theme(), nil, { initialSize, stableId in
@@ -490,6 +494,8 @@ func selectSpecificPeer(context: AccountContext, peerType: ReplyMarkupButtonRequ
         title = strings().choosePeerTitleGroup
     case .channel:
         title = strings().choosePeerTitleChannel
+    case .createBot:
+        return
     }
     
     let invoke:([PeerId])->Void = { peerIds in

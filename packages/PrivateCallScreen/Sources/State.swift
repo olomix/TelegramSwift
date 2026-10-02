@@ -56,6 +56,8 @@ private extension EnginePeer {
             return channel.title
         case .secretChat:
             return ""
+        case let .community(community):
+            return community.title
         }
     }
 

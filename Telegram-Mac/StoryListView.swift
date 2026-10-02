@@ -56,7 +56,7 @@ private final class StoryRepostView : Control {
         let storyId: StoryId?
         switch forwardInfo {
         case let .known(peer, id, _):
-            colors = peer.nameColor
+            colors = peer.nameColor?.presetValue
             forwardPeer = peer._asPeer()
             nameText = peer._asPeer().compactDisplayTitle
             storyId = .init(peerId: peer.id, id: id)

@@ -76,7 +76,9 @@ public func managedAppConfigurationUpdates(accountManager: AccountManager<Telegr
                            |> mapToSignal { result -> Signal<Void, NoError> in
                                return accountManager.transaction { transaction -> Void in
                                    switch result {
-                                   case let .appConfig(hash, config):
+                                   case let .appConfig(appConfig):
+                                       let hash = appConfig.hash
+                                       let config = appConfig.config
                                        if let data = JSON(apiJson: config) {
                                            updateAppConfiguration(transaction: transaction, { configuration -> AppConfiguration in
                                                var configuration = configuration

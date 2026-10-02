@@ -1276,7 +1276,7 @@ private class GiftIconLayer: SimpleLayer {
             file = gift.file
         case let .unique(gift):
             for attribute in gift.attributes {
-                if case let .model(_, fileValue, _) = attribute {
+                if case let .model(_, fileValue, _, _) = attribute {
                     file = fileValue
                 } else if case let .backdrop(_, _, innerColor, _, _, _, _) = attribute {
                     color = NSColor(rgb: UInt32(bitPattern: innerColor))
@@ -1328,7 +1328,7 @@ private class GiftIconLayer: SimpleLayer {
             file = gift.file
         case let .unique(gift):
             for attribute in gift.attributes {
-                if case let .model(_, fileValue, _) = attribute {
+                if case let .model(_, fileValue, _, _) = attribute {
                     file = fileValue
                 } else if case let .backdrop(_, _, innerColor, _, _, _, _) = attribute {
                     color = NSColor(rgb: UInt32(bitPattern: innerColor))
@@ -2053,7 +2053,7 @@ private final class PeerInfoHeadView : GeneralRowView {
         item.table?.addScroll(listener: listener)
         
         if let monoforum = peerViewMonoforumMainPeer(item.peerView), let peer = item.effectivePeer, item.threadPeer == nil {
-            photoView.setState(account: item.context.account, state: .PeerAvatar(peer, monoforum.displayLetters, monoforum.smallProfileImage, monoforum.nameColor, nil, nil, true, nil))
+            photoView.setState(account: item.context.account, state: .PeerAvatar(peer, monoforum.displayLetters, monoforum.smallProfileImage, monoforum.nameColor?.presetValue, nil, nil, true, nil))
         } else {
             photoView.setPeer(account: item.context.account, peer: item.effectivePeer)
         }
