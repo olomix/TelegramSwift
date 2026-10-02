@@ -455,7 +455,7 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
         case let .update(_, viewType, state):
             
             var text: String = ""
-            #if !APP_STORE
+            #if SPARKLE
             if let state = state.any as? AppUpdateState {
                 switch state.loadingState {
                 case let .loading(_, current, total):
@@ -958,7 +958,7 @@ class AccountViewController : TelegramGenericViewController<AccountControllerVie
             
         }, openUpdateApp: { [weak self] in
             guard let navigation = self?.navigation as? MajorNavigationController else {return}
-            #if !APP_STORE
+            #if SPARKLE
             navigation.push(AppUpdateViewController(), false)
             #endif
         }, openPremium: { [weak self] business in
@@ -1021,7 +1021,7 @@ class AccountViewController : TelegramGenericViewController<AccountControllerVie
         
 
         let appUpdateState: Signal<Any?, NoError>
-        #if APP_STORE
+        #if APP_STORE || !SPARKLE
             appUpdateState = .single(nil)
         #else
         appUpdateState = appUpdateStateSignal |> map(Optional.init)

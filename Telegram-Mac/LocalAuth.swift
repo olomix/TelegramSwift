@@ -74,8 +74,9 @@ public struct LocalAuth {
         }
     }
     
+    // Disabled: an access group must use the signing team ID; nothing calls this.
     private static func bundleSeedId() -> String? {
-        return "6N38VWS5BX"
+        return nil
     }
     
     public static func getOrCreatePrivateKey(baseAppBundleId: String, keyId: Data) -> PrivateKey? {

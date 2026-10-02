@@ -14,6 +14,15 @@ mkdir -p "$SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSer
 
 sh $SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSerialization/macOS/generate.sh --input $SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSerialization/Models --output $SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSerialization/Sources --binary $SCRIPT_DIR/../scripts/flatc
 
+# Submodule sources we can't commit to: patches/<submodule>/*.patch.
+# Skip patches that are already applied.
+for PATCH in "$SCRIPT_DIR"/../patches/*/*.patch; do
+    MODULE="$SCRIPT_DIR/../submodules/$(basename "$(dirname "$PATCH")")"
+    if ! git -C "$MODULE" apply --reverse --check "$PATCH" 2>/dev/null; then
+        git -C "$MODULE" apply "$PATCH"
+    fi
+done
+
 
 RebuildFile="${SCRIPT_DIR}/rebuild"
 
@@ -43,7 +52,7 @@ do
     BASE_PWD="${SCRIPT_DIR}/../submodules/${LIB}"
     OUTPUT_DIR=$( mktemp -d )
 
-    COMMON_SETUP=" -project ${SCRIPT_DIR}/../core-xprojects/${LIB}/${FWNAME}.xcodeproj -configuration Release BUILD_LIBRARY_FOR_DISTRIBUTION=YES "
+    COMMON_SETUP=" -project ${SCRIPT_DIR}/../core-xprojects/${LIB}/${FWNAME}.xcodeproj -configuration Release BUILD_LIBRARY_FOR_DISTRIBUTION=YES ARCHS=arm64 "
 
 
     DERIVED_DATA_PATH=$( mktemp -d )

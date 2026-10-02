@@ -29,7 +29,7 @@ LIBOPUS_PATH="${BUILD_DIR}../../libopus/build/libopus"
 LIBVPX_PATH="${BUILD_DIR}../../libvpx/build/libvpx"
 LIBDAV1D_PATH="${BUILD_DIR}../../dav1d/build/dav1d"
 
-FF_VERSION="7.1"
+FF_VERSION="7.1.1"
 SOURCE="$SOURCE_DIR/ffmpeg-$FF_VERSION"
 
 GAS_PREPROCESSOR_PATH="$SOURCE_DIR/gas-preprocessor.pl"
@@ -103,28 +103,14 @@ then
 		
 
         CFLAGS="$EXTRA_CFLAGS -arch $ARCH"
-		if [ "$ARCH" = "x86_64" ]
-		then
-		    PLATFORM="MacOSX"
-		    CFLAGS="$CFLAGS -mmacosx-version-min=$DEPLOYMENT_TARGET"
-		else
-		    PLATFORM="MacOSX"
-		    CFLAGS="$CFLAGS -mmacosx-version-min=$DEPLOYMENT_TARGET"
-		    if [ "$ARCH" = "arm64" ]
-		    then
-		        EXPORT="GASPP_FIX_XCODE5=1"
-		    fi
-		fi
+		PLATFORM="MacOSX"
+		CFLAGS="$CFLAGS -mmacosx-version-min=$DEPLOYMENT_TARGET"
+		EXPORT="GASPP_FIX_XCODE5=1"
 
 		XCRUN_SDK=`echo $PLATFORM | tr '[:upper:]' '[:lower:]'`
 		CC="xcrun -sdk $XCRUN_SDK clang"
 
-		if [ "$ARCH" = "arm64" ]
-		then
-		    AS="$GAS_PREPROCESSOR_PATH -arch aarch64 -- $CC"
-		else
-		    AS="$GAS_PREPROCESSOR_PATH -- $CC"
-		fi
+		AS="$GAS_PREPROCESSOR_PATH -arch aarch64 -- $CC"
 
 		CXXFLAGS="$CFLAGS"
 		LDFLAGS="$CFLAGS"

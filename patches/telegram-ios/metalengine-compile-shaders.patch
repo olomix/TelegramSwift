@@ -1,0 +1,12 @@
+diff --git a/submodules/MetalEngine/Package.swift b/submodules/MetalEngine/Package.swift
+index 85b28b7bbd..008c7b8b15 100644
+--- a/submodules/MetalEngine/Package.swift
++++ b/submodules/MetalEngine/Package.swift
+@@ -26,6 +26,6 @@ let package = Package(
+             dependencies: [.product(name: "ShelfPack", package: "ShelfPack", condition: nil),
+                            .product(name: "TGUIKit", package: "TGUIKit", condition: nil)],
+             path: "Sources/",
+-            resources: [.copy("MetalEngineShaders.metal")]),
++            resources: [.process("MetalEngineShaders.metal")]),
+     ]
+ )

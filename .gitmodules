@@ -1,9 +1,6 @@
 [submodule "submodules/libtgvoip"]
 	path = submodules/libtgvoip
 url=git@github.com:telegramdesktop/libtgvoip
-[submodule "submodules/Sparkle"]
-	path = submodules/Sparkle
-url=git@gitlab.com:overtake/Sparkle.git
 [submodule "submodules/telegram-ios"]
 	path = submodules/telegram-ios
 url=git@github.com:overtake/Telegram-iOS.git

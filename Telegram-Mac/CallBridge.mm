@@ -457,9 +457,9 @@ static void withContext(int32_t contextId, void (^f)(OngoingCallThreadLocalConte
     config.enableNS = true;
     config.enableAGC = true;
     
-    config.logFilePath = [[@"~/Library/Group Containers/6N38VWS5BX.ru.keepcoder.Telegram/voip.log" stringByExpandingTildeInPath] UTF8String];
-    
-  //  strncpy(config.logFilePath, [[@"~/Library/Group Containers/6N38VWS5BX.ru.keepcoder.Telegram/voip.log" stringByExpandingTildeInPath] UTF8String], sizeof(config.logFilePath));    //memset(config.logFilePath, 0, sizeof(config.logFilePath));
+    NSURL *supportDir = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
+    NSURL *logURL = [[supportDir URLByAppendingPathComponent:[NSBundle mainBundle].bundleIdentifier] URLByAppendingPathComponent:@"voip.log"];
+    config.logFilePath = logURL.path.UTF8String;
     
     _controller.controller->SetConfig(config);
     tgvoip::ServerConfig::GetSharedInstance()->Update(serializedData.UTF8String);

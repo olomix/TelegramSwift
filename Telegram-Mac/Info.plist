@@ -65,10 +65,6 @@
 	<string>NSApplication</string>
 	<key>SOURCE</key>
 	<string>${SOURCE}</string>
-	<key>SUFeedURL</key>
-	<string>${SFEED_URL}</string>
-	<key>SUPublicDSAKeyFile</key>
-	<string>${DSA_PEM_FILE}</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>SFCompactRounded-Semibold.otf</string>

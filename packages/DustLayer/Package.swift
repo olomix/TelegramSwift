@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "DustLayer",
-    platforms: [.macOS(.v10_13)],
+    platforms: [.macOS(.v12)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
@@ -28,8 +28,8 @@ let package = Package(
                            .product(name: "MetalEngine", package: "MetalEngine", condition: nil),
                            .product(name: "TGUIKit", package: "TGUIKit", condition: nil)],
             path: "Sources/",
-            resources: [.copy("DustEffectShaders.metal"),
-                        .copy("loki_header.metal"),
-                        .copy("loki.metal")])
+            resources: [.process("DustEffectShaders.metal"),
+                        .process("loki_header.metal"),
+                        .process("loki.metal")])
     ]
 )

@@ -9,7 +9,7 @@ public final class ApiEnvironment {
     }
     
     public static var bundleId: String {
-        return "ru.keepcoder.Telegram"
+        return "dev.alek.telegram"
     }
     public static var intentsBundleId: String {
         return teamId + "." + bundleId + ".FocusIntents"
@@ -20,9 +20,14 @@ public final class ApiEnvironment {
     
     
     
+    // Keep data outside Telegram's app group so this build never shares
+    // state with the official client.
+    public static var dataRootURL: URL? {
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent(bundleId)
+    }
+
     public static var containerURL: URL? {
-        let appGroupName = ApiEnvironment.group
-        let containerUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)?.appendingPathComponent(prefix)
+        let containerUrl = dataRootURL?.appendingPathComponent(prefix)
         if let containerUrl = containerUrl {
             try? FileManager.default.createDirectory(at: containerUrl, withIntermediateDirectories: true, attributes: nil)
             return containerUrl
@@ -30,31 +35,6 @@ public final class ApiEnvironment {
         return nil
     }
     
-    public static func migrate() {
-        if let containerURL = containerURL, let legacy = legacyContainerURL, let sequence = FileManager.default.enumerator(atPath: legacy.path) {
-            let contents = try? FileManager.default.contentsOfDirectory(at: containerURL, includingPropertiesForKeys: nil, options: [])
-            if let contents = contents, !contents.isEmpty {
-                return
-            }
-            for value in sequence {
-                if let value = value as? String {
-                    if !prefixList.contains(value) {
-                        try? FileManager.default.moveItem(at: legacy.appendingPathComponent(value), to: containerURL.appendingPathComponent(value))
-                    }
-                }
-            }
-        }
-    }
-    
-    public static var legacyContainerURL: URL? {
-        let appGroupName = ApiEnvironment.group
-        let containerUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
-        return containerUrl
-    }
-    
-    public static var group: String {
-        return teamId + "." + bundleId
-    }
     
     public static var appData: Data {
         let apiData = evaluateApiData() ?? ""

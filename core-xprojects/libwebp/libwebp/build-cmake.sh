@@ -48,7 +48,7 @@ mkdir libwebp
 for ARCH in $ARCHS
 do
 
-export CFLAGS="-Wall -arch $ARCH -mmacosx-version-min=10.11 -funwind-tables"
+export CFLAGS="-Wall -arch $ARCH -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET -funwind-tables"
 
 mkdir $ARCH
 cd $ARCH
@@ -58,11 +58,7 @@ ROOTDIR=$OUT_DIR/$ARCH
 
 touch toolchain.cmake
 echo "set(CMAKE_SYSTEM_NAME Darwin)" >> toolchain.cmake
-if [ $ARCH = "arm64" ]; then
 echo "set(CMAKE_SYSTEM_PROCESSOR aarch64)" >> toolchain.cmake
-else
-echo "set(CMAKE_SYSTEM_PROCESSOR AMD64)" >> toolchain.cmake
-fi
 
 echo "set(CMAKE_C_COMPILER $(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang)" >> toolchain.cmake
 

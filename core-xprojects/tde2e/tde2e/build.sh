@@ -41,19 +41,6 @@ cmake "$SOURCE_DIR" \
 cmake --build . --target tde2e -j$(sysctl -n hw.ncpu)
 popd
 
-# Step 3: Build for x86_64
-echo "Building for x86_64..."
-X86_64_DIR="$BUILD_DIR/x86_64"
-mkdir -p "$X86_64_DIR"
-pushd "$X86_64_DIR"
-
-cmake "$SOURCE_DIR" \
-    -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-    $options
-
-cmake --build . --target tde2e -j$(sysctl -n hw.ncpu)
-popd
-
 # Step 4: Create universal binary
 echo "Creating universal binary..."
 UNIVERSAL_DIR="$BUILD_DIR/tde2e"
@@ -61,7 +48,6 @@ mkdir -p "$UNIVERSAL_DIR/lib"
 
 lipo -create \
     "$ARM64_DIR/tde2e/libtde2e.a" \
-    "$X86_64_DIR/tde2e/libtde2e.a" \
     -output "$UNIVERSAL_DIR/lib/libtde2e.a"
 
 echo "Universal binary created at $UNIVERSAL_DIR/lib/libtde2e.a"
@@ -69,7 +55,6 @@ echo "Universal binary created at $UNIVERSAL_DIR/lib/libtde2e.a"
 
 lipo -create \
     "$ARM64_DIR/tdutils/libtdutils.a" \
-    "$X86_64_DIR/tdutils/libtdutils.a" \
     -output "$UNIVERSAL_DIR/lib/libtdutils.a"
 
 echo "Universal binary created at $UNIVERSAL_DIR/lib/libtdutils.a"

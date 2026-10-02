@@ -147,7 +147,7 @@ function build_for ()
     "no-tests" \
   )
 
-  ./Configure $PLATFORM -mmacosx-version-min=10.13 no-shared no-tests --prefix="${ABS_TMP_DIR}/${ARCH}" || exit 1
+  ./Configure $PLATFORM -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET no-shared no-tests --prefix="${ABS_TMP_DIR}/${ARCH}" || exit 1
   
   make build_libs || exit 2
   unset CROSS_TOP
@@ -168,9 +168,6 @@ do
 done
 
 
-ARCH_COUNT=( $ARCHS )
-ARCH_COUNT=${#ARCH_COUNT[@]}
-if [[ $ARCH_COUNT -gt 1 ]] ; then
 LIBSSLA=""
 LIBCRYPTO=""
 mkdir -p ${BUILD_DIR}build/openssl/lib
@@ -182,10 +179,6 @@ LIBCRYPTO="$LIBCRYPTO ${BUILD_DIR}build/$ARCH/libcrypto.a"
 done
 lipo -create -output ${BUILD_DIR}build/openssl/lib/libssl.a $LIBSSLA
 lipo -create -output ${BUILD_DIR}build/openssl/lib/libcrypto.a $LIBCRYPTO
-else
-mv "${BUILD_DIR}build/$ARCHS/libssl.a" "${BUILD_DIR}build/libssl.a"
-mv "${BUILD_DIR}build/$ARCHS/libcrypto.a" "${BUILD_DIR}build/libcrypto.a"
-fi
 
 
 #cp -r "${TMP_DIR}/$ARCH/include" "${TMP_DIR}/"

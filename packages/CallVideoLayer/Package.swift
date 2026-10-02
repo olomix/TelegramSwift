@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "CallVideoLayer",
-    platforms: [.macOS(.v10_13)],
+    platforms: [.macOS(.v12)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
@@ -28,6 +28,6 @@ let package = Package(
                            .product(name: "MetalEngine", package: "MetalEngine", condition: nil),
                            .product(name: "TGUIKit", package: "TGUIKit", condition: nil)],
             path: "Sources/",
-            resources: [.copy("CallScreenShaders.metal")])
+            resources: [.process("CallScreenShaders.metal")])
     ]
 )

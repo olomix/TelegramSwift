@@ -14,7 +14,7 @@ import Postbox
 import SwiftSignalKit
 import KeyboardKey
 
-#if !APP_STORE
+#if SPARKLE
 import Sparkle
 #endif
 
@@ -155,7 +155,7 @@ final class UpdateTabController: GenericViewController<UpdateTabView> {
     }
     private var parentSize: NSSize = .zero
     private let stateDisposable = MetaDisposable()
-    #if !APP_STORE
+    #if SPARKLE
     private var appcastItem: SUAppcastItem? {
         didSet {
             
@@ -217,7 +217,7 @@ final class UpdateTabController: GenericViewController<UpdateTabView> {
             execute(inapp: inAppLink.external(link: itunesAppLink, false))
             control.isHidden = true
         }, for: .Click)
-        #else
+        #elseif SPARKLE
         disposable.set((appUpdateStateSignal |> deliverOnMainQueue).start(next: { [weak self] state in
             switch state.loadingState {
             case let .readyToInstall(item):
@@ -242,7 +242,7 @@ final class UpdateTabController: GenericViewController<UpdateTabView> {
     
     override func updateLocalizationAndTheme(theme: PresentationTheme) {
         super.updateLocalizationAndTheme(theme: theme)
-        #if !APP_STORE
+        #if SPARKLE
         let item = self.appcastItem
         self.appcastItem = item
         #endif

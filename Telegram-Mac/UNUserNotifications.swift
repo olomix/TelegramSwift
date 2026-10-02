@@ -306,7 +306,7 @@ final class UNUserNotificationsNew : UNUserNotifications, UNUserNotificationCent
         content.userInfo = notification.userInfo ?? [:]
         let soundSettings = self.soundSettings
         
-        guard let containerUrl = ApiEnvironment.legacyContainerURL?.path else {
+        guard let containerUrl = ApiEnvironment.dataRootURL?.path else {
             return
         }
         

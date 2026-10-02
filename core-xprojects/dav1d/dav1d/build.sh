@@ -25,21 +25,11 @@ meson setup "$SOURCE_DIR" --cross-file="$PWD/../../dav1d-arm64.meson" $MESON_OPT
 ninja
 popd
 
-# Build for x86_64
-echo "Building for x86_64..."
-mkdir -p "$BUILD_DIR/x86_64"
-pushd "$BUILD_DIR/x86_64"
-
-meson setup "$SOURCE_DIR" --cross-file="$PWD/../../dav1d-x86_64.meson" $MESON_OPTIONS
-ninja
-popd
-
 # Create universal binary
 echo "Creating universal binary..."
 mkdir -p "$BUILD_DIR/dav1d/lib"
 lipo -create \
     "$BUILD_DIR/arm64/src/libdav1d.a" \
-    "$BUILD_DIR/x86_64/src/libdav1d.a" \
     -output "$BUILD_DIR/dav1d/lib/libdav1d.a"
 
 # Copy include files from the source directory
