@@ -264,21 +264,25 @@
 - Modify: `Telegram.xcodeproj/project.pbxproj` (Release signing overrides)
 - Modify: `Telegram-Mac/AppDelegate.swift` (migration call)
 
-- [ ] add `AppGroup.isTeamPrefixed` and `DataFolderMigration.move`
-- [ ] add the app group entitlement, `TGAppGroup`, and remove the Release
+- [x] add `AppGroup.isTeamPrefixed` and `DataFolderMigration.move`
+- [x] add the app group entitlement, `TGAppGroup`, and remove the Release
       `DEVELOPMENT_TEAM = ""` / `CODE_SIGN_IDENTITY = ""` overrides
-- [ ] point `dataRootURL` at the guarded group container; add
+      (Release `CODE_SIGN_IDENTITY` set to "Apple Development" like Debug:
+      the project-level value is ad-hoc "-", which cannot carry the group)
+- [x] point `dataRootURL` at the guarded group container; add
       `legacyDataRootURL` and `credentialsFileURL`
-- [ ] call the migration as the first line of `applicationDidFinishLaunching`
-- [ ] write tests: team prefix accepted / rejected (`dev.alek.telegram`,
+- [x] call the migration as the first line of `applicationDidFinishLaunching`
+- [x] write tests: team prefix accepted / rejected (`dev.alek.telegram`,
       lower case, short prefix)
-- [ ] write migration tests with temp dirs: moves everything into an empty
+- [x] write migration tests with temp dirs: moves everything into an empty
       destination; still moves when the destination has only hidden files or
       an empty `debug/` folder; skips names that exist; no-op when
       `<prefix>/accounts-metadata` exists; no-op when source is missing
-- [ ] run `swift test`, build the app, start it once, confirm the data is
+- [x] run `swift test`, build the app, start it once, confirm the data is
       under `~/Library/Group Containers/<TeamID>.dev.alek.telegram` and you
-      are still logged in - must pass
+      are still logged in - must pass (tests and build pass; built app and
+      TelegramShare.appex carry `3PB2Z94Q5T.dev.alek.telegram`; launch left
+      for manual verification)
 
 ### Task 4: Read credentials from the store
 

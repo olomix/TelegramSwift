@@ -69,6 +69,8 @@
 	<string>$(TG_API_HASH)</string>
 	<key>TGApiId</key>
 	<string>$(TG_API_ID)</string>
+	<key>TGAppGroup</key>
+	<string>$(TeamIdentifierPrefix)dev.alek.telegram</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>SFCompactRounded-Semibold.otf</string>

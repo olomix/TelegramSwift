@@ -27,10 +27,26 @@ public final class ApiEnvironment {
     
     
     
-    // Keep data outside Telegram's app group so this build never shares
-    // state with the official client.
+    /// `<TeamID>.dev.alek.telegram`, shared by the app and the Share
+    /// extension and separate from the official client's group.
+    public static var appGroup: String {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "TGAppGroup") as? String, AppGroup.isTeamPrefixed(value) else {
+            fatalError("TGAppGroup has no team prefix: set DEVELOPMENT_TEAM in Telegram-Mac/Secrets.xcconfig and sign with that team")
+        }
+        return value
+    }
+
     public static var dataRootURL: URL? {
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
+    }
+
+    /// Where data lived before it moved into the app group container.
+    public static var legacyDataRootURL: URL? {
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent(bundleId)
+    }
+
+    public static var credentialsFileURL: URL? {
+        return dataRootURL?.appendingPathComponent("api-credentials.json")
     }
 
     public static var containerURL: URL? {

@@ -326,6 +326,17 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     }
     
     private var ctxLayer: CtxInstallLayer?
+
+    private func moveLegacyDataIntoAppGroup() {
+        guard let legacy = ApiEnvironment.legacyDataRootURL, let root = ApiEnvironment.dataRootURL else {
+            return
+        }
+        do {
+            try DataFolderMigration.move(from: legacy, to: root, prefixes: ApiEnvironment.prefixList, fileManager: .default)
+        } catch {
+            NSLog("Moving data from \(legacy.path) to \(root.path) failed: \(error)")
+        }
+    }
     
     func updateGraphicContext() {
         ctxLayer?.display()
@@ -335,7 +346,8 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
 
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        
+        moveLegacyDataIntoAppGroup()
+
         _ = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: { event in
             return BrowserStateContext.checkKey(event)
         })
