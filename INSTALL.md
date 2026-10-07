@@ -62,3 +62,5 @@ pick it under Signing & Capabilities, which writes it into the project file.
   `~/Library/Application Support/dev.alek.telegram/debug/`; Release builds use
   `stable/`, so each needs its own login.
 - Run only one copy of the app at a time; copies share the same data folder.
+- Run the FoundationUtils package's unit tests with
+  `cd packages/FoundationUtils && swift test`.
