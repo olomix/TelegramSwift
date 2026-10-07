@@ -1,18 +1,37 @@
 import Cocoa
 
 public final class ApiEnvironment {
-    // Credentials come from Telegram-Mac/Secrets.xcconfig via Info.plist.
     public static var apiId:Int32 {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: "TGApiId") as? String, let id = Int32(value), id != 0 else {
-            fatalError("Missing TG_API_ID: copy Telegram-Mac/Secrets.example.xcconfig to Secrets.xcconfig and set your my.telegram.org credentials")
+        guard let credentials = credentials else {
+            fatalError("No API credentials: save api_id and api_hash from my.telegram.org first")
         }
-        return id
+        return credentials.apiId
     }
     public static var apiHash:String {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: "TGApiHash") as? String, value.count == 32, value != String(repeating: "0", count: 32) else {
-            fatalError("Missing TG_API_HASH: copy Telegram-Mac/Secrets.example.xcconfig to Secrets.xcconfig and set your my.telegram.org credentials")
+        guard let credentials = credentials else {
+            fatalError("No API credentials: save api_id and api_hash from my.telegram.org first")
         }
-        return value
+        return credentials.apiHash
+    }
+
+    /// The saved credentials, or the build-time ones from Secrets.xcconfig
+    /// until the settings screen can store them.
+    public static var credentials: ApiCredentialsValues? {
+        return storedCredentials ?? bundledCredentials
+    }
+
+    public static var storedCredentials: ApiCredentialsValues? {
+        guard let fileURL = credentialsFileURL else {
+            return nil
+        }
+        return ApiCredentialsStore(fileURL: fileURL).load()
+    }
+
+    private static var bundledCredentials: ApiCredentialsValues? {
+        guard let apiId = Bundle.main.object(forInfoDictionaryKey: "TGApiId") as? String, let apiHash = Bundle.main.object(forInfoDictionaryKey: "TGApiHash") as? String else {
+            return nil
+        }
+        return try? ApiCredentialsValues.validate(apiId: apiId, apiHash: apiHash).get()
     }
     
     public static var bundleId: String {

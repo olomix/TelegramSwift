@@ -24,9 +24,8 @@ class SEUnauthorizedView : View {
         cancel.set(color: theme.colors.accent, for: .Normal)
         cancel.set(text: L10n.shareExtensionUnauthorizedOK, for: .Normal)
         
-        let layout = TextViewLayout(.initialize(string: L10n.shareExtensionUnauthorizedDescription, color: theme.colors.text, font: .normal(.text)), alignment: .center)
         textView.backgroundColor = theme.colors.background
-        textView.update(layout)
+        setDescription(L10n.shareExtensionUnauthorizedDescription)
         
         addSubview(cancel)
         addSubview(textView)
@@ -34,6 +33,11 @@ class SEUnauthorizedView : View {
     }
     
     
+    func setDescription(_ text: String) {
+        textView.update(TextViewLayout(.initialize(string: text, color: theme.colors.text, font: .normal(.text)), alignment: .center))
+        needsLayout = true
+    }
+
     override func layout() {
         super.layout()
         imageView.centerX(y: 30)
@@ -50,7 +54,9 @@ class SEUnauthorizedView : View {
 
 class SEUnauthorizedViewController: GenericViewController<SEUnauthorizedView> {
     private let cancelImpl:()->Void
-    init(cancelImpl:@escaping()->Void) {
+    private let descriptionText: String
+    init(description: String = L10n.shareExtensionUnauthorizedDescription, cancelImpl:@escaping()->Void) {
+        self.descriptionText = description
         self.cancelImpl = cancelImpl
         super.init()
     }
@@ -58,6 +64,7 @@ class SEUnauthorizedViewController: GenericViewController<SEUnauthorizedView> {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        genericView.setDescription(descriptionText)
         genericView.cancel.set(handler: { [weak self] _ in
             self?.cancelImpl()
         }, for: .Click)

@@ -290,13 +290,15 @@
 - Modify: `packages/ApiCredentials/Sources/ApiCredentials/Config.swift`
 - Modify: `TelegramShare/ShareViewController.swift`
 
-- [ ] make `ApiEnvironment.apiId` / `apiHash` read `ApiCredentialsStore`,
+- [x] make `ApiEnvironment.apiId` / `apiHash` read `ApiCredentialsStore`,
       falling back to the Info.plist values for now (removed in Task 7) so
       the app keeps working until the screen exists
-- [ ] Share extension: when no credentials are stored, show "Open Telegram
+- [x] Share extension: when no credentials are available (stored or, until
+      Task 7, the Info.plist fallback), show "Open Telegram
       to finish setup" and do not start the network
-- [ ] add a test for any new pure helper (none expected beyond the store)
-- [ ] run `swift test` and build the app - must pass
+- [x] add a test for any new pure helper (none expected beyond the store; none added - the
+      new code reads Bundle/files only and reuses tested `validate`/store)
+- [x] run `swift test` and build the app - must pass
 
 ### Task 5: Server check against Telegram
 

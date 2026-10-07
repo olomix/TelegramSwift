@@ -32,6 +32,7 @@ class ShareViewController: NSViewController {
     private let contextDisposable = MetaDisposable()
     
     private var passlock: SEPasslockController? = nil
+    private var setupRequired: SEUnauthorizedViewController? = nil
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -77,6 +78,10 @@ class ShareViewController: NSViewController {
         
         telegramUpdateTheme(updateTheme(with: themeSettings), window: nil, animated: false)
 
+        if ApiEnvironment.credentials == nil {
+            showSetupRequired()
+            return
+        }
         
         let appEncryption = AppEncryptionParameters(path: rootPath)
         
@@ -105,7 +110,17 @@ class ShareViewController: NSViewController {
         }
     }
 
-    
+    private func showSetupRequired() {
+        let extensionContext = self.extensionContext!
+        let controller = SEUnauthorizedViewController(description: L10n.shareExtensionSetupDescription, cancelImpl: {
+            let cancelError = NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError, userInfo: nil)
+            extensionContext.cancelRequest(withError: cancelError)
+        })
+        controller.view.frame = self.view.bounds
+        self.view.addSubview(controller.view)
+        self.setupRequired = controller
+    }
+
     private func launchExtension(accountManager: AccountManager<TelegramAccountManagerTypes>, encryptionParameters: ValueBoxEncryptionParameters, appEncryption: AppEncryptionParameters) {
         
         

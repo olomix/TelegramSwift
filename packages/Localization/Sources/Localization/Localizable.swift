@@ -17407,6 +17407,8 @@ public final class L10n {
   public static var shareExtensionPasscodeNext: String  { return L10n.tr("Localizable", "ShareExtension.Passcode.Next") }
   /// passcode
   public static var shareExtensionPasscodePlaceholder: String  { return L10n.tr("Localizable", "ShareExtension.Passcode.Placeholder") }
+  /// Open Telegram to finish setup.
+  public static var shareExtensionSetupDescription: String  { return L10n.tr("Localizable", "ShareExtension.Setup.Description") }
   /// To share via Telegram, please open the Telegam app and log in.
   public static var shareExtensionUnauthorizedDescription: String  { return L10n.tr("Localizable", "ShareExtension.Unauthorized.Description") }
   /// OK
