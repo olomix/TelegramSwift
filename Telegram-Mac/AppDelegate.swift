@@ -804,28 +804,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                 })
                 
                 
-                let voipVersions = OngoingCallContext.versions(includeExperimental: true, includeReference: false).map { version, supportsVideo -> CallSessionManagerImplementationVersion in
-                    CallSessionManagerImplementationVersion(version: version, supportsVideo: supportsVideo)
-                }
-            
-                let value = Configuration.value(for: .source)
-                
-                
-               
-                
-                let appData: Signal<Data?, NoError> = Signal { subscriber in
-                    subscriber.putNext(ApiEnvironment.appData)
-                    subscriber.putCompletion()
-                    return EmptyDisposable
-                } |> runOn(.concurrentBackgroundQueue())
-                
-                
-                var useBetaFeatures: Bool = false
-                #if BETA || DEBUG
-                useBetaFeatures = false
-                #endif
-                
-                let networkArguments = NetworkInitializationArguments(apiId: ApiEnvironment.apiId, apiHash: ApiEnvironment.apiHash, languagesCategory: ApiEnvironment.language, appVersion: ApiEnvironment.version, voipMaxLayer: OngoingCallContext.maxLayer, voipVersions: voipVersions, appData: appData, externalRequestVerificationStream: .single([:]), externalRecaptchaRequestVerification: { _, _ in return .complete() }, autolockDeadine: .single(nil), encryptionProvider: OpenSSLEncryptionProvider(), deviceModelName: deviceModelPretty(), useBetaFeatures: useBetaFeatures, isICloudEnabled: false)
+                let networkArguments = makeNetworkInitializationArguments(apiId: ApiEnvironment.apiId, apiHash: ApiEnvironment.apiHash)
                 
                 let sharedContext = SharedAccountContext(accountManager: accountManager, networkArguments: networkArguments, rootPath: rootPath, encryptionParameters: encryptionParameters, appEncryption: appEncryption, displayUpgradeProgress: displayUpgrade)
                 

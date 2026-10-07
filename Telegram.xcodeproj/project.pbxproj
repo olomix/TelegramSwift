@@ -1173,6 +1173,7 @@
 		A7E831F3255041020095A167 /* IsEqualMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E831F2255041020095A167 /* IsEqualMessages.swift */; };
 		A7E831F4255041020095A167 /* IsEqualMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E831F2255041020095A167 /* IsEqualMessages.swift */; };
 		A7E831F82551A85F0095A167 /* ColdStartPasslockController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E831F72551A85F0095A167 /* ColdStartPasslockController.swift */; };
+		A1C0DE0000000000000A0C02 /* ApiCredentialsChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE0000000000000A0C01 /* ApiCredentialsChecker.swift */; };
 		A7E83214255E992D0095A167 /* WaveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E83213255E992D0095A167 /* WaveView.swift */; };
 		A7ED5DAF236C7CE100040372 /* RLottie.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A7ED5DAE236C7CE100040372 /* RLottie.framework */; };
 		A7F283002395168300742C20 /* SettingsSearchRecentQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F282FF2395168300742C20 /* SettingsSearchRecentQueries.swift */; };
@@ -2833,6 +2834,7 @@
 		A7E831EF255040B70095A167 /* ChatPresentationInputQueryResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPresentationInputQueryResult.swift; sourceTree = "<group>"; };
 		A7E831F2255041020095A167 /* IsEqualMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsEqualMessages.swift; sourceTree = "<group>"; };
 		A7E831F72551A85F0095A167 /* ColdStartPasslockController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColdStartPasslockController.swift; sourceTree = "<group>"; };
+		A1C0DE0000000000000A0C01 /* ApiCredentialsChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiCredentialsChecker.swift; sourceTree = "<group>"; };
 		A7E83213255E992D0095A167 /* WaveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveView.swift; sourceTree = "<group>"; };
 		A7ED5DAE236C7CE100040372 /* RLottie.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = RLottie.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A7F282FF2395168300742C20 /* SettingsSearchRecentQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSearchRecentQueries.swift; sourceTree = "<group>"; };
@@ -5723,6 +5725,7 @@
 				C24D9FC31E24FFF3002CD3F3 /* PasscodeLockController.swift */,
 				9F147F6E223014EB00D71BD1 /* PasscodeControllers.swift */,
 				A7E831F72551A85F0095A167 /* ColdStartPasslockController.swift */,
+				A1C0DE0000000000000A0C01 /* ApiCredentialsChecker.swift */,
 			);
 			name = passcode;
 			sourceTree = "<group>";
@@ -8244,6 +8247,7 @@
 				27D9131728364F1F007CF40F /* VoiceTranscriptionControl.swift in Sources */,
 				C2CBCAC01D81528700142EC0 /* System.swift in Sources */,
 				A7E831F82551A85F0095A167 /* ColdStartPasslockController.swift in Sources */,
+				A1C0DE0000000000000A0C02 /* ApiCredentialsChecker.swift in Sources */,
 				C21AAE361DB22CA5007638C5 /* AvatarLayer.swift in Sources */,
 				C2DF47E01DE846AB003AA6C0 /* ChatAudioContentView.swift in Sources */,
 				270F020726F0B0830099D2AA /* EmojiAnimationEffectView.swift in Sources */,

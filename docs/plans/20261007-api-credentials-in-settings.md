@@ -305,14 +305,16 @@
 **Files:**
 - Create: `Telegram-Mac/ApiCredentialsChecker.swift`
 - Modify: `Telegram.xcodeproj/project.pbxproj` (add the file)
+- Modify: `Telegram-Mac/AppDelegate.swift` (use the shared
+  `makeNetworkInitializationArguments`)
 
-- [ ] implement `ApiCredentialsChecker.check(_ values:, accountManager:) ->
+- [x] implement `ApiCredentialsChecker.check(_ values:, accountManager:) ->
       Signal<ApiCredentialsCheckResult, NoError>` as in Solution Overview
-- [ ] release the account and delete the temp folder on completion and on
+- [x] release the account and delete the temp folder on completion and on
       dispose
-- [ ] tests: covered by Task 2's outcome mapping; add cases there if the
-      checker needs a new outcome
-- [ ] run `swift test` and build the app - must pass
+- [x] tests: covered by Task 2's outcome mapping; add cases there if the
+      checker needs a new outcome (none needed)
+- [x] run `swift test` and build the app - must pass
 
 ### Task 6: Credentials screen
 
