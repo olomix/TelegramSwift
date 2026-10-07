@@ -158,8 +158,10 @@ class InputDataRowItem: GeneralRowItem, InputDataRowDataValue {
     fileprivate let canMakeTransformations: Bool
     fileprivate let pasteFilter:((String)->(Bool, String))?
     private let maxBlockWidth: CGFloat?
-    init(_ initialSize: NSSize, stableId: AnyHashable, mode: InputDataInputMode, error: InputDataValueError?, viewType: GeneralViewType = .legacy, currentText: String, currentAttributedText: NSAttributedString? = nil, placeholder: InputDataInputPlaceholder?, inputPlaceholder: String, defaultText: String? = nil, rightItem: InputDataRightItem? = nil, canMakeTransformations: Bool = false, insets: NSEdgeInsets = NSEdgeInsets(left: 20, right: 20), maxBlockWidth: CGFloat? = nil, filter:@escaping(String)->String, updated:@escaping(String)->Void, pasteFilter:((String)->(Bool, String))? = nil, limit: Int32, customTheme: GeneralRowItem.Theme? = nil) {
+    fileprivate let outlinesError: Bool
+    init(_ initialSize: NSSize, stableId: AnyHashable, mode: InputDataInputMode, error: InputDataValueError?, viewType: GeneralViewType = .legacy, currentText: String, currentAttributedText: NSAttributedString? = nil, placeholder: InputDataInputPlaceholder?, inputPlaceholder: String, defaultText: String? = nil, rightItem: InputDataRightItem? = nil, canMakeTransformations: Bool = false, insets: NSEdgeInsets = NSEdgeInsets(left: 20, right: 20), maxBlockWidth: CGFloat? = nil, filter:@escaping(String)->String, updated:@escaping(String)->Void, pasteFilter:((String)->(Bool, String))? = nil, limit: Int32, customTheme: GeneralRowItem.Theme? = nil, outlinesError: Bool = false) {
         self.filter = filter
+        self.outlinesError = outlinesError
         self.limit = limit
         self.updated = updated
         self.placeholder = placeholder
@@ -803,6 +805,13 @@ class InputDataRowView : GeneralRowView, TGModernGrowingDelegate, NSTextFieldDel
         }
         containerView.change(size: containerRect.size, animated: animated, corners: item.viewType.corners)
         containerView.change(pos: containerRect.origin, animated: animated)
+
+        let outlined = item.outlinesError && item.error != nil
+        containerView.layer?.borderWidth = outlined ? 1 : 0
+        if outlined {
+            containerView.layer?.borderColor = redColor.cgColor
+            containerView.layer?.cornerRadius = containerView.cornerRadius
+        }
 
         if let rightItem = item.rightItem {
             switch rightItem {

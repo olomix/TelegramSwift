@@ -481,6 +481,30 @@ public final class L10n {
   }
   /// An error occurred while sending the previous message. Would you like to try resending it?
   public static var alertSendErrorText: String  { return L10n.tr("Localizable", "Alert.SendError.Text") }
+  /// api_hash
+  public static var apiCredentialsApiHashPlaceholder: String  { return L10n.tr("Localizable", "ApiCredentials.ApiHash.Placeholder") }
+  /// api_id
+  public static var apiCredentialsApiIdPlaceholder: String  { return L10n.tr("Localizable", "ApiCredentials.ApiId.Placeholder") }
+  /// Enter the 32-character api_hash
+  public static var apiCredentialsErrorApiHashFormat: String  { return L10n.tr("Localizable", "ApiCredentials.Error.ApiHashFormat") }
+  /// Enter the numeric api_id
+  public static var apiCredentialsErrorApiIdFormat: String  { return L10n.tr("Localizable", "ApiCredentials.Error.ApiIdFormat") }
+  /// Telegram rejected these values
+  public static var apiCredentialsErrorRejected: String  { return L10n.tr("Localizable", "ApiCredentials.Error.Rejected") }
+  /// Required
+  public static var apiCredentialsErrorRequired: String  { return L10n.tr("Localizable", "ApiCredentials.Error.Required") }
+  /// Get your api_id and api_hash at [my.telegram.org](https://my.telegram.org) → API development tools.
+  public static var apiCredentialsHint: String  { return L10n.tr("Localizable", "ApiCredentials.Hint") }
+  /// Save
+  public static var apiCredentialsSave: String  { return L10n.tr("Localizable", "ApiCredentials.Save") }
+  /// API credentials
+  public static var apiCredentialsTitle: String  { return L10n.tr("Localizable", "ApiCredentials.Title") }
+  /// Save anyway
+  public static var apiCredentialsUnreachableSaveAnyway: String  { return L10n.tr("Localizable", "ApiCredentials.Unreachable.SaveAnyway") }
+  /// Couldn't reach Telegram to check these values. Check your connection or proxy and try again, or save them now and they will be checked on the next launch.
+  public static var apiCredentialsUnreachableText: String  { return L10n.tr("Localizable", "ApiCredentials.Unreachable.Text") }
+  /// Try again
+  public static var apiCredentialsUnreachableTryAgain: String  { return L10n.tr("Localizable", "ApiCredentials.Unreachable.TryAgain") }
   /// Maximum file size is %@
   public static func appMaxFileSizeNew(_ p1: String) -> String {
     return L10n.tr("Localizable", "App.MaxFileSizeNew", p1)
