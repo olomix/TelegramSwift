@@ -21,7 +21,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>274210</string>
+	<string>274211</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSMinimumSystemVersion</key>
@@ -57,5 +57,9 @@
 	<string>Copyright © 2024 Telegram. All rights reserved.</string>
 	<key>SOURCE</key>
 	<string>${SOURCE}</string>
+	<key>TGApiHash</key>
+	<string>$(TG_API_HASH)</string>
+	<key>TGApiId</key>
+	<string>$(TG_API_ID)</string>
 </dict>
 </plist>

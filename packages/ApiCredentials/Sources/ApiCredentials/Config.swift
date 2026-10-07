@@ -1,11 +1,18 @@
 import Cocoa
 
 public final class ApiEnvironment {
+    // Credentials come from Telegram-Mac/Secrets.xcconfig via Info.plist.
     public static var apiId:Int32 {
-        return 9
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "TGApiId") as? String, let id = Int32(value), id != 0 else {
+            fatalError("Missing TG_API_ID: copy Telegram-Mac/Secrets.example.xcconfig to Secrets.xcconfig and set your my.telegram.org credentials")
+        }
+        return id
     }
     public static var apiHash:String {
-        return "3975f648bb682ee889f35483bc618d1c"
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "TGApiHash") as? String, value.count == 32, value != String(repeating: "0", count: 32) else {
+            fatalError("Missing TG_API_HASH: copy Telegram-Mac/Secrets.example.xcconfig to Secrets.xcconfig and set your my.telegram.org credentials")
+        }
+        return value
     }
     
     public static var bundleId: String {
