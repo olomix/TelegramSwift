@@ -15,6 +15,7 @@ import Postbox
 import RangeSet
 import IOKit.pwr_mgt
 import TelegramMedia
+import FoundationUtils
 
 
 private func makePlayer(account: Account, reference: FileMediaReference, fetchAutomatically: Bool = false) -> (UniversalVideoContentView & NSView) {
@@ -47,7 +48,9 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
     private let reference: FileMediaReference
     private let statusDisposable = MetaDisposable()
     private let bufferingDisposable = MetaDisposable()
-    private let hideOnIdleDisposable = MetaDisposable()
+    private static let idleDelay: Double = 1.0
+    private let cursorIdle = CursorIdleController(hide: NSCursor.hide, unhide: NSCursor.unhide, schedule: SVideoController.scheduleAfterIdleDelay)
+    private var focusObservers: [NSObjectProtocol] = []
     private let hideControlsDisposable = MetaDisposable()
     private let account: Account
     private let context: AccountContext
@@ -161,16 +164,73 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
     }
     
     
+    private static func scheduleAfterIdleDelay(_ fire: @escaping () -> Void) -> CursorIdleController.Cancel {
+        let disposable = (Signal<NoValue, NoError>.complete() |> delay(idleDelay, queue: Queue.mainQueue())).start(completed: fire)
+        return { disposable.dispose() }
+    }
+
     private func updateIdleTimer() {
-        NSCursor.unhide()
-        hideOnIdleDisposable.set((Signal<NoValue, NoError>.complete() |> delay(1.0, queue: Queue.mainQueue())).start(completed: { [weak self] in
+        cursorIdle.rearm(onIdle: { [weak self] in
             guard let `self` = self else {return}
-            let hide = !self.genericView.isInMenu && !self.genericView.insideControls && !contextMenuOnScreen()
-            self.hideControls.set(hide)
-            if !self.pictureInPicture, hide {
-                NSCursor.hide()
-            }
-        }))
+            let isPointerOnControls = self.isPointerOnControls
+            self.hideControls.set(!isPointerOnControls)
+            self.hideCursorIfIdle(isPointerOnControls: isPointerOnControls)
+        })
+    }
+
+    private var isPointerOnControls: Bool {
+        return genericView.isInMenu || genericView.insideControls || contextMenuOnScreen()
+    }
+
+    /// The window holding key focus for the player. In fullscreen the
+    /// gallery window stays key and keeps the keyboard shortcuts.
+    private var focusWindow: NSWindow? {
+        if let state = fullScreenRestoreState {
+            return state.view.window
+        }
+        return view.window
+    }
+
+    private func hideCursorIfIdle(isPointerOnControls: Bool) {
+        let conditions = CursorIdleConditions(
+            isWindowVisible: genericView.window?.isVisible ?? false,
+            isWindowKey: focusWindow?.isKeyWindow ?? false,
+            isAppActive: NSApp.isActive,
+            isMouseInside: genericView.mediaPlayer._mouseInside(),
+            isPointerNeeded: isPointerOnControls || pictureInPicture
+        )
+        cursorIdle.hideIfIdle(conditions)
+    }
+
+    /// Stops the controller from hiding the cursor until it appears again.
+    /// Call when the player leaves the screen without `viewDidDisappear`.
+    func endAppearance() {
+        removeFocusObservers()
+        cursorIdle.endAppearance()
+    }
+
+    private func observeFocus(of window: NSWindow) {
+        removeFocusObservers()
+        let center = NotificationCenter.default
+        let showCursor: (Notification) -> Void = { [weak self] _ in
+            self?.cursorIdle.showCursor()
+        }
+        let rearm: (Notification) -> Void = { [weak self] _ in
+            self?.updateIdleTimer()
+        }
+        focusObservers = [
+            center.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main, using: showCursor),
+            center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main, using: showCursor),
+            center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main, using: rearm),
+            center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main, using: rearm)
+        ]
+    }
+
+    private func removeFocusObservers() {
+        for observer in focusObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        focusObservers = []
     }
     
     private func updateControlVisibility(_ isMouseUpOrDown: Bool = false) {
@@ -187,11 +247,6 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
             
             if self.fullScreenWindow != nil && isMouseUpOrDown, !genericView.insideControls {
                 hide = true
-                if !self.isPaused {
-                    if !contextMenuOnScreen() {
-                        NSCursor.hide()
-                    }
-                }
             }
             if contextMenuOnScreen() {
                 hide = false
@@ -206,6 +261,10 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
     
     private func setHandlersOn(window: Window) {
         
+        // In PiP, `window` is a dummy mouse-dispatch Window; focus follows
+        // the panel that actually hosts the view.
+        // removeAllHandlers keeps these; observeFocus replaces them.
+        observeFocus(of: focusWindow ?? window)
         updateIdleTimer()
         
         let account = self.account
@@ -323,6 +382,7 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        cursorIdle.appear()
       
         if let window = window {
             setHandlersOn(window: window)
@@ -332,9 +392,8 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
     
     override func viewDidDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        hideOnIdleDisposable.set(nil)
+        endAppearance()
         _ = enableScreenSleep()
-        NSCursor.unhide()
         window?.removeAllHandlers(for: self)
         
     }
@@ -636,6 +695,10 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
             window?.removeAllHandlers(for: self)
             function(pictureInPicture, self)
             if let window = view.window?.contentView?.window as? Window {
+                // Entering PiP closes the gallery, which ends appearance.
+                if pictureInPicture {
+                    cursorIdle.appear()
+                }
                 setHandlersOn(window: window)
             }
             
@@ -694,7 +757,6 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
                 fullScreenRestoreState = (rect: view.frame, view: view.superview!)
                 fullScreenWindow = Window(contentRect: NSMakeRect(view.frame.minX, screen.frame.height - view.frame.maxY, view.frame.width, view.frame.height), styleMask: [.fullSizeContentView, .borderless], backing: .buffered, defer: true, screen: screen)
                 
-                setHandlersOn(window: fullScreenWindow!)
                 window?.removeAllHandlers(for: self)
                 
                 
@@ -706,6 +768,8 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
                 fullScreenWindow?.orderFront(nil)
                 genericView.set(isInFullScreen: true)
                 fullScreenWindow?.becomeKey()
+                // Rearm only now: the idle check needs the view on screen.
+                setHandlersOn(window: fullScreenWindow!)
                 fullScreenWindow?.setFrame(screen.frame, display: true, animate: true)
             }
         }
@@ -717,9 +781,9 @@ class SVideoController: GenericViewController<SVideoView>, PictureInPictureContr
     }
     
     deinit {
+        removeFocusObservers()
         statusDisposable.dispose()
         bufferingDisposable.dispose()
-        hideOnIdleDisposable.dispose()
         hideControlsDisposable.dispose()
         mediaPlaybackStateDisposable.dispose()
         adStateDisposable.dispose()

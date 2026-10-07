@@ -223,6 +223,15 @@ class MGalleryVideoItem: MGalleryItem {
         return controller.isFullscreen
     }
     
+    /// Leaves fullscreen and stops the player from hiding the cursor; use
+    /// when the gallery goes away without a `disappear(for:)` call.
+    func exitFullscreenAndEndPlayerAppearance() {
+        if controller.isFullscreen {
+            controller.toggleFullScreen()
+        }
+        controller.endAppearance()
+    }
+
     
     override func request(immediately: Bool) {
 

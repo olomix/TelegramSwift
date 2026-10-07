@@ -29,6 +29,8 @@ protocol PictureInPictureControl {
     var isPictureInPicture: Bool { get }
     
     func setMode(_ mode: PictureInPictureControlMode, animated: Bool)
+    /// Stops the player from hiding the cursor once its panel is closed.
+    func endAppearance()
 }
 
 
@@ -138,7 +140,7 @@ fileprivate class ModernPictureInPictureVideoWindow: NSPanel {
             if event.clickCount == 2, let strongSelf = self {
                 let inner = strongSelf.control.view.convert(event.locationInWindow, from: nil)                
                 if NSWindow.windowNumber(at: NSEvent.mouseLocation, belowWindowWithWindowNumber: 0) == strongSelf.windowNumber, strongSelf.control.view.hitTest(inner) is MediaPlayerView {
-                    strongSelf.hide()
+                    strongSelf.hideAndEndAppearance()
                 }
             }
             return .invoked
@@ -175,7 +177,7 @@ fileprivate class ModernPictureInPictureVideoWindow: NSPanel {
             lookAtMessageDisposable.set(messageView.start(next: { [weak self] view in
                 if view.message == nil {
                     self?.hideAnimated = true
-                    self?.hide()
+                    self?.hideAndEndAppearance()
                 }
             }))
         }
@@ -201,6 +203,13 @@ fileprivate class ModernPictureInPictureVideoWindow: NSPanel {
         if let monitor = eventGlobalMonitor {
             NSEvent.removeMonitor(monitor)
         }
+    }
+
+    /// Closes the panel for good, unlike openGallery() which hands the player
+    /// back to the gallery and must keep it appeared.
+    private func hideAndEndAppearance() {
+        hide()
+        control.endAppearance()
     }
 
     override func orderOut(_ sender: Any?) {
@@ -349,6 +358,7 @@ func closePipVideo() {
     if let window = window as? ModernPictureInPictureVideoWindow {
         window.hide()
         window.control.pause()
+        window.control.endAppearance()
     }
     window = nil
     

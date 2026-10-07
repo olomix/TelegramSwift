@@ -1680,6 +1680,7 @@ class GalleryViewer: NSResponder {
                 
             })
         } else {
+            (pager.selectedItem as? MGalleryVideoItem)?.exitFullscreenAndEndPlayerAppearance()
             window.orderOut(nil)
             viewer = nil
             playPipIfNeeded()
