@@ -229,14 +229,14 @@
 - Create: `packages/ApiCredentials/Tests/ApiCredentialsTests/ApiCredentialsValuesTests.swift`
 - Create: `packages/ApiCredentials/Tests/ApiCredentialsTests/ApiCredentialsStoreTests.swift`
 
-- [ ] add `ApiCredentialsValues` with `validate(apiId:apiHash:)`
-- [ ] add `ApiCredentialsStore` (load/save/remove, atomic write, 0600)
-- [ ] add the test target to `Package.swift`
-- [ ] write tests for valid input (incl. whitespace and upper-case hash) and
+- [x] add `ApiCredentialsValues` with `validate(apiId:apiHash:)`
+- [x] add `ApiCredentialsStore` (load/save/remove, atomic write, 0600)
+- [x] add the test target to `Package.swift`
+- [x] write tests for valid input (incl. whitespace and upper-case hash) and
       the store round trip
-- [ ] write tests for bad id (empty, 0, negative, letters, overflow), bad
+- [x] write tests for bad id (empty, 0, negative, letters, overflow), bad
       hash (short, long, non-hex), missing file, corrupt JSON, file mode 0600
-- [ ] run `cd packages/ApiCredentials && swift test` - must pass
+- [x] run `cd packages/ApiCredentials && swift test` - must pass
 
 ### Task 2: Check outcome mapping and startup gate
 
@@ -244,12 +244,12 @@
 - Create: `packages/ApiCredentials/Sources/ApiCredentials/ApiCredentialsCheck.swift`
 - Create: `packages/ApiCredentials/Tests/ApiCredentialsTests/ApiCredentialsCheckTests.swift`
 
-- [ ] add result/outcome enums, `checkTimeout` and `ApiCredentialsGate`
-- [ ] write tests: token → accepted, serverError → rejected, timedOut →
+- [x] add result/outcome enums, `checkTimeout` and `ApiCredentialsGate`
+- [x] write tests: token → accepted, serverError → rejected, timedOut →
       unreachable
-- [ ] write tests: no stored values → require before launch; stored →
+- [x] write tests: no stored values → require before launch; stored →
       launch and check; rejected → blocking; unreachable/accepted → none
-- [ ] run `swift test` - must pass
+- [x] run `swift test` - must pass
 
 ### Task 3: Move app data into the app group container
 
