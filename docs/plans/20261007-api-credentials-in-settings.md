@@ -365,14 +365,25 @@
 - [x] run `swift test` and build the app - must pass
 
 ### Task 8: Verify acceptance criteria
-- [ ] verify every Overview item is implemented
-- [ ] verify offline start with stored values never shows the blocking popup
-- [ ] run `cd packages/ApiCredentials && swift test` and
-      `cd packages/FoundationUtils && swift test`
-- [ ] build Debug and Release; run `swift scripts/check-package-assets.swift
-      ~/build/TelegramSwift/Build/Products/Debug/Telegram.app`
-- [ ] `git grep -n "TG_API_ID\|TG_API_HASH\|TGApiId\|TGApiHash"` finds
-      nothing outside docs/plans
+- [x] verify every Overview item is implemented (by code reading: launch
+      gate, background check, blocking modal, Settings row, field errors,
+      hint link, "Save anyway", app group, Share extension notice)
+- [x] verify offline start with stored values never shows the blocking popup
+      (by code reading: offline/FLOOD_WAIT retry inside the network layer,
+      the 15 s timeout maps to `.unreachable`, and the gate blocks only on
+      `.rejected`; runtime check left for manual verification)
+- [x] run `cd packages/ApiCredentials && swift test` and
+      `cd packages/FoundationUtils && swift test` (39 and 19 tests pass)
+- [x] build Debug and Release; run `swift scripts/check-package-assets.swift
+      ~/build/TelegramSwift/Build/Products/Debug/Telegram.app` (both
+      succeed; 9 package images load; Release app and appex carry
+      `3PB2Z94Q5T.dev.alek.telegram`)
+- ➕ [x] drop `com.apple.developer.maps` from `Telegram-Sandbox.entitlements`:
+      with team signing in Release it demands a provisioning profile and
+      the Release build failed; MapKit works without it (Debug never had it)
+- [x] `git grep -n "TG_API_ID\|TG_API_HASH\|TGApiId\|TGApiHash"` finds
+      nothing outside docs/plans (only INSTALL.md:22 remains, rewritten in
+      Task 9)
 
 ### Task 9: [Final] Update documentation
 - [ ] INSTALL.md: drop the credential steps; explain that the app asks for
