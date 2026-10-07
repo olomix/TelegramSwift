@@ -64,3 +64,6 @@ pick it under Signing & Capabilities, which writes it into the project file.
 - Run only one copy of the app at a time; copies share the same data folder.
 - Run the FoundationUtils package's unit tests with
   `cd packages/FoundationUtils && swift test`.
+- After a build, check that the packages' images (call screen icons) load:
+  `swift scripts/check-package-assets.swift ~/build/TelegramSwift/Build/Products/Debug/Telegram.app`
+  (adjust the path to your build output).
