@@ -16,11 +16,14 @@
   saved; then the app relaunches.
 - Settings gets an "API credentials" row (next to Proxy) to change the values
   later. Saving new values relaunches the app.
-- Empty or rejected fields are outlined in red with a "Required" note; the
-  screen shows a hint with a link: "Get your api_id and api_hash at
-  my.telegram.org → API development tools".
+- Bad fields are outlined in red with a note: "Required" (empty), "Enter the
+  numeric api_id" / "Enter the 32-character api_hash" (malformed), or
+  "Telegram rejected these values" (both fields); the screen shows a hint
+  with a link: "Get your api_id and api_hash at my.telegram.org → API
+  development tools".
 - If Telegram can't be reached at all (offline, or a network that needs a
-  proxy), the screen says so and offers "Save anyway" for well-formed values;
+  proxy), an alert says so and offers "Try again" and "Save anyway" for
+  well-formed values;
   the next launch's background check catches values that turn out wrong.
   Being offline never locks the user out.
 - Server addresses and public keys are NOT configurable: the production
@@ -131,15 +134,18 @@
   `UnauthorizedAccount` with `accountWithId` using the app's real
   `accountManager` (so the user's proxy settings apply), a fresh record ID,
   a temporary `rootPath` and `shouldKeepAutoConnection: false`; sends
-  `exportAuthTransferToken`; maps the outcome through a pure package
-  function: token → `.accepted`, server error → `.rejected`, no answer within
-  15 s → `.unreachable`. On completion or dispose it drops the account and
-  deletes the temporary folder.
-- **Startup decision** (`ApiCredentialsGate`, pure, in the package):
-  - no stored values → `.requireBeforeLaunch`
-  - stored values → `.launchAndCheckInBackground`
-  - background `.rejected` → `.requireBlocking`
-  - background `.unreachable` / `.accepted` → `.none`
+  `auth.exportLoginToken` directly through `account.network.request` (the
+  engine wrapper hides the error text): any answer → `.accepted`;
+  `API_ID_INVALID` / `API_ID_PUBLISHED_FLOOD` → `.rejected`
+  (`ApiCredentialsCheckResult(serverError:)`, pure, in the package); any
+  other error or no answer within 15 s → `.unreachable`. On completion or
+  dispose it drops the account and deletes the temporary folder; each check
+  also sweeps leftover folders of earlier checks.
+- **Startup decision** (in `launchInterface()`): no stored values → blocking
+  modal before launch; stored values → launch and check in the background;
+  only a background `.rejected` blocks. The credentials are read once there
+  and passed down to the network arguments; the auth screens use the
+  account's `networkArguments`.
 - **UI**: one `ApiCredentialsController` (TGUIKit input-data style, like the
   proxy settings screen) used in two hosts:
   1. blocking modal (`showModal`, `closable = false`, Esc ignored, like
@@ -149,32 +155,44 @@
   "Save" validates format, then runs the server check with a progress
   indicator. `.rejected` marks both fields red with "Telegram rejected these
   values". `.unreachable` shows "Couldn't reach Telegram" with "Try again"
-  and "Save anyway".
+  and "Save anyway". The popup after a rejected background check opens with
+  both fields already marked.
 - **Launch gate**: in `launchInterface()` after the `accountManager` is
   created (`:513`) and before `appEncryption.decrypt()` (`:515`). With no
   stored values, load the theme as the passcode branch does (`:520-532`),
   show the blocking modal, and resume the normal branch when it saves.
   With stored values, launch normally and start the background check; on
   `.requireBlocking`, select the Settings tab if an account is logged in and
-  show the blocking modal; on save, relaunch.
-- **Relaunch**: spawn `/bin/sh -c 'while kill -0 <pid> 2>/dev/null; do sleep
-  0.2; done; open "<bundle path>"'`, then `NSApp.terminate`, so two copies
-  never share the database.
+  show the blocking modal; on save, relaunch. Settings relaunches only when
+  the saved values differ from the account's running `networkArguments`.
+- **Relaunch**: spawn `/bin/sh -c 'cat >/dev/null; open "$1"'` with its
+  stdin on a pipe whose write end the app keeps open, then
+  `NSApp.terminate`; the helper reads end-of-file once the app has exited,
+  so two copies never share the database. A pipe is used instead of
+  `kill -0 <pid>` because the App Sandbox may deny signalling the app.
 - **Data folder**: `ApiEnvironment.dataRootURL` becomes the app group
   container. Its identifier `$(TeamIdentifierPrefix)dev.alek.telegram` is
   written into both Info.plists (`TGAppGroup`) at build time. A guard rejects
   an identifier without a 10-character team prefix with a clear
   `fatalError` (build without a team), instead of silently using a folder
-  the extension cannot reach.
+  the extension cannot reach. When the system cannot resolve the group
+  container, the app shows an alert and quits instead of a blank window.
 - **Migration**: as the very first line of `applicationDidFinishLaunching`
   (before `startLottieCacheCleaner()` at `:371`), move each top-level item of
-  `~/Library/Application Support/dev.alek.telegram` into the group container,
-  skipping names that already exist there; skip the whole step when
-  `<group>/<prefix>/accounts-metadata` already exists. Hidden system files and
-  empty pre-created folders must not block the move.
-- **Share extension**: reads data and credentials from the same group. If
-  credentials are missing it shows "Open Telegram to finish setup" instead of
-  starting a network.
+  `~/Library/Application Support/dev.alek.telegram` into the group container.
+  Each item is decided on its own: an existing regular file, or a folder
+  with an `account-*` folder inside, is kept; anything else there (hidden
+  files, empty folders, an account manager without accounts left by the
+  Share extension) is replaced. A second build type or a re-run after a
+  partial move still moves what is left. Only Debug (not sandboxed) can do
+  this: Release now runs in the App Sandbox, where `legacyDataRootURL`
+  resolves inside `~/Library/Containers/dev.alek.telegram/`, so its old
+  `stable/` data is moved by a Debug build or by hand (INSTALL.md). No
+  temporary-exception entitlement is added for the old path.
+- **Share extension**: reads data and credentials from the same group. It
+  checks the credentials first, before it touches the group folder; if they
+  are missing it shows "Open Telegram to finish setup" instead of starting a
+  network.
 
 ## Technical Details
 - New package files (`packages/ApiCredentials/Sources/ApiCredentials/`):
@@ -182,33 +200,37 @@
     Equatable { apiId: Int32; apiHash: String }`; `static func
     validate(apiId: String, apiHash: String) -> Result<ApiCredentialsValues,
     ApiCredentialsFormatError>` (error lists the bad fields).
+    `ApiCredentialsField { apiId, apiHash }` and `ApiCredentialsFormatError`
+    (`invalidFields`) live here too.
   - `ApiCredentialsStore.swift` — `init(fileURL:)`, `load() ->
-    ApiCredentialsValues?` (nil on missing or corrupt file), `save(_:) throws`
-    (atomic write, 0600), `remove()`.
+    ApiCredentialsValues?` (nil on missing or corrupt file or values that
+    fail `validate`), `save(_:) throws` (atomic write, 0600).
   - `ApiCredentialsCheck.swift` — `enum ApiCredentialsCheckResult { accepted,
-    rejected, unreachable }`; `enum ApiCredentialsCheckOutcome { token,
-    serverError, timedOut }` with `var result`; `static let checkTimeout:
-    TimeInterval = 15`; `enum ApiCredentialsGate` with
-    `launchDecision(stored:)` and `decision(afterBackgroundCheck:)`.
+    rejected, unreachable }` with `init(serverError:)`.
   - `AppGroup.swift` — `static func isTeamPrefixed(_ identifier: String) ->
     Bool` (`^[A-Z0-9]{10}\.`).
   - `DataFolderMigration.swift` — `static func move(from: URL, to: URL,
-    prefixes: [String], fileManager: FileManager) throws -> Int` (number of
-    items moved).
+    fileManager: FileManager) throws`.
 - `Config.swift`: `appGroup` (Info.plist `TGAppGroup`, guarded),
   `dataRootURL` (group container), `credentialsFileURL`, `legacyDataRootURL`
-  (old Application Support folder for the migration), `apiId` / `apiHash`
-  read from the store with a `fatalError` that says the gate should have
-  run first.
+  (old Application Support folder for the migration), `storedCredentials`.
+- App files: `Telegram-Mac/ApiCredentialsChecker.swift` (also
+  `makeNetworkInitializationArguments(_:)`, shared with `AppDelegate`),
+  `Telegram-Mac/ApiCredentialsController.swift` (form, field problems,
+  blocking modal), `Telegram-Mac/AppRelauncher.swift`;
+  `InputDataRowData(outlinesError:)` opts an input row into the red outline.
 - Entitlements: add `com.apple.security.application-groups` =
   `[$(TeamIdentifierPrefix)dev.alek.telegram]` to
   `Telegram-Mac/Telegram-Mac.entitlements`,
   `Telegram-Mac/Telegram-Sandbox.entitlements`,
-  `TelegramShare/TelegramShare.entitlements`.
-- `project.pbxproj`: remove the target-level `DEVELOPMENT_TEAM = ""` and
-  `CODE_SIGN_IDENTITY = ""` from the Release configs of Telegram (`:8949`,
-  `:8954`) and TelegramShare (`:9070` and its identity line) so they inherit
-  from `Secrets.xcconfig`; add the new app source files.
+  `TelegramShare/TelegramShare.entitlements`; drop
+  `com.apple.developer.maps` from `Telegram-Sandbox.entitlements` (with team
+  signing it demands a provisioning profile).
+- `project.pbxproj`: remove the target-level `DEVELOPMENT_TEAM = ""` from the
+  Release configs of Telegram (`:8954`) and TelegramShare (`:9070`) so they
+  inherit from `Secrets.xcconfig`, and set their `CODE_SIGN_IDENTITY`
+  (including `[sdk=macosx*]`) to "Apple Development" like Debug; add the new
+  app source files.
 - Strings: add keys to `Telegram-Mac/en.lproj/Localizable.strings` and
   regenerate `Localizable.swift` with `tools/swiftgen.sh`.
 
@@ -328,10 +350,14 @@
   `Telegram-Mac/InputDataRowItem.swift` (opt-in red outline on input errors)
 - Create: `packages/ApiCredentials/Sources/ApiCredentials/ApiCredentialsFieldProblem.swift`
 - Create: `packages/ApiCredentials/Tests/ApiCredentialsTests/ApiCredentialsFieldProblemTests.swift`
+  (both later folded into the controller after review, with the
+  `ApiCredentialsCheckOutcome` / `ApiCredentialsGate` layers of Task 2)
 
 - [x] build the screen with TGUIKit input-data rows: api_id, api_hash, hint
       with a clickable my.telegram.org link, Save
-- [x] red outline and "Required" note on empty, malformed or rejected fields
+- [x] red outline and a note on empty, malformed or rejected fields
+      ("Required", the per-field format hint, "Telegram rejected these
+      values")
 - [x] Save flow: validate → check with progress → `.accepted` saves and
       reports to the host; `.rejected` marks fields; `.unreachable` offers
       "Try again" and "Save anyway"
@@ -386,13 +412,13 @@
       Task 9)
 
 ### Task 9: [Final] Update documentation
-- [ ] INSTALL.md: drop the credential steps; explain that the app asks for
+- [x] INSTALL.md: drop the credential steps; explain that the app asks for
       api_id / api_hash on first start and where to get them; update the
       data location text (INSTALL.md:61-63) to the group container; state
       that `DEVELOPMENT_TEAM` is required and whether a free personal team
       works (from the Task 3 result)
-- [ ] mention `cd packages/ApiCredentials && swift test`
-- [ ] move this plan to `docs/plans/completed/`
+- [x] mention `cd packages/ApiCredentials && swift test`
+- [x] move this plan to docs/plans/completed/ (done by the orchestrator at completion)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes,
@@ -403,8 +429,13 @@ informational only*
   folder aside): the popup opens first and cannot be closed; a wrong api_id
   is rejected within a few seconds (not after the 15 s timeout); real values
   pass and the login screen appears.
-- Existing install: data moves into the group container and you stay logged
+- Existing install, Debug build: data (both `debug/` and `stable/`) moves
+  into the group container and you stay logged in, also when the Share
+  menu was opened first.
+- Existing install, Release only: the sandboxed build cannot read the old
+  folder; follow the manual move in INSTALL.md and confirm you stay logged
   in.
+- Relaunch from Settings in a Release (sandboxed) build brings the app back.
 - Edit `api-credentials.json` to a wrong hash, start logged in: Settings is
   shown with the blocking popup; fixing it relaunches the app once.
 - Start offline with valid stored values: no popup.
