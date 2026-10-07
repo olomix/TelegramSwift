@@ -25,7 +25,6 @@ class SEUnauthorizedView : View {
         cancel.set(text: L10n.shareExtensionUnauthorizedOK, for: .Normal)
         
         textView.backgroundColor = theme.colors.background
-        setDescription(L10n.shareExtensionUnauthorizedDescription)
         
         addSubview(cancel)
         addSubview(textView)

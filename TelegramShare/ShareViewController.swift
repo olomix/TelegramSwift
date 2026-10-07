@@ -41,6 +41,13 @@ class ShareViewController: NSViewController {
         System.updateScaleFactor(NSScreen.main?.backingScaleFactor ?? 1)
         
 
+        // Checked before touching the group: opening an account manager there
+        // would create folders before the app has moved the old data in.
+        guard let credentials = ApiEnvironment.storedCredentials else {
+            showSetupRequired()
+            return
+        }
+
         guard let containerUrl = ApiEnvironment.containerURL else {
             return
         }
@@ -78,16 +85,11 @@ class ShareViewController: NSViewController {
         
         telegramUpdateTheme(updateTheme(with: themeSettings), window: nil, animated: false)
 
-        if ApiEnvironment.storedCredentials == nil {
-            showSetupRequired()
-            return
-        }
-        
         let appEncryption = AppEncryptionParameters(path: rootPath)
         
         if let deviceSpecificEncryptionParameters = appEncryption.decrypt() {
             let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
-            launchExtension(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption)
+            launchExtension(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
         } else {
             let extensionContext = self.extensionContext!
             
@@ -95,7 +97,7 @@ class ShareViewController: NSViewController {
                 appEncryption.applyPasscode(passcode)
                 if let params = appEncryption.decrypt() {
                     let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: params.key)!, salt: ValueBoxEncryptionParameters.Salt(data: params.salt)!)
-                    self.launchExtension(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption)
+                    self.launchExtension(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
                     return true
                 } else {
                     return false
@@ -121,7 +123,7 @@ class ShareViewController: NSViewController {
         self.setupRequired = controller
     }
 
-    private func launchExtension(accountManager: AccountManager<TelegramAccountManagerTypes>, encryptionParameters: ValueBoxEncryptionParameters, appEncryption: AppEncryptionParameters) {
+    private func launchExtension(accountManager: AccountManager<TelegramAccountManagerTypes>, encryptionParameters: ValueBoxEncryptionParameters, appEncryption: AppEncryptionParameters, credentials: ApiCredentialsValues) {
         
         
         let extensionContext = self.extensionContext!
@@ -141,7 +143,7 @@ class ShareViewController: NSViewController {
         useBetaFeatures = false
         #endif
         
-        let networkArguments = NetworkInitializationArguments(apiId: ApiEnvironment.apiId, apiHash: ApiEnvironment.apiHash, languagesCategory: ApiEnvironment.language, appVersion: ApiEnvironment.version, voipMaxLayer: 90, voipVersions: [], appData: appData, externalRequestVerificationStream: .single([:]), externalRecaptchaRequestVerification: { _, _ in return .complete() }, autolockDeadine: .single(nil), encryptionProvider: OpenSSLEncryptionProvider(), deviceModelName: deviceModelPretty(), useBetaFeatures: useBetaFeatures, isICloudEnabled: false)
+        let networkArguments = NetworkInitializationArguments(apiId: credentials.apiId, apiHash: credentials.apiHash, languagesCategory: ApiEnvironment.language, appVersion: ApiEnvironment.version, voipMaxLayer: 90, voipVersions: [], appData: appData, externalRequestVerificationStream: .single([:]), externalRecaptchaRequestVerification: { _, _ in return .complete() }, autolockDeadine: .single(nil), encryptionProvider: OpenSSLEncryptionProvider(), deviceModelName: deviceModelPretty(), useBetaFeatures: useBetaFeatures, isICloudEnabled: false)
         
         let sharedContext = SharedAccountContext(accountManager: accountManager, networkArguments: networkArguments, rootPath: rootPath, encryptionParameters: encryptionParameters, appEncryption: appEncryption, displayUpgradeProgress: { _ in })
         

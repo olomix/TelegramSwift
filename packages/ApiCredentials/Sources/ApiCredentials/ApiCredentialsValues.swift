@@ -1,10 +1,12 @@
 import Foundation
 
-public enum ApiCredentialsField: CaseIterable {
+/// A field of the credentials form.
+public enum ApiCredentialsField {
     case apiId
     case apiHash
 }
 
+/// The fields whose input does not parse.
 public struct ApiCredentialsFormatError: Error, Equatable {
     public let invalidFields: Set<ApiCredentialsField>
 }

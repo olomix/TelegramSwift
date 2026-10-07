@@ -165,7 +165,7 @@
   `.requireBlocking`, select the Settings tab if an account is logged in and
   show the blocking modal; on save, relaunch. Settings relaunches only when
   the saved values differ from the account's running `networkArguments`.
-- **Relaunch**: spawn `/bin/sh -c 'cat >/dev/null; open "$1"'` with its
+- **Relaunch**: spawn `/bin/sh -c 'cat >/dev/null; open -n "$1"'` with its
   stdin on a pipe whose write end the app keeps open, then
   `NSApp.terminate`; the helper reads end-of-file once the app has exited,
   so two copies never share the database. A pipe is used instead of
@@ -205,7 +205,7 @@
   - `ApiCredentialsStore.swift` — `init(fileURL:)`, `load() ->
     ApiCredentialsValues?` (nil on missing or corrupt file or values that
     fail `validate`), `save(_:) throws` (atomic write, 0600).
-  - `ApiCredentialsCheck.swift` — `enum ApiCredentialsCheckResult { accepted,
+  - `ApiCredentialsCheckResult.swift` — `enum ApiCredentialsCheckResult { accepted,
     rejected, unreachable }` with `init(serverError:)`.
   - `AppGroup.swift` — `static func isTeamPrefixed(_ identifier: String) ->
     Bool` (`^[A-Z0-9]{10}\.`).
@@ -263,8 +263,8 @@
 ### Task 2: Check outcome mapping and startup gate
 
 **Files:**
-- Create: `packages/ApiCredentials/Sources/ApiCredentials/ApiCredentialsCheck.swift`
-- Create: `packages/ApiCredentials/Tests/ApiCredentialsTests/ApiCredentialsCheckTests.swift`
+- Create: `packages/ApiCredentials/Sources/ApiCredentials/ApiCredentialsCheckResult.swift`
+- Create: `packages/ApiCredentials/Tests/ApiCredentialsTests/ApiCredentialsCheckResultTests.swift`
 
 - [x] add result/outcome enums, `checkTimeout` and `ApiCredentialsGate`
 - [x] write tests: token → accepted, serverError → rejected, timedOut →

@@ -8,6 +8,20 @@ import ApiCredentials
 private let _id_api_id = InputDataIdentifier("_id_api_id")
 private let _id_api_hash = InputDataIdentifier("_id_api_hash")
 
+private enum ApiCredentialsFieldProblem: Equatable {
+    case missing
+    case malformed
+    case rejected
+}
+
+/// Any Int32 id has at most 10 digits and a hash 32 characters; the extra
+/// room keeps pasted values with surrounding whitespace, which is trimmed.
+private let apiIdInputLimit: Int32 = 12
+private let apiHashInputLimit: Int32 = 64
+
+/// The server cannot tell which value is wrong, so both fields are marked.
+private let rejectedByServer: [ApiCredentialsField: ApiCredentialsFieldProblem] = [.apiId: .rejected, .apiHash: .rejected]
+
 private struct ApiCredentialsState: Equatable {
     var apiId: String
     var apiHash: String
@@ -43,13 +57,13 @@ private func apiCredentialsEntries(state: ApiCredentialsState) -> [InputDataEntr
     entries.append(.sectionId(sectionId, type: .normal))
     sectionId += 1
 
-    entries.append(.input(sectionId: sectionId, index: index, value: .string(state.apiId), error: fieldError(state.problems[.apiId], field: .apiId), identifier: _id_api_id, mode: .plain, data: InputDataRowData(viewType: .singleItem, outlinesError: true), placeholder: nil, inputPlaceholder: strings().apiCredentialsApiIdPlaceholder, filter: { $0 }, limit: 12))
+    entries.append(.input(sectionId: sectionId, index: index, value: .string(state.apiId), error: fieldError(state.problems[.apiId], field: .apiId), identifier: _id_api_id, mode: .plain, data: InputDataRowData(viewType: .singleItem, outlinesError: true), placeholder: nil, inputPlaceholder: strings().apiCredentialsApiIdPlaceholder, filter: { $0 }, limit: apiIdInputLimit))
     index += 1
 
     entries.append(.sectionId(sectionId, type: .normal))
     sectionId += 1
 
-    entries.append(.input(sectionId: sectionId, index: index, value: .string(state.apiHash), error: fieldError(state.problems[.apiHash], field: .apiHash), identifier: _id_api_hash, mode: .plain, data: InputDataRowData(viewType: .singleItem, outlinesError: true), placeholder: nil, inputPlaceholder: strings().apiCredentialsApiHashPlaceholder, filter: { $0 }, limit: 64))
+    entries.append(.input(sectionId: sectionId, index: index, value: .string(state.apiHash), error: fieldError(state.problems[.apiHash], field: .apiHash), identifier: _id_api_hash, mode: .plain, data: InputDataRowData(viewType: .singleItem, outlinesError: true), placeholder: nil, inputPlaceholder: strings().apiCredentialsApiHashPlaceholder, filter: { $0 }, limit: apiHashInputLimit))
     index += 1
 
     entries.append(.desc(sectionId: sectionId, index: index, text: .markdown(strings().apiCredentialsHint, linkHandler: { link in
@@ -65,11 +79,12 @@ private func apiCredentialsEntries(state: ApiCredentialsState) -> [InputDataEntr
     return entries
 }
 
-/// The api_id / api_hash form. Save checks the values with Telegram, writes
-/// them to the credentials file and then calls `onSaved`.
-func ApiCredentialsController(accountManager: AccountManager<TelegramAccountManagerTypes>, onSaved: @escaping (ApiCredentialsValues) -> Void) -> InputDataController {
+/// The api_id / api_hash form, prefilled with the stored values. Save checks
+/// the values with Telegram, writes them to the credentials file and then
+/// calls `onSaved`. `startsRejected` marks both fields as rejected.
+func ApiCredentialsController(accountManager: AccountManager<TelegramAccountManagerTypes>, startsRejected: Bool = false, onSaved: @escaping (ApiCredentialsValues) -> Void) -> InputDataController {
     let stored = ApiEnvironment.storedCredentials
-    let initialState = ApiCredentialsState(apiId: stored.map { "\($0.apiId)" } ?? "", apiHash: stored?.apiHash ?? "", problems: [:])
+    let initialState = ApiCredentialsState(apiId: stored.map { "\($0.apiId)" } ?? "", apiHash: stored?.apiHash ?? "", problems: startsRejected ? rejectedByServer : [:])
 
     let statePromise = ValuePromise(initialState, ignoreRepeated: true)
     let stateValue = Atomic(value: initialState)
@@ -105,7 +120,7 @@ func ApiCredentialsController(accountManager: AccountManager<TelegramAccountMana
             case .accepted:
                 save(values)
             case .rejected:
-                updateState { $0.problems = ApiCredentialsFieldProblem.rejectedByServer }
+                updateState { $0.problems = rejectedByServer }
             case .unreachable:
                 verifyAlert_button(for: window, information: strings().apiCredentialsUnreachableText, ok: strings().apiCredentialsUnreachableTryAgain, option: strings().apiCredentialsUnreachableSaveAnyway, successHandler: { choice in
                     switch choice {
@@ -123,22 +138,21 @@ func ApiCredentialsController(accountManager: AccountManager<TelegramAccountMana
         return InputDataSignalValue(entries: apiCredentialsEntries(state: state))
     }, title: strings().apiCredentialsTitle, validateData: { _ in
         let state = stateValue.with { $0 }
-        let problems = ApiCredentialsFieldProblem.formatProblems(apiId: state.apiId, apiHash: state.apiHash)
-        if !problems.isEmpty {
-            updateState { $0.problems = problems }
+        switch ApiCredentialsValues.validate(apiId: state.apiId, apiHash: state.apiHash) {
+        case let .success(values):
+            check(values)
+            return .fail(.none)
+        case let .failure(error):
+            var problems: [ApiCredentialsField: ApiCredentialsFieldProblem] = [:]
             var fails: [InputDataIdentifier: InputDataValidationFailAction] = [:]
-            if problems[.apiId] != nil {
-                fails[_id_api_id] = .shake
+            for field in error.invalidFields {
+                let (input, identifier) = field == .apiId ? (state.apiId, _id_api_id) : (state.apiHash, _id_api_hash)
+                problems[field] = input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .missing : .malformed
+                fails[identifier] = .shake
             }
-            if problems[.apiHash] != nil {
-                fails[_id_api_hash] = .shake
-            }
+            updateState { $0.problems = problems }
             return .fail(.fields(fails))
         }
-        if case let .success(values) = ApiCredentialsValues.validate(apiId: state.apiId, apiHash: state.apiHash) {
-            check(values)
-        }
-        return .fail(.none)
     }, updateDatas: { data in
         updateState { state in
             let apiId = data[_id_api_id]?.stringValue ?? ""
@@ -161,6 +175,29 @@ func ApiCredentialsController(accountManager: AccountManager<TelegramAccountMana
     return controller
 }
 
+/// Relaunches so new credentials take effect, or tells the user to do it.
+func relaunchApplyingApiCredentials() {
+    if !AppRelauncher.relaunch(), let window = appDelegate?.window {
+        alert(for: window, info: strings().apiCredentialsRelaunchFailed)
+    }
+}
+
+/// Credentials form for Settings. Relaunches the app when the saved values
+/// differ from the ones `context` runs with, otherwise goes back.
+func ApiCredentialsRelaunchingController(context: AccountContext) -> InputDataController {
+    let running = context.account.networkArguments
+    weak var weakController: InputDataController?
+    let controller = ApiCredentialsController(accountManager: context.sharedContext.accountManager, onSaved: { values in
+        if values != ApiCredentialsValues(apiId: running.apiId, apiHash: running.apiHash) {
+            relaunchApplyingApiCredentials()
+        } else {
+            weakController?.navigationController?.back()
+        }
+    })
+    weakController = controller
+    return controller
+}
+
 /// Credentials form that cannot be dismissed until values are saved, like
 /// `ColdStartPasslockController`.
 final class ApiCredentialsBlockingModalController: InputDataModalController {
@@ -173,9 +210,9 @@ final class ApiCredentialsBlockingModalController: InputDataModalController {
     }
 }
 
-func ApiCredentialsBlockingModal(accountManager: AccountManager<TelegramAccountManagerTypes>, onSaved: @escaping (ApiCredentialsValues) -> Void) -> ModalViewController {
+func ApiCredentialsBlockingModal(accountManager: AccountManager<TelegramAccountManagerTypes>, startsRejected: Bool = false, onSaved: @escaping (ApiCredentialsValues) -> Void) -> ModalViewController {
     var close: (() -> Void)?
-    let controller = ApiCredentialsController(accountManager: accountManager, onSaved: { values in
+    let controller = ApiCredentialsController(accountManager: accountManager, startsRejected: startsRejected, onSaved: { values in
         close?()
         onSaved(values)
     })

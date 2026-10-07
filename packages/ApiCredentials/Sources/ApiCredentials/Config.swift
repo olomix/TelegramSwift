@@ -1,19 +1,8 @@
 import Cocoa
 
 public final class ApiEnvironment {
-    public static var apiId:Int32 {
-        guard let credentials = storedCredentials else {
-            fatalError("No API credentials stored: the launch gate must ask for them before the network starts")
-        }
-        return credentials.apiId
-    }
-    public static var apiHash:String {
-        guard let credentials = storedCredentials else {
-            fatalError("No API credentials stored: the launch gate must ask for them before the network starts")
-        }
-        return credentials.apiHash
-    }
-
+    /// Reads the credentials file on each access; nil when it is missing,
+    /// unreadable or holds invalid values.
     public static var storedCredentials: ApiCredentialsValues? {
         guard let fileURL = credentialsFileURL else {
             return nil
@@ -42,15 +31,19 @@ public final class ApiEnvironment {
         return value
     }
 
+    /// The app group container; nil when the system cannot resolve the
+    /// group, e.g. the build lacks the group entitlement.
     public static var dataRootURL: URL? {
         return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
     }
 
-    /// Where data lived before it moved into the app group container.
+    /// Where data lived before it moved into the app group container. Inside
+    /// the App Sandbox this resolves into the app's own container instead.
     public static var legacyDataRootURL: URL? {
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent(bundleId)
     }
 
+    /// At the group root, so every build type shares one file.
     public static var credentialsFileURL: URL? {
         return dataRootURL?.appendingPathComponent("api-credentials.json")
     }

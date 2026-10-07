@@ -2,55 +2,64 @@ import Foundation
 import SwiftSignalKit
 import TelegramCore
 import Postbox
-import OpenSSLEncryption
-import TelegramSystem
 import ApiCredentials
-
-func makeNetworkInitializationArguments(apiId: Int32, apiHash: String) -> NetworkInitializationArguments {
-    let voipVersions = OngoingCallContext.versions(includeExperimental: true, includeReference: false).map { version, supportsVideo -> CallSessionManagerImplementationVersion in
-        CallSessionManagerImplementationVersion(version: version, supportsVideo: supportsVideo)
-    }
-    let appData: Signal<Data?, NoError> = Signal { subscriber in
-        subscriber.putNext(ApiEnvironment.appData)
-        subscriber.putCompletion()
-        return EmptyDisposable
-    } |> runOn(.concurrentBackgroundQueue())
-
-    return NetworkInitializationArguments(apiId: apiId, apiHash: apiHash, languagesCategory: ApiEnvironment.language, appVersion: ApiEnvironment.version, voipMaxLayer: OngoingCallContext.maxLayer, voipVersions: voipVersions, appData: appData, externalRequestVerificationStream: .single([:]), externalRecaptchaRequestVerification: { _, _ in return .complete() }, autolockDeadine: .single(nil), encryptionProvider: OpenSSLEncryptionProvider(), deviceModelName: deviceModelPretty(), useBetaFeatures: false, isICloudEnabled: false)
-}
+import TelegramApi
+import MtProtoKit
 
 enum ApiCredentialsChecker {
-    /// Asks Telegram for a login token with `values`; this has no side effects
-    /// on the server (no SMS). Uses `accountManager` only to read the proxy
-    /// settings. The throwaway account lives in a temporary folder that is
-    /// deleted when the signal completes or is disposed.
-    static func check(_ values: ApiCredentialsValues, accountManager: AccountManager<TelegramAccountManagerTypes>) -> Signal<ApiCredentialsCheckResult, NoError> {
-        let rootPath = NSTemporaryDirectory() + "api-credentials-check-" + UUID().uuidString
-        let networkArguments = makeNetworkInitializationArguments(apiId: values.apiId, apiHash: values.apiHash)
+    /// Offline and FLOOD_WAIT are retried silently by the network layer, so
+    /// they surface only as no answer within this time.
+    private static let answerTimeout: TimeInterval = 15
 
-        let outcome: Signal<ApiCredentialsCheckOutcome, NoError> = accountWithId(accountManager: accountManager, networkArguments: networkArguments, id: generateAccountRecordId(), encryptionParameters: makeThrowawayEncryptionParameters(), supplementary: false, isSupportUser: false, rootPath: rootPath, beginWithTestingEnvironment: false, backupData: nil, auxiliaryMethods: telegramAccountAuxiliaryMethods, shouldKeepAutoConnection: false)
-        |> mapToSignal { result -> Signal<ApiCredentialsCheckOutcome, NoError> in
+    private static let checksFolder = NSTemporaryDirectory() + "api-credentials-check"
+
+    /// Asks Telegram for a login token with `values`; this has no side effects
+    /// on the server (no SMS). Uses `accountManager` only to read shared
+    /// settings (proxy, localization). The throwaway account lives in a
+    /// temporary folder that is deleted when the signal completes or is
+    /// disposed.
+    static func check(_ values: ApiCredentialsValues, accountManager: AccountManager<TelegramAccountManagerTypes>) -> Signal<ApiCredentialsCheckResult, NoError> {
+        removeStaleCheckFolders()
+        let rootPath = checksFolder + "/" + UUID().uuidString
+        let networkArguments = makeNetworkInitializationArguments(values)
+
+        return accountWithId(accountManager: accountManager, networkArguments: networkArguments, id: generateAccountRecordId(), encryptionParameters: makeThrowawayEncryptionParameters(), supplementary: false, isSupportUser: false, rootPath: rootPath, beginWithTestingEnvironment: false, backupData: nil, auxiliaryMethods: telegramAccountAuxiliaryMethods, shouldKeepAutoConnection: false)
+        |> mapToSignal { result -> Signal<ApiCredentialsCheckResult, NoError> in
             switch result {
             case .upgrading, .authorized:
                 return .complete()
             case let .unauthorized(account):
-                return TelegramEngineUnauthorized(account: account).auth.exportAuthTransferToken(accountManager: accountManager, otherAccountUserIds: [], syncContacts: false)
-                |> map { _ -> ApiCredentialsCheckOutcome in
-                    return .token
+                // Any answer, even a DC migration, means the values were accepted.
+                return account.network.request(Api.functions.auth.exportLoginToken(apiId: values.apiId, apiHash: values.apiHash, exceptIds: []))
+                |> map { _ -> ApiCredentialsCheckResult in
+                    return .accepted
                 }
-                |> `catch` { _ -> Signal<ApiCredentialsCheckOutcome, NoError> in
-                    return .single(.serverError)
+                |> `catch` { error -> Signal<ApiCredentialsCheckResult, NoError> in
+                    return .single(ApiCredentialsCheckResult(serverError: error.errorDescription))
                 }
             }
         }
         |> take(1)
-        |> timeout(ApiCredentialsCheckOutcome.checkTimeout, queue: .concurrentDefaultQueue(), alternate: .single(.timedOut))
-
-        return outcome
-        |> map { $0.result }
+        |> timeout(answerTimeout, queue: .concurrentDefaultQueue(), alternate: .single(.unreachable))
         |> afterDisposed {
             Queue.concurrentDefaultQueue().async {
                 try? FileManager.default.removeItem(atPath: rootPath)
+            }
+        }
+    }
+
+    /// The released account's database can recreate its folder after the
+    /// removal above, so leftovers from earlier checks are swept here.
+    private static func removeStaleCheckFolders() {
+        let fileManager = FileManager.default
+        guard let names = try? fileManager.contentsOfDirectory(atPath: checksFolder) else {
+            return
+        }
+        for name in names {
+            let path = checksFolder + "/" + name
+            let created = (try? fileManager.attributesOfItem(atPath: path))?[.creationDate] as? Date
+            if let created = created, created.timeIntervalSinceNow < -2 * answerTimeout {
+                try? fileManager.removeItem(atPath: path)
             }
         }
     }

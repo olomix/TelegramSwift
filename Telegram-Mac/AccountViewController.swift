@@ -12,7 +12,6 @@ import TelegramCore
 import Localization
 import Postbox
 import SwiftSignalKit
-import ApiCredentials
 
 let normalAccountsLimit: Int = 3
 
@@ -103,7 +102,6 @@ fileprivate final class AccountInfoArguments {
 private enum AccountInfoEntryId : Hashable {
     case index(Int)
     case account(AccountWithInfo)
-    case apiCredentials
     
     func hash(into hasher: inout Hasher) {
         switch self {
@@ -111,8 +109,6 @@ private enum AccountInfoEntryId : Hashable {
             hasher.combine(value)
         case let .account(info):
             hasher.combine(info.account.id.int64)
-        case .apiCredentials:
-            hasher.combine("apiCredentials")
         }
     }
 }
@@ -182,7 +178,7 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
         case .proxy:
             return .index(7)
         case .apiCredentials:
-            return .apiCredentials
+            return .index(26)
         case .notifications:
             return .index(8)
         case .dataAndStorage:
@@ -393,17 +389,7 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
             }, border:[BorderType.Right], inset:NSEdgeInsets(left: 12, right: 12))
         case let .apiCredentials(_, viewType):
             return GeneralInteractedRowItem(initialSize, stableId: stableId, name: strings().apiCredentialsTitle, icon: theme.icons.settingsPassport, activeIcon: theme.icons.settingsPassportActive, type: .next, viewType: viewType, action: {
-                let previous = ApiEnvironment.storedCredentials
-                weak var weakController: InputDataController?
-                let controller = ApiCredentialsController(accountManager: arguments.context.sharedContext.accountManager, onSaved: { values in
-                    if values != previous {
-                        AppRelauncher.relaunch()
-                    } else {
-                        weakController?.navigationController?.back()
-                    }
-                })
-                weakController = controller
-                arguments.presentController(controller, true)
+                arguments.presentController(ApiCredentialsRelaunchingController(context: arguments.context), true)
             }, border:[BorderType.Right], inset:NSEdgeInsets(left: 12, right: 12))
         case let .stickers(_, viewType):
             return GeneralInteractedRowItem(initialSize, stableId: stableId, name: strings().accountSettingsStickersAndEmoji, icon: theme.icons.settingsStickers, activeIcon: theme.icons.settingsStickersActive, type: .next, viewType: viewType, action: {
@@ -604,7 +590,7 @@ private func accountInfoEntries(peerView:PeerView, context: AccountContext, acco
     
     entries.append(.whiteSpace(index: index, height: 10))
     index += 1
-    
+
     if !proxySettings.0.servers.isEmpty {
         let status: String
         switch proxySettings.1 {
@@ -622,7 +608,7 @@ private func accountInfoEntries(peerView:PeerView, context: AccountContext, acco
     
     entries.append(.apiCredentials(index: index, viewType: .singleItem))
     index += 1
-    
+
     entries.append(.whiteSpace(index: index, height: 10))
     index += 1
     
@@ -1176,7 +1162,7 @@ class AccountViewController : TelegramGenericViewController<AccountControllerVie
                         _ = tableView.select(item: item)
                     }
                 case controller.identifier == "api-credentials":
-                    if let item = tableView.item(stableId: AnyHashable(AccountInfoEntryId.apiCredentials)) {
+                    if let item = tableView.item(stableId: AnyHashable(AccountInfoEntryId.index(26))) {
                         _ = tableView.select(item: item)
                     }
                 case controller.identifier == "language":

@@ -29,7 +29,7 @@ final class ApiCredentialsValuesTests: XCTestCase {
     }
 
     func testRejectsBadApiId() {
-        for id in ["", "   ", "0", "-5", "abc", "12a", "+12", "1.5", "2147483648", "99999999999999999999"] {
+        for id in ["", "   ", "0", "-5", "abc", "12a", "+12", "1.5", "2147483648", "99999999999999999999", "١٢٣", "１２３"] {
             XCTAssertEqual(invalidFields(apiId: id, apiHash: validHash), [.apiId], "api_id \(id.debugDescription)")
         }
     }
@@ -41,6 +41,7 @@ final class ApiCredentialsValuesTests: XCTestCase {
             validHash + "0",
             "0123456789abcdef0123456789abcdeg",
             "0123456789abcdef 123456789abcdef",
+            "0123456789abcdef0123456789abcdeＡ",
         ]
         for hash in hashes {
             XCTAssertEqual(invalidFields(apiId: "12345", apiHash: hash), [.apiHash], "api_hash \(hash.debugDescription)")

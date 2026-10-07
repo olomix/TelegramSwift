@@ -807,10 +807,10 @@ class InputDataRowView : GeneralRowView, TGModernGrowingDelegate, NSTextFieldDel
         containerView.change(pos: containerRect.origin, animated: animated)
 
         let outlined = item.outlinesError && item.error != nil
-        containerView.layer?.borderWidth = outlined ? 1 : 0
+        containerView.layer?.borderWidth = outlined ? .borderSize : 0
+        containerView.layer?.cornerRadius = outlined ? containerView.cornerRadius : 0
         if outlined {
             containerView.layer?.borderColor = redColor.cgColor
-            containerView.layer?.cornerRadius = containerView.cornerRadius
         }
 
         if let rightItem = item.rightItem {

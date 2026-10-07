@@ -55,15 +55,40 @@ final class ApiCredentialsStoreTests: XCTestCase {
         XCTAssertEqual(mode, 0o600)
     }
 
-    func testRemoveDeletesFile() throws {
+    func testSaveRestrictsPermissionsOfExistingWiderFile() throws {
+        try Data("{}".utf8).write(to: store.fileURL)
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: store.fileURL.path)
         try store.save(values)
-        store.remove()
-        XCTAssertNil(store.load())
-        XCTAssertFalse(FileManager.default.fileExists(atPath: store.fileURL.path))
+        let attributes = try FileManager.default.attributesOfItem(atPath: store.fileURL.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["api-credentials.json"])
     }
 
-    func testRemoveWithoutFileDoesNothing() {
-        store.remove()
-        XCTAssertNil(store.load())
+    func testFailedSaveKeepsPreviousFile() throws {
+        try store.save(values)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path) }
+        XCTAssertThrowsError(try store.save(ApiCredentialsValues(apiId: 777, apiHash: "ffffffffffffffffffffffffffffffff")))
+        XCTAssertEqual(store.load(), values)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["api-credentials.json"])
+    }
+
+    func testOutOfRangeValuesLoadNil() throws {
+        for json in [#"{"apiId":0,"apiHash":""}"#, #"{"apiId":-5,"apiHash":"XYZ"}"#, #"{"apiId":5,"apiHash":"0123"}"#] {
+            try Data(json.utf8).write(to: store.fileURL)
+            XCTAssertNil(store.load(), json)
+        }
+    }
+
+    func testUpperCaseHashLoadsLowerCased() throws {
+        try Data(#"{"apiId":12345,"apiHash":"0123456789ABCDEF0123456789ABCDEF"}"#.utf8).write(to: store.fileURL)
+        XCTAssertEqual(store.load(), values)
+    }
+
+    func testSaveThrowsWhenParentIsAFile() throws {
+        let blocker = directory.appendingPathComponent("blocker")
+        try Data("x".utf8).write(to: blocker)
+        let blocked = ApiCredentialsStore(fileURL: blocker.appendingPathComponent("api-credentials.json"))
+        XCTAssertThrowsError(try blocked.save(values))
     }
 }

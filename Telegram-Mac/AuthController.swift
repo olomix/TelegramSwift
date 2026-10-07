@@ -742,7 +742,7 @@ class AuthController : GenericViewController<AuthView> {
                             return
                         }
                         //accountManager: sharedContext.accountManager, account: account
-                        _ = resendAuthorizationCode(accountManager: sharedContext.accountManager, account: account, apiId: ApiEnvironment.apiId, apiHash: ApiEnvironment.apiHash, firebaseSecretStream: .single([:])).startStandalone()
+                        _ = resendAuthorizationCode(accountManager: sharedContext.accountManager, account: account, apiId: account.networkArguments.apiId, apiHash: account.networkArguments.apiHash, firebaseSecretStream: .single([:])).startStandalone()
                     })
                 default:
                     code_entry_c.update(locked: state.locked, error: state.codeError, number: number, type: type, timeout: timeout, nextType: nextType, takeEdit: { [weak self] in
@@ -1079,7 +1079,7 @@ class AuthController : GenericViewController<AuthView> {
             current.locked = true
             return current
         }
-        let signal = sendAuthorizationCode(accountManager: sharedContext.accountManager, account: self.account, phoneNumber: phoneNumber, apiId: ApiEnvironment.apiId, apiHash: ApiEnvironment.apiHash, pushNotificationConfiguration: nil, firebaseSecretStream: .never(), syncContacts: false, forcedPasswordSetupNotice: { _ in return nil })
+        let signal = sendAuthorizationCode(accountManager: sharedContext.accountManager, account: self.account, phoneNumber: phoneNumber, apiId: self.account.networkArguments.apiId, apiHash: self.account.networkArguments.apiHash, pushNotificationConfiguration: nil, firebaseSecretStream: .never(), syncContacts: false, forcedPasswordSetupNotice: { _ in return nil })
                                        |> map(Optional.init)
                                        |> mapError(Optional.init)
                                        |> timeout(20, queue: Queue.mainQueue(), alternate: .fail(nil))

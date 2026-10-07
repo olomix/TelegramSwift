@@ -495,6 +495,8 @@ public final class L10n {
   public static var apiCredentialsErrorRequired: String  { return L10n.tr("Localizable", "ApiCredentials.Error.Required") }
   /// Get your api_id and api_hash at [my.telegram.org](https://my.telegram.org) → API development tools.
   public static var apiCredentialsHint: String  { return L10n.tr("Localizable", "ApiCredentials.Hint") }
+  /// Couldn't restart Telegram. Quit and reopen it to use the new API credentials.
+  public static var apiCredentialsRelaunchFailed: String  { return L10n.tr("Localizable", "ApiCredentials.RelaunchFailed") }
   /// Save
   public static var apiCredentialsSave: String  { return L10n.tr("Localizable", "ApiCredentials.Save") }
   /// API credentials

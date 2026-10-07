@@ -266,11 +266,11 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     private let context = Promise<AuthorizedApplicationContext?>()
     
     private var authContextValue: UnauthorizedApplicationContext?
+    private let authContext = Promise<UnauthorizedApplicationContext?>()
 
     private let apiCredentialsCheckDisposable = MetaDisposable()
     private var isInterfacePresented = false
     private var pendingInterfacePresentedAction: (() -> Void)?
-    private let authContext = Promise<UnauthorizedApplicationContext?>()
     
     private func effectiveContext(_ account: Account) -> AccountContext? {
         var current: AccountContext?
@@ -331,15 +331,31 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     
     private var ctxLayer: CtxInstallLayer?
 
-    private func moveLegacyDataIntoAppGroup() {
+    /// Returns false when this build's data could not be moved, so starting
+    /// would log in on an empty folder and strand the old data.
+    private func moveLegacyDataIntoAppGroup() -> Bool {
         guard let legacy = ApiEnvironment.legacyDataRootURL, let root = ApiEnvironment.dataRootURL else {
-            return
+            return true
         }
         do {
-            try DataFolderMigration.move(from: legacy, to: root, prefixes: ApiEnvironment.prefixList, fileManager: .default)
+            try DataFolderMigration.move(from: legacy, to: root, fileManager: .default)
+            return true
         } catch {
+            // Logger is not set up yet; its log folder is part of the data being moved.
             NSLog("Moving data from \(legacy.path) to \(root.path) failed: \(error)")
+            return !DataFolderMigration.isPending(ApiEnvironment.prefix, from: legacy, to: root, fileManager: .default)
         }
+    }
+
+    private func showDataMoveFailedAlert() {
+        let legacyPath = ApiEnvironment.legacyDataRootURL?.path ?? ""
+        let rootPath = ApiEnvironment.dataRootURL?.path ?? ""
+        // Untranslated: the language pack lives in the data that failed to move.
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "Cannot move your data into the app group folder"
+        alert.informativeText = "Your data is still in \(legacyPath). Close other copies of the app, free some disk space and start the app again; it will finish moving the data into \(rootPath)."
+        alert.runModal()
     }
     
     func updateGraphicContext() {
@@ -350,7 +366,11 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
 
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        moveLegacyDataIntoAppGroup()
+        guard moveLegacyDataIntoAppGroup() else {
+            showDataMoveFailedAlert()
+            NSApp.terminate(nil)
+            return
+        }
 
         _ = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: { event in
             return BrowserStateContext.checkKey(event)
@@ -381,18 +401,25 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         appDelegate = self
         
         initializeSelectManager()
-        startLottieCacheCleaner()
         
         makeRLottie = { json, key in
             return RLottieBridge(json: json, key: key)
         }
         
         guard let containerUrl = ApiEnvironment.containerURL else {
+            // Only a build signed with the wrong team gets here, so the text is
+            // for developers and stays untranslated.
+            let alert = NSAlert()
+            alert.messageText = "Cannot open the app group container \(ApiEnvironment.appGroup)"
+            alert.informativeText = "Sign the app with the team set in DEVELOPMENT_TEAM, which must include this app group."
+            alert.runModal()
+            NSApp.terminate(nil)
             return
         }
         
         
         self.containerUrl = containerUrl.path
+        startLottieCacheCleaner()
         
         TempBox.initializeShared(basePath: self.containerUrl, processType: "app", launchSpecificId: arc4random64())
         
@@ -528,33 +555,25 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
 
         let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true)
 
-        let continueLaunch: () -> Void = { [weak self] in
-            self?.unlockAndLaunch(accountManager: accountManager, appEncryption: appEncryption)
-        }
-
-        let storedCredentials = ApiEnvironment.storedCredentials
-        switch ApiCredentialsGate.launchDecision(stored: storedCredentials) {
-        case .requireBeforeLaunch:
+        if let credentials = ApiEnvironment.storedCredentials {
+            unlockAndLaunch(accountManager: accountManager, appEncryption: appEncryption, credentials: credentials)
+            checkApiCredentialsInBackground(credentials, accountManager: accountManager)
+        } else {
             showColdStartModal(accountManager: accountManager, modal: {
-                return ApiCredentialsBlockingModal(accountManager: accountManager, onSaved: { _ in
-                    continueLaunch()
+                return ApiCredentialsBlockingModal(accountManager: accountManager, onSaved: { [weak self] credentials in
+                    self?.unlockAndLaunch(accountManager: accountManager, appEncryption: appEncryption, credentials: credentials)
                 })
             })
-        case .launchAndCheckInBackground:
-            continueLaunch()
-            if let storedCredentials = storedCredentials {
-                checkApiCredentialsInBackground(storedCredentials, accountManager: accountManager)
-            }
         }
     }
 
     /// Opens the database directly, or asks for the local passcode first.
-    private func unlockAndLaunch(accountManager: AccountManager<TelegramAccountManagerTypes>, appEncryption: AppEncryptionParameters) {
+    private func unlockAndLaunch(accountManager: AccountManager<TelegramAccountManagerTypes>, appEncryption: AppEncryptionParameters, credentials: ApiCredentialsValues) {
         let rootPath = containerUrl!
 
         if let deviceSpecificEncryptionParameters = appEncryption.decrypt() {
             let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
-            self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption)
+            self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
         } else {
             
             
@@ -563,7 +582,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                     appEncryption.applyPasscode(passcode)
                     if let params = appEncryption.decrypt() {
                         let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: params.key)!, salt: ValueBoxEncryptionParameters.Salt(data: params.salt)!)
-                        self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption)
+                        self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
                         return true
                     } else {
                         return false
@@ -577,7 +596,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                             let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: self.containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true)
                             if let params = appEncryption.decrypt() {
                                 let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: params.key)!, salt: ValueBoxEncryptionParameters.Salt(data: params.salt)!)
-                                self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption)
+                                self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
                             }
                         }
                         return EmptyDisposable
@@ -612,11 +631,12 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         })
     }
 
-    /// Only an explicit rejection blocks the user; the prompt waits until
-    /// the login screen or the chat list is on screen so it stays on top.
+    /// Only an explicit rejection blocks the user; being offline never does.
+    /// The prompt waits until the login screen or the chat list is on screen
+    /// so it stays on top.
     private func checkApiCredentialsInBackground(_ values: ApiCredentialsValues, accountManager: AccountManager<TelegramAccountManagerTypes>) {
         apiCredentialsCheckDisposable.set((ApiCredentialsChecker.check(values, accountManager: accountManager) |> deliverOnMainQueue).start(next: { [weak self] result in
-            guard let self = self, ApiCredentialsGate.decision(afterBackgroundCheck: result) == .requireBlocking else {
+            guard let self = self, result == .rejected else {
                 return
             }
             let prompt: () -> Void = { [weak self] in
@@ -634,8 +654,8 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         if let context = contextValue?.context {
             context.bindings.mainController().showPreferences()
         }
-        showModal(with: ApiCredentialsBlockingModal(accountManager: accountManager, onSaved: { _ in
-            AppRelauncher.relaunch()
+        showModal(with: ApiCredentialsBlockingModal(accountManager: accountManager, startsRejected: true, onSaved: { _ in
+            relaunchApplyingApiCredentials()
         }), for: window)
     }
 
@@ -671,7 +691,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     
     private var terminated = false
     
-    private func launchApp(accountManager: AccountManager<TelegramAccountManagerTypes>, encryptionParameters: ValueBoxEncryptionParameters, appEncryption: AppEncryptionParameters) {
+    private func launchApp(accountManager: AccountManager<TelegramAccountManagerTypes>, encryptionParameters: ValueBoxEncryptionParameters, appEncryption: AppEncryptionParameters, credentials: ApiCredentialsValues) {
         
         FontCacheKey.initializeCache()
         
@@ -875,7 +895,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                 })
                 
                 
-                let networkArguments = makeNetworkInitializationArguments(apiId: ApiEnvironment.apiId, apiHash: ApiEnvironment.apiHash)
+                let networkArguments = makeNetworkInitializationArguments(credentials)
                 
                 let sharedContext = SharedAccountContext(accountManager: accountManager, networkArguments: networkArguments, rootPath: rootPath, encryptionParameters: encryptionParameters, appEncryption: appEncryption, displayUpgradeProgress: displayUpgrade)
                 
@@ -1559,7 +1579,10 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     
     func applicationWillTerminate(_ notification: Notification) {
         self.terminated = true
-        deinitCrashHandler(containerUrl)
+        // Nil when launch stopped before the data folder was ready.
+        if let containerUrl {
+            deinitCrashHandler(containerUrl)
+        }
         
         #if SPARKLE
             updateAppIfNeeded()
