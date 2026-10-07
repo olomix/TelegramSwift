@@ -2,22 +2,16 @@ import Cocoa
 
 public final class ApiEnvironment {
     public static var apiId:Int32 {
-        guard let credentials = credentials else {
-            fatalError("No API credentials: save api_id and api_hash from my.telegram.org first")
+        guard let credentials = storedCredentials else {
+            fatalError("No API credentials stored: the launch gate must ask for them before the network starts")
         }
         return credentials.apiId
     }
     public static var apiHash:String {
-        guard let credentials = credentials else {
-            fatalError("No API credentials: save api_id and api_hash from my.telegram.org first")
+        guard let credentials = storedCredentials else {
+            fatalError("No API credentials stored: the launch gate must ask for them before the network starts")
         }
         return credentials.apiHash
-    }
-
-    /// The saved credentials, or the build-time ones from Secrets.xcconfig
-    /// until the settings screen can store them.
-    public static var credentials: ApiCredentialsValues? {
-        return storedCredentials ?? bundledCredentials
     }
 
     public static var storedCredentials: ApiCredentialsValues? {
@@ -25,13 +19,6 @@ public final class ApiEnvironment {
             return nil
         }
         return ApiCredentialsStore(fileURL: fileURL).load()
-    }
-
-    private static var bundledCredentials: ApiCredentialsValues? {
-        guard let apiId = Bundle.main.object(forInfoDictionaryKey: "TGApiId") as? String, let apiHash = Bundle.main.object(forInfoDictionaryKey: "TGApiHash") as? String else {
-            return nil
-        }
-        return try? ApiCredentialsValues.validate(apiId: apiId, apiHash: apiHash).get()
     }
     
     public static var bundleId: String {

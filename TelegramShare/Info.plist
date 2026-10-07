@@ -57,10 +57,6 @@
 	<string>Copyright © 2024 Telegram. All rights reserved.</string>
 	<key>SOURCE</key>
 	<string>${SOURCE}</string>
-	<key>TGApiHash</key>
-	<string>$(TG_API_HASH)</string>
-	<key>TGApiId</key>
-	<string>$(TG_API_ID)</string>
 	<key>TGAppGroup</key>
 	<string>$(TeamIdentifierPrefix)dev.alek.telegram</string>
 </dict>

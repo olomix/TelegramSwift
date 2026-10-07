@@ -78,7 +78,7 @@ class ShareViewController: NSViewController {
         
         telegramUpdateTheme(updateTheme(with: themeSettings), window: nil, animated: false)
 
-        if ApiEnvironment.credentials == nil {
+        if ApiEnvironment.storedCredentials == nil {
             showSetupRequired()
             return
         }

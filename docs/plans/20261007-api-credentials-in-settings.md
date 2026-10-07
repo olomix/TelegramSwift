@@ -351,17 +351,18 @@
 - Modify: `Telegram-Mac/Info.plist`, `TelegramShare/Info.plist`
 - Modify: `Telegram-Mac/Secrets.example.xcconfig`, `Telegram-Mac/common.xcconfig`
 
-- [ ] launch gate in `launchInterface()` before `appEncryption.decrypt()`:
+- [x] launch gate in `launchInterface()` before `appEncryption.decrypt()`:
       no stored values → blocking modal, then continue the normal branch
-- [ ] background check after launch; `.requireBlocking` → select Settings
+- [x] background check after launch; `.requireBlocking` → select Settings
       tab when logged in, show the blocking modal, relaunch on save
-- [ ] Settings: "API credentials" row next to Proxy; saving changed values
+- [x] Settings: "API credentials" row next to Proxy; saving changed values
       relaunches via `AppRelauncher`
-- [ ] remove the Info.plist fallback, `TGApiId` / `TGApiHash`,
+- [x] remove the Info.plist fallback, `TGApiId` / `TGApiHash`,
       `TG_API_ID` / `TG_API_HASH` from `Secrets.example.xcconfig`; reword the
       `common.xcconfig` comment and the `Config.swift` `fatalError` messages
-- [ ] add gate tests for any new decision branch
-- [ ] run `swift test` and build the app - must pass
+- [x] add gate tests for any new decision branch (none added - the wiring
+      reuses the existing `ApiCredentialsGate` decisions)
+- [x] run `swift test` and build the app - must pass
 
 ### Task 8: Verify acceptance criteria
 - [ ] verify every Overview item is implemented

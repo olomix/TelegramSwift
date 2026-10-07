@@ -16,5 +16,5 @@ GCC_PREPROCESSOR_DEFINITIONS = $(inherited) WEBRTC_MAC=$(WEBRTC_MAC)
 
 ARCHS = arm64
 
-// Local Telegram API credentials from my.telegram.org; see Secrets.example.xcconfig.
+// Local signing settings (DEVELOPMENT_TEAM); see Secrets.example.xcconfig.
 #include? "Secrets.xcconfig"

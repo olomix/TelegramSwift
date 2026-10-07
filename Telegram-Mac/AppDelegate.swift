@@ -266,6 +266,10 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     private let context = Promise<AuthorizedApplicationContext?>()
     
     private var authContextValue: UnauthorizedApplicationContext?
+
+    private let apiCredentialsCheckDisposable = MetaDisposable()
+    private var isInterfacePresented = false
+    private var pendingInterfacePresentedAction: (() -> Void)?
     private let authContext = Promise<UnauthorizedApplicationContext?>()
     
     private func effectiveContext(_ account: Account) -> AccountContext? {
@@ -524,30 +528,38 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
 
         let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true)
 
+        let continueLaunch: () -> Void = { [weak self] in
+            self?.unlockAndLaunch(accountManager: accountManager, appEncryption: appEncryption)
+        }
+
+        let storedCredentials = ApiEnvironment.storedCredentials
+        switch ApiCredentialsGate.launchDecision(stored: storedCredentials) {
+        case .requireBeforeLaunch:
+            showColdStartModal(accountManager: accountManager, modal: {
+                return ApiCredentialsBlockingModal(accountManager: accountManager, onSaved: { _ in
+                    continueLaunch()
+                })
+            })
+        case .launchAndCheckInBackground:
+            continueLaunch()
+            if let storedCredentials = storedCredentials {
+                checkApiCredentialsInBackground(storedCredentials, accountManager: accountManager)
+            }
+        }
+    }
+
+    /// Opens the database directly, or asks for the local passcode first.
+    private func unlockAndLaunch(accountManager: AccountManager<TelegramAccountManagerTypes>, appEncryption: AppEncryptionParameters) {
+        let rootPath = containerUrl!
+
         if let deviceSpecificEncryptionParameters = appEncryption.decrypt() {
             let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
             self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption)
         } else {
             
             
-            let data = combineLatest(themeSettingsView(accountManager: accountManager) |> take(1), accountManager.transaction { transaction in
-                 transaction.getSharedData(SharedDataKeys.localizationSettings)?.get(LocalizationSettings.self)
-            }) |> deliverOnMainQueue
-            
-            _ = data.startStandalone(next: { themeSettings, localization in
-                System.legacyMenu = themeSettings.legacyMenu
-
-                if let localization = localization {
-                    applyUILocalization(localization, window: self.window)
-                    UNUserNotifications.current?.registerCategories()
-                }
-                
-                telegramUpdateTheme(updateTheme(with: themeSettings), window: window, animated: false)
-
-                self.window.makeKeyAndOrderFront(self)
-                NSApp.activate(ignoringOtherApps: true)
-
-                showModal(with: ColdStartPasslockController(checkNextValue: { passcode in
+            self.showColdStartModal(accountManager: accountManager, modal: {
+                return ColdStartPasslockController(checkNextValue: { passcode in
                     appEncryption.applyPasscode(passcode)
                     if let params = appEncryption.decrypt() {
                         let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: params.key)!, salt: ValueBoxEncryptionParameters.Salt(data: params.salt)!)
@@ -570,9 +582,68 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                         }
                         return EmptyDisposable
                     } |> runOn(prepareQueue)
-                }), for: window)
+                })
             })
         }
+    }
+
+    /// Applies the stored theme and language, then shows `modal` over the
+    /// empty main window before any account is loaded.
+    private func showColdStartModal(accountManager: AccountManager<TelegramAccountManagerTypes>, modal: @escaping () -> ModalViewController) {
+        let window = self.window!
+        let data = combineLatest(themeSettingsView(accountManager: accountManager) |> take(1), accountManager.transaction { transaction in
+             transaction.getSharedData(SharedDataKeys.localizationSettings)?.get(LocalizationSettings.self)
+        }) |> deliverOnMainQueue
+
+        _ = data.startStandalone(next: { themeSettings, localization in
+            System.legacyMenu = themeSettings.legacyMenu
+
+            if let localization = localization {
+                applyUILocalization(localization, window: self.window)
+                UNUserNotifications.current?.registerCategories()
+            }
+
+            telegramUpdateTheme(updateTheme(with: themeSettings), window: window, animated: false)
+
+            self.window.makeKeyAndOrderFront(self)
+            NSApp.activate(ignoringOtherApps: true)
+
+            showModal(with: modal(), for: window)
+        })
+    }
+
+    /// Only an explicit rejection blocks the user; the prompt waits until
+    /// the login screen or the chat list is on screen so it stays on top.
+    private func checkApiCredentialsInBackground(_ values: ApiCredentialsValues, accountManager: AccountManager<TelegramAccountManagerTypes>) {
+        apiCredentialsCheckDisposable.set((ApiCredentialsChecker.check(values, accountManager: accountManager) |> deliverOnMainQueue).start(next: { [weak self] result in
+            guard let self = self, ApiCredentialsGate.decision(afterBackgroundCheck: result) == .requireBlocking else {
+                return
+            }
+            let prompt: () -> Void = { [weak self] in
+                self?.showRejectedApiCredentialsPrompt(accountManager: accountManager)
+            }
+            if self.isInterfacePresented {
+                prompt()
+            } else {
+                self.pendingInterfacePresentedAction = prompt
+            }
+        }))
+    }
+
+    private func showRejectedApiCredentialsPrompt(accountManager: AccountManager<TelegramAccountManagerTypes>) {
+        if let context = contextValue?.context {
+            context.bindings.mainController().showPreferences()
+        }
+        showModal(with: ApiCredentialsBlockingModal(accountManager: accountManager, onSaved: { _ in
+            AppRelauncher.relaunch()
+        }), for: window)
+    }
+
+    private func markInterfacePresented() {
+        isInterfacePresented = true
+        let action = pendingInterfacePresentedAction
+        pendingInterfacePresentedAction = nil
+        action?()
     }
     
     func activeContext(for id: AccountRecordId?) -> AccountContext? {
@@ -1073,6 +1144,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                             self.window.contentView?.addSubview(context.rootView, positioned: .below, relativeTo: self.window.contentView?.subviews.first)
                             
                             context.runLaunchAction()
+                            self.markInterfacePresented()
                             if let executeUrlAfterLogin = self.executeUrlAfterLogin {
                                 self.executeUrlAfterLogin = nil
                                 execute(inapp: inApp(for: executeUrlAfterLogin.nsstring, context: context.context))
@@ -1142,6 +1214,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                                     
                                     window.makeKeyAndOrderFront(nil)
                                     showModal(with: context.modal, for: window, animated: presentAuthAnimated)
+                                    self.markInterfacePresented()
                                     
                                     #if SPARKLE
                                     networkDisposable.set((context.account.postbox.preferencesView(keys: [PreferencesKeys.networkSettings]) |> delay(5.0, queue: Queue.mainQueue()) |> deliverOnMainQueue).start(next: { settings in

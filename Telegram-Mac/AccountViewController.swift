@@ -12,6 +12,7 @@ import TelegramCore
 import Localization
 import Postbox
 import SwiftSignalKit
+import ApiCredentials
 
 let normalAccountsLimit: Int = 3
 
@@ -102,6 +103,7 @@ fileprivate final class AccountInfoArguments {
 private enum AccountInfoEntryId : Hashable {
     case index(Int)
     case account(AccountWithInfo)
+    case apiCredentials
     
     func hash(into hasher: inout Hasher) {
         switch self {
@@ -109,6 +111,8 @@ private enum AccountInfoEntryId : Hashable {
             hasher.combine(value)
         case let .account(info):
             hasher.combine(info.account.id.int64)
+        case .apiCredentials:
+            hasher.combine("apiCredentials")
         }
     }
 }
@@ -132,6 +136,7 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
     case accountRecord(index: Int, viewType: GeneralViewType, info: AccountWithInfo)
     case addAccount(index: Int, [AccountWithInfo], viewType: GeneralViewType)
     case proxy(index: Int, viewType: GeneralViewType, status: String?)
+    case apiCredentials(index: Int, viewType: GeneralViewType)
     case stories(index: Int, viewType: GeneralViewType)
     case attach(index: Int, AttachMenuBot, viewType: GeneralViewType)
     case general(index: Int, viewType: GeneralViewType)
@@ -176,6 +181,8 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
             return .index(6)
         case .proxy:
             return .index(7)
+        case .apiCredentials:
+            return .apiCredentials
         case .notifications:
             return .index(8)
         case .dataAndStorage:
@@ -240,6 +247,8 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
         case let  .general(index, _):
             return index
         case let  .proxy(index, _, _):
+            return index
+        case let .apiCredentials(index, _):
             return index
         case let .stickers(index, _):
             return index
@@ -381,6 +390,20 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
                 })
                 arguments.presentController(controller, true)
 
+            }, border:[BorderType.Right], inset:NSEdgeInsets(left: 12, right: 12))
+        case let .apiCredentials(_, viewType):
+            return GeneralInteractedRowItem(initialSize, stableId: stableId, name: strings().apiCredentialsTitle, icon: theme.icons.settingsPassport, activeIcon: theme.icons.settingsPassportActive, type: .next, viewType: viewType, action: {
+                let previous = ApiEnvironment.storedCredentials
+                weak var weakController: InputDataController?
+                let controller = ApiCredentialsController(accountManager: arguments.context.sharedContext.accountManager, onSaved: { values in
+                    if values != previous {
+                        AppRelauncher.relaunch()
+                    } else {
+                        weakController?.navigationController?.back()
+                    }
+                })
+                weakController = controller
+                arguments.presentController(controller, true)
             }, border:[BorderType.Right], inset:NSEdgeInsets(left: 12, right: 12))
         case let .stickers(_, viewType):
             return GeneralInteractedRowItem(initialSize, stableId: stableId, name: strings().accountSettingsStickersAndEmoji, icon: theme.icons.settingsStickers, activeIcon: theme.icons.settingsStickersActive, type: .next, viewType: viewType, action: {
@@ -579,10 +602,10 @@ private func accountInfoEntries(peerView:PeerView, context: AccountContext, acco
     }
     
     
+    entries.append(.whiteSpace(index: index, height: 10))
+    index += 1
+    
     if !proxySettings.0.servers.isEmpty {
-        entries.append(.whiteSpace(index: index, height: 10))
-        index += 1
-        
         let status: String
         switch proxySettings.1 {
         case .online:
@@ -593,7 +616,12 @@ private func accountInfoEntries(peerView:PeerView, context: AccountContext, acco
         entries.append(.proxy(index: index, viewType: .singleItem, status: status))
         index += 1
         
+        entries.append(.whiteSpace(index: index, height: 10))
+        index += 1
     }
+    
+    entries.append(.apiCredentials(index: index, viewType: .singleItem))
+    index += 1
     
     entries.append(.whiteSpace(index: index, height: 10))
     index += 1
@@ -1145,6 +1173,10 @@ class AccountViewController : TelegramGenericViewController<AccountControllerVie
                 switch true {
                 case controller.identifier == "proxy":
                     if let item = tableView.item(stableId: AnyHashable(AccountInfoEntryId.index(7))) {
+                        _ = tableView.select(item: item)
+                    }
+                case controller.identifier == "api-credentials":
+                    if let item = tableView.item(stableId: AnyHashable(AccountInfoEntryId.apiCredentials)) {
                         _ = tableView.select(item: item)
                     }
                 case controller.identifier == "language":
