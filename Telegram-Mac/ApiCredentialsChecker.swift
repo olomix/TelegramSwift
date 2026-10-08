@@ -29,6 +29,8 @@ enum ApiCredentialsChecker {
             case .upgrading, .authorized:
                 return .complete()
             case let .unauthorized(account):
+                // A new account's network stays paused until it is told to connect.
+                account.shouldBeServiceTaskMaster.set(.single(.now))
                 // Any answer, even a DC migration, means the values were accepted.
                 return account.network.request(Api.functions.auth.exportLoginToken(apiId: values.apiId, apiHash: values.apiHash, exceptIds: []))
                 |> map { _ -> ApiCredentialsCheckResult in
@@ -36,6 +38,10 @@ enum ApiCredentialsChecker {
                 }
                 |> `catch` { error -> Signal<ApiCredentialsCheckResult, NoError> in
                     return .single(ApiCredentialsCheckResult(serverError: error.errorDescription))
+                }
+                // Holds the account until the request ends, then stops its connection.
+                |> afterDisposed {
+                    account.shouldBeServiceTaskMaster.set(.single(.never))
                 }
             }
         }
