@@ -11,7 +11,7 @@ url=git@github.com:overtake/rlottie.git
 [submodule "submodules/tgcalls"]
 	path = submodules/tgcalls
 	ignore = dirty
-url=git@github.com:overtake/tgcalls.git
+	url = https://github.com/TelegramMessenger/tgcalls.git
 [submodule "submodules/tg_owt"]
 	path = submodules/tg_owt
 	ignore = dirty

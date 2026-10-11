@@ -196,22 +196,49 @@
   what upstream lacks)
 - Create: `patches/tgcalls/package-exclude-v2wasm-tools.patch`
 
-- [ ] reverse `patches/tgcalls/*.patch` in the submodule, change the URL,
+- [x] reverse `patches/tgcalls/*.patch` in the submodule, change the URL,
       `git submodule sync`, fetch, and check out `a024eaab`
-- [ ] regenerate `group-call-is-broadcast.patch` with only what
+      (URL change committed; the old pin `5ddc3ccf20` is an ancestor of
+      upstream `development` and `ios-13.0.0`, so it fetches from there.
+      ⚠️ gitlink rolled back to `5ddc3ccf20` after the stop rule below)
+- [x] regenerate `group-call-is-broadcast.patch` with only what
       `a024eaab` lacks: the `.mm` mapping `mappedState.isBroadcast = …`
       (near line 1510) and, if upstream's own clause near line 2847 does
       not already cover it, the connection-mode change detection in
       `GroupInstanceCustomImpl.cpp`. Then grep the `.mm` to confirm
       `isBroadcast` is set
-- [ ] create `patches/tgcalls/package-exclude-v2wasm-tools.patch` that adds
+      (only the one-line `.mm` mapping is needed; upstream's
+      `setConnectionMode` clause covers change detection. ⚠️ not committed:
+      the old full patch stays while the gitlink is on `5ddc3ccf20`)
+- [x] create `patches/tgcalls/package-exclude-v2wasm-tools.patch` that adds
       `"tgcalls/v2wasm"` and `"tools"` to `exclude:` in `Package.swift`.
       Do not build or vendor WAMR
-- [ ] rerun `configure_frameworks.sh` (patch loop) and build the Debug
-      app; collect errors
-- [ ] if errors come from WebRTC APIs missing in tg_owt and need more
-      than small fixes, apply the **stop rule** (⚠️, `[deviation]`,
-      stop the plan)
+      (also needed `"tgcalls/group/GroupInstanceReferenceImpl.cpp"`: it uses
+      `OnUnDemuxableRtpPacket` and `RTCConfiguration::
+      disable_payload_type_demuxing` from the iOS WebRTC; only `tools/cli`
+      uses it. ⚠️ not committed, it only applies to `a024eaab`)
+- [x] rerun `configure_frameworks.sh` (patch loop) and build the Debug
+      app; collect errors (configure OK; Debug build fails in
+      `TgVoipWebrtc`, see below)
+- [x] ⚠️ **STOP RULE APPLIED.** Errors come from WebRTC APIs missing in
+      tg_owt `d1cf250e`, in `InstanceV2ReferenceImpl.cpp`, which the Mac
+      wrapper registers (`Register<InstanceV2ReferenceImpl>`), so it cannot
+      be excluded:
+      ```
+      tgcalls/v2/InstanceV2ReferenceImpl.cpp:503:28: error: no member named
+        'external_transport_security' in
+        'webrtc::PeerConnectionFactoryInterface::Options'
+      tgcalls/v2/InstanceV2ReferenceImpl.cpp:776:40: error: no member named
+        'dtls_transport_factory' in 'webrtc::PeerConnectionDependencies'
+      ```
+      Both are the MtProto-in-DTLS hooks (`8717d34`, `bd22b80`, only on
+      `ios-13.0.0`). tg_owt has a DTLS factory only inside
+      `JsepTransportController::Config`, not on the public PeerConnection
+      API, so fixing it means porting WebRTC APIs into tg_owt. Disabling
+      the `network_use_mtproto` path in tgcalls would build but could break
+      calls with peers that use it. Not switched to the tdesktop pair
+      (`development` `1c236c09`, which lacks the MtProto-in-DTLS commits);
+      the user decides. Tasks 3-5 are on hold until then
 
 ### Task 3: Fix Mac call sites for the new tgcalls
 
