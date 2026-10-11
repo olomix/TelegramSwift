@@ -289,17 +289,31 @@ added for tgcalls, as a tg_owt patch. Five commits, about 150 lines:
 - Modify: `Telegram-Mac/OngoingCallContext.swift` and group-call files
   under `Telegram-Mac/` that fail to compile
 
-- [ ] fix compile errors in the Mac Swift code with the smallest change
+- [x] fix compile errors in the Mac Swift code with the smallest change
       that keeps current behaviour; new enum cases and fields get neutral
-      defaults
-- [ ] list the call versions the Mac advertises
+      defaults (none needed: Debug and Release build with no Swift
+      errors; the Mac wrapper header gained one line, no Swift-visible
+      API change)
+- [x] list the call versions the Mac advertises
       (`OngoingCallThreadLocalContextWebrtc.versions`) before and after,
       and record both lists here. They are expected to be the same:
       advertising 14/18/19 would need new instance types registered in
       the Mac wrapper, which is out of scope
-- [ ] Debug and Release builds succeed; `codesign --verify --deep
-      --strict` on the Release app
-- [ ] launch check is manual (needs the user's account): mark it
+      (determined from source, app not launched. Both pins register only
+      `InstanceImpl` (2.7.7, 5.0.0), `InstanceV2Impl` (7.0.0, 8.0.0,
+      9.0.0, 12.0.0, 13.0.0) and `InstanceV2ReferenceImpl` (10.0.0,
+      11.0.0); `versions(withIncludeReference:)` ignores its argument and
+      returns all of `Meta::Versions()` sorted as strings, and
+      `OngoingCallContext.versions` ignores `includeExperimental` /
+      `includeReference`.
+      Before `5ddc3ccf20`: 10.0.0, 11.0.0, 12.0.0, 13.0.0, 2.7.7, 5.0.0,
+      7.0.0, 8.0.0, 9.0.0.
+      After `a024eaab`: the same nine. `maxLayer` stays 92)
+- [x] Debug and Release builds succeed; `codesign --verify --deep
+      --strict` on the Release app (both BUILD SUCCEEDED, codesign OK;
+      package tests pass: FoundationUtils 19, ApiCredentials 40,
+      PasscodeAccessChallenge 6)
+- [x] launch check is manual (needs the user's account): mark it
       "(needs manual run)" in Post-Completion
 
 ### Task 5: Verify acceptance criteria
@@ -327,7 +341,7 @@ added for tgcalls, as a tg_owt patch. Five commits, about 150 lines:
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
 
 **Manual verification**:
-- Launch the Debug app on your account; no crash.
+- Launch the Debug app on your account; no crash (needs manual run).
 - 1:1 voice and video call with an up-to-date iPhone, both directions.
 - Group call / video chat: join, speak, unmute mid-call, screen share.
 - If calls fail, the fallback is the tdesktop pair: tgcalls
