@@ -17,3 +17,6 @@ submodules/OpenSSLEncryptionProvider/SharedHeaders
 core-xprojects/dav1d/build
 core-xprojects/tde2e/build
 Telegram-Mac/Secrets.xcconfig
+
+# Local notes, never committed
+nogit_*
