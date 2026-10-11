@@ -21,3 +21,6 @@ Telegram-Mac/Secrets.xcconfig
 # Local notes, never committed
 nogit_*
 *.profraw
+
+# revmux review records
+.revmux/
