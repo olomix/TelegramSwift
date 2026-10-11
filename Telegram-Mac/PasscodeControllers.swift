@@ -12,6 +12,7 @@ import Postbox
 import TelegramCore
 import BuildConfig
 import SwiftSignalKit
+import PasscodeAccessChallenge
 
 
 enum PasscodeMode : Equatable {

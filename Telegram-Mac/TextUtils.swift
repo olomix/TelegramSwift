@@ -1000,9 +1000,10 @@ func serviceMessageText(_ message:Message, account:Account, isReplied: Bool = fa
             } else {
                 text = strings().chatServiceStarGiftSent(authorName, strings().starListItemCountCountable(Int(gift.generic!.price)))
             }
-        case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, savedId, _, _, _, _, _, _, _, _, _, _, _):
+        case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, savedId, _, _, _, _, _, _, _, _, _, _, nameHidden):
             
-            let authorName = senderId.flatMap { message.peers[$0]?.displayTitle } ?? authorName
+            // A hidden sender is left out of message.peers; don't fall back to the author.
+            let authorName = senderId.flatMap { message.peers[$0]?.displayTitle } ?? (nameHidden ? strings().chatServicePremiumUnknown : authorName)
             
             if case let .unique(gift) = gift {
                 if isTransferred {

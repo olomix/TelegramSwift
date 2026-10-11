@@ -51,7 +51,11 @@
     (`--cfg aes_armv8`). Cargo reads that file based on the working
     directory, so the build must run from the crate directory.
   - In an `.appex`, TelegramCore never turns on the WEB proxy carrier, so a
-    WEB proxy does not work in Share whichever engine runs.
+    WEB proxy does not work in Share whichever engine runs. The Mac app
+    can't use one either: nothing on the Mac creates a `.web` proxy (no
+    `webproxy` link parsing, no editor type) and the Mac never installs a
+    carrier view host (`WebProxyTransport.shared.setViewHost`), so WEB
+    proxies are out of scope here and need their own plan.
   - `RustNetworkEngineFactory.makeEngine(context:isAppExtension:)` returns
     nil when `isAppExtension` is true. That is why upstream extensions stay
     on MtProtoKit.
@@ -61,8 +65,9 @@
     and `ApiCredentialsChecker.swift:24`.
   - `TelegramShare/ShareViewController.swift:146`, which builds the
     arguments inline.
-- Toolchain: cargo 1.92 with rustup. The `aarch64-apple-darwin` target is
-  installed.
+- Toolchain: rustup; the crate pins Rust 1.96.1 (`rust-toolchain.toml`),
+  installed alongside the stable default. The `aarch64-apple-darwin`
+  target is installed.
 
 ## Development Approach
 - **testing approach**: Regular (code first, then tests). Most of the work
@@ -81,9 +86,15 @@
 
 ## Testing Strategy
 - **unit tests**: `cd packages/FoundationUtils && swift test`,
-  `cd packages/ApiCredentials && swift test`, and
+  `cd packages/ApiCredentials && swift test`,
+  `cd packages/PasscodeAccessChallenge && swift test` (passcode marker
+  round trip against a real `AccountManager`), and
   `cd submodules/telegram-ios/submodules/MTProtoRustEngine && swift test`
   (mapping and bridge tests; the end-to-end tests may need network access).
+- **upstream tests** (patches applied; failures are upstream's, record them,
+  don't fix): `cd submodules/telegram-ios/submodules/TelegramCore && swift test`.
+  Postbox has no SwiftPM test target (its `Tests/` run under Bazel only),
+  so there is no `swift test` for it.
 - **build check** (after every task):
   ```
   xcodebuild -workspace Telegram-Mac.xcworkspace -scheme Telegram \
@@ -110,7 +121,7 @@
 - Share extension: add a small Mac-side factory wrapper that forwards
   `makeEngine` with `isAppExtension: false`. This avoids patching
   telegram-ios. The wrapper still honours the factory's other refusals, such
-  as datacenter overrides or proxy kinds it can't serve, so MtProtoKit
+  as datacenter overrides or a missing engine runtime, so MtProtoKit
   remains the fallback.
 
 ## Technical Details
@@ -211,21 +222,28 @@
       (macOS refuses new folders inside `~/Library/Group Containers/`)
 - [x] run the build check and collect the errors. Group them by module
       and add a sub-item per group here with ➕
-  - ➕ proxy: new `ProxyServerConnection.web(secret:path:)`. Labelled and
-    treated like MTProto (no calls), link via `webProxySettingsLink`, the
-    editor keeps secret and path; shared account info skips it
+  - ➕ proxy: new `ProxyServerConnection.web(secret:path:)`. Only made
+    exhaustive, since the Mac can't add a WEB proxy: labelled like MTProto
+    (no calls), link via `webProxySettingsLink` (no link, copy or QR when
+    that returns nil), the editor ignores edits to one, shared account
+    info skips it (deliberate; nothing reads those infos back)
   - ➕ account manager: `AccountManager.init` needs `accessChallenge:`.
-    Mac passes `.passthrough` (CoreCompat.swift), and passcode writes go
-    through `storeAccessChallengeData`, since the core now commits only
-    what the resolver returns. `.secured` passcode shows as enabled
+    Mac passes `.passthrough`, and passcode writes go through
+    `storeAccessChallengeData`, since the core now commits only what the
+    resolver returns. `.secured` passcode shows as enabled. ➕ Both live in
+    `packages/PasscodeAccessChallenge` with tests against a real
+    `AccountManager` (store, reopen read-write and read-only, clear, plain
+    set dropped, `.numericalPassword`/`.secured` open unchanged)
   - ➕ instant view: `RichText.textButton`/`textTonAddress` render as
     plain text; `.table` gained `compact` (ignored)
   - ➕ text entities: `MessageTextEntityType.TonAddress` (weight 24,
     no link UI)
   - ➕ gifts: `starGiftUnique` action gained `text`, `entities`,
-    `nameHidden`; `.starGiftResale` source needs `hideName`/`text`/
-    `entities` (false/nil); `UpgradeStarGiftError.alreadyUpgraded`
-    shows the generic error
+    `nameHidden`; with `nameHidden` the sender is left out of the
+    message's peers, so the Mac shows "Unknown user" instead of falling
+    back to the message author; `.starGiftResale` source needs
+    `hideName`/`text`/`entities` (false/nil);
+    `UpgradeStarGiftError.alreadyUpgraded` shows the generic error
   - ➕ bots: `UpdateCustomVerificationValue.enabled` needs
     `descriptionEntities` (nil)
 - [x] fix renamed or changed APIs with the smallest change that keeps
@@ -236,10 +254,11 @@
 - [x] build the Release configuration once to catch `#if DEBUG`-only paths
 - [x] run the package tests (`FoundationUtils`, `ApiCredentials`). They
       must pass
-- [x] run the Debug app and confirm that the existing account opens (the
+- [x] ⚠️ run the Debug app and confirm that the existing account opens (the
       Postbox migration runs), the chat list loads and a message sends.
       The engine is still MtProtoKit at this point, with no factory passed
-      (skipped - needs manual run; Debug and Release builds succeed)
+      (not run — needs manual run; only the Debug and Release builds were
+      checked)
 
 ### Task 4: Build MTProtoEngineFFI.xcframework
 
@@ -262,8 +281,13 @@
       std, 72 AES instructions in mtproto_core. Its SHA-256 check reports
       FAIL only because it expects v0 mangling; `otool` shows 32
       `sha256h` in `sha2::sha256::compress256`
-- [x] fail early with a clear message when `cargo` is missing (checked
-      at the top of the script, `~/.cargo/bin` added to `PATH`)
+- [x] fail early with a clear message when `rustup` is missing (checked
+      at the top of the script, `~/.cargo/bin` put first on `PATH`). The
+      script reads the channel from `rust-toolchain.toml` (fails clearly
+      if it can't), runs `rustup toolchain install <channel> --profile
+      minimal --target aarch64-apple-darwin` (a no-op once installed) and
+      builds with `rustup run <channel> cargo`, so a Homebrew cargo
+      earlier on `PATH` can't replace the pinned toolchain
 - [x] run `shellcheck scripts/configure_frameworks.sh` and fix what it
       reports (no new findings; the 20 older ones are untouched)
 - [x] run `cd submodules/telegram-ios/submodules/MTProtoRustEngine && swift test`.
@@ -300,17 +324,17 @@
       `ShareViewController`. Also pass it in `ApiCredentialsChecker`
       through the shared function
 - [x] build the Debug and Release configurations
-- [x] runtime check for the app: the log shows `engine rust` for the
+- [x] ⚠️ runtime check for the app: the log shows `engine rust` for the
       account, and login, chat-list sync and a media download work
-      (skipped - needs manual run)
-- [x] runtime check for Share: share a file into a chat, and the Share log
+      (not run — needs manual run)
+- [x] ⚠️ runtime check for Share: share a file into a chat, and the Share log
       shows `engine rust` with no `[MTProtoRust] declined: app extension`
-      (skipped - needs manual run)
-- [x] runtime check for the credentials check: Settings → API credentials
+      (not run — needs manual run)
+- [x] ⚠️ runtime check for the credentials check: Settings → API credentials
       accepts valid values and reports an API_ID error for an invalid id,
-      under Rust (skipped - needs manual run)
-- [x] runtime check for a proxy: set a SOCKS5 proxy in Settings, and the
-      network keeps working (skipped - needs manual run)
+      under Rust (not run — needs manual run)
+- [x] ⚠️ runtime check for a proxy: set a SOCKS5 proxy in Settings, and the
+      network keeps working (not run — needs manual run)
 - [x] run the package tests and the `MTProtoRustEngine` tests. They must
       pass (FoundationUtils, ApiCredentials, MTProtoRustEngine 65/65)
 
@@ -322,13 +346,22 @@
       the scratch directory, plus `configure_frameworks.sh` plus the build
       check, succeeds (all nested submodules fetched, 10 native projects
       and the xcframework built, Debug BUILD SUCCEEDED; clone deleted)
-- [x] the app and Share both log `engine rust` (skipped - needs manual run)
-- [x] fallback: temporarily set `updateNetworkEngineSettings(accountManager:)
+- [x] ⚠️ the app and Share both log `engine rust` (not run — needs manual
+      run)
+- [x] ⚠️ fallback: temporarily set `updateNetworkEngineSettings(accountManager:)
       { _ in .init(engine: .mtProtoKit) }`. The log shows
       `engine mtProtoKit` and the app works. Then revert
-      (skipped - needs manual run)
+      (not run — needs manual run)
 - [x] run the full test suite: FoundationUtils, ApiCredentials and
       MTProtoRustEngine `swift test` (19, 40 and 65 tests, 0 failures)
+- [x] ➕ PasscodeAccessChallenge `swift test` (5 tests, 0 failures)
+- [x] ➕ ⚠️ upstream TelegramCore `swift test` (patches applied): 166 tests,
+      164 pass, `ProxySettingsTests` included. Two upstream failures in
+      `ApiConstructorCompatibilityTests`
+      (`testUserFullParsesWithAndWithoutTheGramAddressLayout`,
+      `testWalletUserAddressParsesBothLayouts`: the older TL layouts no
+      longer parse). Not ours; left as is. Postbox has no SwiftPM test
+      target to run
 - [x] the Release build succeeds and is signed (`codesign --verify --deep`)
       (`--deep --strict` passes, team 3PB2Z94Q5T, appex validated)
 
@@ -343,15 +376,30 @@
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
 
 **Manual verification**:
+- Runtime checks ticked with ⚠️ above, none of them run yet:
+  - first start of the Debug app on existing data (Postbox/SQLCipher 4.19
+    migration; back up the app group folder first), chat list loads, a
+    message sends;
+  - the app log shows `Network: Account N: engine rust`, and login,
+    chat-list sync and a media download work;
+  - sharing a file through the Share extension works and its log shows
+    `engine rust` with no `[MTProtoRust] declined: app extension`;
+  - Settings → API credentials under Rust accepts valid values and reports
+    an API_ID error for an invalid id;
+  - a SOCKS5 proxy keeps the network working under Rust;
+  - forced MtProtoKit (`updateNetworkEngineSettings` set to
+    `.mtProtoKit`, then reverted) logs `engine mtProtoKit` and works.
+- Passcode: turn the passcode on and off, restart in between, and check
+  that the Share extension asks for it while it is on.
 - On a real account over a day of normal use: calls, voice and video
   messages (ffmpeg 8), stickers and animated emoji, large file
   upload/download (the CDN path in the Rust engine), and wake from sleep
   with a network change.
 - Share extension on a large file and on several items.
-- MTProxy, SOCKS5 and WEB proxies in the main app (the Rust engine carries
-  WEB proxies itself).
-- Known limitation: a WEB proxy does not work in the Share extension with
-  either engine (upstream never turns on the carrier in `.appex`).
+- MTProxy and SOCKS5 proxies in the main app.
+- Known limitation: WEB proxies are not supported on the Mac yet. The app
+  can't add one, and it never installs the carrier's view host; the Share
+  extension never turns on the carrier at all.
 
 **Follow-ups (separate plans)**:
 - Mac UI for new upstream features: rich-text messages and editor,
@@ -359,3 +407,6 @@
   InstantPage buttons and tables.
 - Consider SwiftSignalKit2 and GraphCore2 (upstream's macOS-specific
   rewrites).
+- WEB proxy support on the Mac: `tg://webproxy`/`t.me` link parsing, a WEB
+  type in the proxy editor, and a carrier view host
+  (`WebProxyTransport.shared.setViewHost`).

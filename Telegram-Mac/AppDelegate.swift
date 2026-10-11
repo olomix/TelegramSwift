@@ -29,6 +29,7 @@ import MetalEngine
 import TelegramMedia
 import RLottie
 import KeyboardKey
+import PasscodeAccessChallenge
 
 #if BETA || DEBUG
 #endif

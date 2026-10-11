@@ -16,7 +16,9 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
 	```
    Install Rust with [rustup](https://rustup.rs), which also gives you
    `cargo`. The Rust MTProto engine pins its Rust version in
-   `rust-toolchain.toml`; rustup installs that version on the first build.
+   `rust-toolchain.toml`; `configure_frameworks.sh` installs that version
+   with rustup. The first run downloads the pinned Rust toolchain and the
+   crate dependencies, so it needs network access.
 3. Set your Apple team for code signing:
 	```
 	cp Telegram-Mac/Secrets.example.xcconfig Telegram-Mac/Secrets.xcconfig
@@ -36,6 +38,17 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
    This also applies the local fixes in `patches/<submodule>/` to the
    submodules and builds the Rust MTProto engine
    (`MTProtoEngineFFI.xcframework`).
+
+   In an existing clone, after pulling a `submodules/telegram-ios` update,
+   fetch the engine's nested submodule before running the script:
+	```
+	git submodule update --init
+	git -C submodules/telegram-ios submodule update --init third-party/mtproto-engine
+	```
+   Don't use `--recursive` on the whole repo: it moves the `tgcalls` and
+   `webrtc` checkouts. If you built before the ffmpeg 8.1.2 update, run
+   `rm -rf core-xprojects/ffmpeg/build` first; ffmpeg is rebuilt only when
+   that folder is missing.
 
 ## Build and run from the console
 
@@ -107,15 +120,19 @@ yet, it asks you to open Telegram first.
   4.19) can't be undone, so older builds can't open the data afterwards.
 - The app and the Share extension use the Rust MTProto engine and fall back
   to MtProtoKit when it can't run. The app log shows which one runs:
-  `Network: Account N: engine rust` or `engine mtProtoKit`. A
-  `[MTProtoRust] declined: ...` line gives the reason for a fallback.
-- A WEB proxy works in the app but not in the Share extension, with either
-  engine.
+  `Network: Account N: engine rust` or `engine mtProtoKit (...)`. The
+  brackets say why: `mtproto_engine_rust_disabled` means the server turned
+  Rust off; `factory declined rust` comes with a `[MTProtoRust] declined: ...`
+  line giving the reason.
+- WEB proxies are not supported on the Mac yet: the app can't add one, and
+  the WEB carrier is not hooked up.
 - Run only one copy of the app at a time; copies share the same data folder.
 - Run the FoundationUtils package's unit tests with
   `cd packages/FoundationUtils && swift test`.
 - Run the ApiCredentials package's unit tests with
   `cd packages/ApiCredentials && swift test`.
+- Run the PasscodeAccessChallenge package's unit tests with
+  `cd packages/PasscodeAccessChallenge && swift test`.
 - After a build, check that the packages' images (call screen icons) load:
   `swift scripts/check-package-assets.swift ~/build/TelegramSwift/Build/Products/Debug/Telegram.app`
   (adjust the path to your build output).

@@ -376,7 +376,9 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
                 let controller = proxyListController(accountManager: arguments.context.sharedContext.accountManager, network: arguments.context.account.network, share: { servers in
                     var message: String = ""
                     for server in servers {
-                        message += server.link + "\n\n"
+                        if let link = server.link {
+                            message += link + "\n\n"
+                        }
                     }
                     message = message.trimmed
                     

@@ -64,7 +64,8 @@ func sharedAccountInfos(accountManager: AccountManager<TelegramAccountManagerTyp
                 case let .mtp(secretValue):
                     secret = secretValue
                 case .web:
-                    // AccountProxyConnection has no fields for a WEB proxy path.
+                    // Deliberate: AccountProxyConnection can't describe a WEB proxy, and
+                    // Mac never reads these infos back (loadAccountsData has no callers).
                     return nil
                 }
                 return AccountProxyConnection(host: proxyServer.host, port: proxyServer.port, username: username, password: password, secret: secret)

@@ -153,30 +153,3 @@ extension TelegramMediaPollKind {
         return false
     }
 }
-
-// The Mac keeps its passcode outside TelegramCore and stores only a marker in
-// the account manager. The core now commits a marker only when the access
-// challenge resolver returns it, so the resolver hands back the value being set.
-private let pendingAccessChallengeData = Atomic<PostboxAccessChallengeData?>(value: nil)
-
-extension AccountManagerAccessChallenge {
-    static var passthrough: AccountManagerAccessChallenge {
-        return AccountManagerAccessChallenge(
-            prepare: { _ in },
-            resolve: { current, _ in
-                return current ?? pendingAccessChallengeData.with { $0 }
-            },
-            finishInitialization: {}
-        )
-    }
-}
-
-extension AccountManagerModifier {
-    /// Stores the passcode marker. Requires an account manager created with
-    /// `AccountManagerAccessChallenge.passthrough`.
-    func storeAccessChallengeData(_ data: PostboxAccessChallengeData) {
-        let _ = pendingAccessChallengeData.swap(data)
-        self.setAccessChallengeData(data)
-        let _ = pendingAccessChallengeData.swap(nil)
-    }
-}

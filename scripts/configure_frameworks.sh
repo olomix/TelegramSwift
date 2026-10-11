@@ -9,9 +9,9 @@ declare -a libname=("OpenH264" "OpenSSLEncryption" "libopus" "libvpx" "Mozjpeg" 
 arraylength=${#libs[@]}
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
-PATH="$PATH:$HOME/.cargo/bin"
-if ! command -v cargo >/dev/null; then
-    echo "error: cargo not found; install rustup (https://rustup.rs) to build the Rust MTProto engine" >&2
+PATH="$HOME/.cargo/bin:$PATH"
+if ! command -v rustup >/dev/null; then
+    echo "error: rustup not found; install it from https://rustup.rs to build the Rust MTProto engine" >&2
     exit 1
 fi
 
@@ -122,12 +122,18 @@ MTPROTO_ENGINE_DIR="${SCRIPT_DIR}/../submodules/telegram-ios/third-party/mtproto
 MTPROTO_ENGINE_XCFRAMEWORK="${SCRIPT_DIR}/../submodules/telegram-ios/submodules/MTProtoRustEngine/MTProtoEngineFFI.xcframework"
 MTPROTO_ENGINE_TARGET="aarch64-apple-darwin"
 
+MTPROTO_ENGINE_TOOLCHAIN=$( sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$MTPROTO_ENGINE_DIR/rust-toolchain.toml" )
+if [ -z "$MTPROTO_ENGINE_TOOLCHAIN" ]; then
+    echo "error: no toolchain channel in $MTPROTO_ENGINE_DIR/rust-toolchain.toml; run git submodule update --init in submodules/telegram-ios for third-party/mtproto-engine" >&2
+    exit 1
+fi
+rustup toolchain install "$MTPROTO_ENGINE_TOOLCHAIN" --profile minimal --target "$MTPROTO_ENGINE_TARGET"
+
 # Run from the crate directory: cargo reads .cargo/config.toml (hardware AES)
-# and rust-toolchain.toml relative to the working directory.
+# relative to the working directory. rustup run ignores a non-rustup cargo on PATH.
 (
     cd "$MTPROTO_ENGINE_DIR"
-    rustup target add --toolchain "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" "$MTPROTO_ENGINE_TARGET"
-    MACOSX_DEPLOYMENT_TARGET=10.13 cargo build -p mtproto-ffi --release --locked --target "$MTPROTO_ENGINE_TARGET"
+    MACOSX_DEPLOYMENT_TARGET=10.13 rustup run "$MTPROTO_ENGINE_TOOLCHAIN" cargo build -p mtproto-ffi --release --locked --target "$MTPROTO_ENGINE_TARGET"
 )
 
 # Headers go in a subfolder: Xcode merges every static xcframework's Headers

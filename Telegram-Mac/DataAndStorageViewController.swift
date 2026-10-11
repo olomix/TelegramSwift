@@ -652,7 +652,9 @@ class DataAndStorageViewController: TableViewController {
             let controller = proxyListController(accountManager: context.sharedContext.accountManager, network: context.account.network, share: { servers in
                 var message: String = ""
                 for server in servers {
-                    message += server.link + "\n\n"
+                    if let link = server.link {
+                        message += link + "\n\n"
+                    }
                 }
                 message = message.trimmed
                 

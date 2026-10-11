@@ -1180,6 +1180,8 @@
 		A1C0DE0000000000000A1103 /* ExtensionAllowingRustEngineFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE0000000000000A1101 /* ExtensionAllowingRustEngineFactory.swift */; };
 		A1C0DE0000000000000A1204 /* MTProtoRustEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1202 /* MTProtoRustEngine */; };
 		A1C0DE0000000000000A1205 /* MTProtoRustEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1203 /* MTProtoRustEngine */; };
+		A1C0DE0000000000000A1304 /* PasscodeAccessChallenge in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1302 /* PasscodeAccessChallenge */; };
+		A1C0DE0000000000000A1305 /* PasscodeAccessChallenge in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1303 /* PasscodeAccessChallenge */; };
 		A1C0DE0000000000000A0D02 /* ApiCredentialsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE0000000000000A0D01 /* ApiCredentialsController.swift */; };
 		A7E83214255E992D0095A167 /* WaveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E83213255E992D0095A167 /* WaveView.swift */; };
 		A7ED5DAF236C7CE100040372 /* RLottie.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A7ED5DAE236C7CE100040372 /* RLottie.framework */; };
@@ -2846,6 +2848,7 @@
 		A1C0DE0000000000000A1001 /* NetworkInitializationArguments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInitializationArguments.swift; sourceTree = "<group>"; };
 		A1C0DE0000000000000A1101 /* ExtensionAllowingRustEngineFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionAllowingRustEngineFactory.swift; sourceTree = "<group>"; };
 		A1C0DE0000000000000A1201 /* MTProtoRustEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MTProtoRustEngine; path = "submodules/telegram-ios/submodules/MTProtoRustEngine"; sourceTree = "<group>"; };
+		A1C0DE0000000000000A1301 /* PasscodeAccessChallenge */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PasscodeAccessChallenge; path = packages/PasscodeAccessChallenge; sourceTree = "<group>"; };
 		A1C0DE0000000000000A0D01 /* ApiCredentialsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiCredentialsController.swift; sourceTree = "<group>"; };
 		A7E83213255E992D0095A167 /* WaveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveView.swift; sourceTree = "<group>"; };
 		A7ED5DAE236C7CE100040372 /* RLottie.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = RLottie.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -3393,6 +3396,7 @@
 				27D43DCF27919229006968A6 /* libssl.a in Frameworks */,
 				27B6D04B2739388600C785C7 /* TelegramCore in Frameworks */,
 				A1C0DE0000000000000A1205 /* MTProtoRustEngine in Frameworks */,
+				A1C0DE0000000000000A1305 /* PasscodeAccessChallenge in Frameworks */,
 				27EE444C297FD91B0077AA0F /* DateUtils in Frameworks */,
 				27A7FBDC2CF73E8600AE9432 /* libdav1d.a in Frameworks */,
 				278926CB27550CA100923087 /* KeyboardKey in Frameworks */,
@@ -3492,6 +3496,7 @@
 				277C209827A2F6160070B3BF /* YuvConversion in Frameworks */,
 				27B6D05127393A3200C785C7 /* TelegramCore in Frameworks */,
 				A1C0DE0000000000000A1204 /* MTProtoRustEngine in Frameworks */,
+				A1C0DE0000000000000A1304 /* PasscodeAccessChallenge in Frameworks */,
 				2796FF1027424BA800DA653C /* DateUtils in Frameworks */,
 				277C209327A2F58E0070B3BF /* ManagedFile in Frameworks */,
 				27B6D05B27393A4700C785C7 /* TGUIKit in Frameworks */,
@@ -4646,6 +4651,7 @@
 				27B6D0472739387500C785C7 /* TelegramApi */,
 				27B6D0462739382800C785C7 /* TelegramCore */,
 				A1C0DE0000000000000A1201 /* MTProtoRustEngine */,
+				A1C0DE0000000000000A1301 /* PasscodeAccessChallenge */,
 				27F3B75F273933C800B81F10 /* GraphUI */,
 				27F3B75A2739300C00B81F10 /* SSignalKit */,
 				27F3B7572739212200B81F10 /* TGUIKit */,
@@ -6971,6 +6977,7 @@
 				27B6D0482739388600C785C7 /* TelegramApi */,
 				27B6D04A2739388600C785C7 /* TelegramCore */,
 				A1C0DE0000000000000A1203 /* MTProtoRustEngine */,
+				A1C0DE0000000000000A1303 /* PasscodeAccessChallenge */,
 				27B6D04C2739388C00C785C7 /* Postbox */,
 				2745FECA274F947000546B05 /* BuildConfig */,
 				2745FECC274F948600546B05 /* NumberPluralization */,
@@ -7030,6 +7037,7 @@
 				27B6D04E27393A2A00C785C7 /* TelegramApi */,
 				27B6D05027393A3200C785C7 /* TelegramCore */,
 				A1C0DE0000000000000A1202 /* MTProtoRustEngine */,
+				A1C0DE0000000000000A1302 /* PasscodeAccessChallenge */,
 				27B6D05227393A3600C785C7 /* Postbox */,
 				27B6D05427393A3D00C785C7 /* GraphCore */,
 				27B6D05627393A3D00C785C7 /* GraphUI */,
@@ -9601,6 +9609,14 @@
 		A1C0DE0000000000000A1203 /* MTProtoRustEngine */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MTProtoRustEngine;
+		};
+		A1C0DE0000000000000A1302 /* PasscodeAccessChallenge */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PasscodeAccessChallenge;
+		};
+		A1C0DE0000000000000A1303 /* PasscodeAccessChallenge */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PasscodeAccessChallenge;
 		};
 		27B6D05227393A3600C785C7 /* Postbox */ = {
 			isa = XCSwiftPackageProductDependency;

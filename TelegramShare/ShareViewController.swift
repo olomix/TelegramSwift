@@ -18,6 +18,7 @@ import BuildConfig
 import Localization
 import TelegramSystem
 import RLottie
+import PasscodeAccessChallenge
 
 class ShareViewController: NSViewController {
 

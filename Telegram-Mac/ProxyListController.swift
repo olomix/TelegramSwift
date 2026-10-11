@@ -304,8 +304,10 @@ private func addProxyController(accountManager: AccountManager<TelegramAccountMa
     } |> map { InputDataSignalValue(entries: $0) }, title: title, validateData: { data -> InputDataValidation in
             if data[_id_export] != nil {
                 updateState { current in
-                    copyToClipboard(current.server.withDataHextString().link)
-                    _controller?.show(toaster: ControllerToaster(text: strings().shareLinkCopied))
+                    if let link = current.server.withDataHextString().link {
+                        copyToClipboard(link)
+                        _controller?.show(toaster: ControllerToaster(text: strings().shareLinkCopied))
+                    }
                     return current
                 }
                 return .fail(.none)
@@ -371,8 +373,8 @@ private func addProxyController(accountManager: AccountManager<TelegramAccountMa
             case .socks5:
                 return current.withUpdatedServer(ProxyServerSettings(host: data[_id_host]?.stringValue ?? "", port: port.isEmpty ? 0 : (Int32(port) ?? 0), connection: .socks5(username: data[_id_username]?.stringValue, password: data[_id_pass]?.stringValue)))
             case .web:
-                // The editor has no WEB proxy fields; keep secret and path as they are.
-                return current.withUpdatedServer(ProxyServerSettings(host: data[_id_host]?.stringValue ?? "", port: port.isEmpty ? 0 : (Int32(port) ?? 0), connection: current.server.connection))
+                // Mac can't edit WEB proxies yet; keep the stored server untouched.
+                return current
             }
         }
         return .fail(.none)
@@ -490,7 +492,7 @@ private func addProxySettingsEntries(state: ProxySettingsState, updateType:@esca
         index += 1
     }
     
-    if !server.isEmpty {
+    if !server.isEmpty, let link = server.withDataHextString().link {
         
         entries.append(.sectionId(sectionId, type: .normal))
         sectionId += 1
@@ -499,8 +501,6 @@ private func addProxySettingsEntries(state: ProxySettingsState, updateType:@esca
         
         entries.append(.sectionId(sectionId, type: .normal))
         sectionId += 1
-        
-        let link = server.withDataHextString().link
         
         entries.append(InputDataEntry.custom(sectionId: sectionId, index: index, value: .none, identifier: _id_qrcode, equatable: InputDataEquatable(link), comparable: nil, item: { initialSize, stableId in
             return ProxyQRCodeRowItem(initialSize, stableId: stableId, link: link)

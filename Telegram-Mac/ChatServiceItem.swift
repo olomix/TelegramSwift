@@ -1552,7 +1552,9 @@ class ChatServiceItem: ChatRowItem {
                         }
                     }
 
-                case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, saverId, resaleStars, canTransferDate, canResaleDate, _, _, _, _, _, _, _, _):
+                case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, saverId, resaleStars, canTransferDate, canResaleDate, _, _, _, _, _, _, _, nameHidden):
+                    // A hidden sender is left out of message.peers; don't fall back to the author.
+                    let hiddenSenderName: String? = nameHidden ? strings().chatServicePremiumUnknown : nil
                     
                     
                     let authorPeer: EnginePeer?
@@ -1585,7 +1587,7 @@ class ChatServiceItem: ChatRowItem {
                     if case let .unique(gift) = gift {
                         var text: String = ""
                         if let messagePeer = message.peers[message.id.peerId] {
-                            let peerName = senderId.flatMap { message.peers[$0]?.displayTitle } ?? messagePeer.compactDisplayTitle
+                            let peerName = senderId.flatMap { message.peers[$0]?.displayTitle } ?? hiddenSenderName ?? messagePeer.compactDisplayTitle
                             let peerIds: [(Int, EnginePeer.Id?)] = [(0, messagePeer.id)]
                             if let resaleStars {
                                 if message.author?.id == context.account.peerId {
@@ -1648,7 +1650,7 @@ class ChatServiceItem: ChatRowItem {
                         if let senderId, let author = message.peers[senderId] {
                             header.append(string: strings().chatServiceStarGiftFrom("\(author.displayTitle)"), color: grayTextColor, font: .medium(theme.fontSize + 1))
                         } else {
-                            header.append(string: strings().chatServiceStarGiftFrom("\(authorName)"), color: grayTextColor, font: .medium(theme.fontSize + 1))
+                            header.append(string: strings().chatServiceStarGiftFrom(hiddenSenderName ?? authorName), color: grayTextColor, font: .medium(theme.fontSize + 1))
                         }
 
                         
@@ -1686,7 +1688,7 @@ class ChatServiceItem: ChatRowItem {
                             info.append(string: strings().giftUpgradeRefunded, color: grayTextColor, font: .normal(theme.fontSize))
                         }
                         
-                        self.giftData = .init(from: authorId ?? message.id.peerId, to: message.id.peerId, text: TextViewLayout(header, alignment: .center), info: info.string.isEmpty ? nil : TextViewLayout(info, maximumNumberOfLines: 4, alignment: .center), source: .starGift(amount: 0, date: message.timestamp, from: senderId.flatMap { message.peers[$0].flatMap(EnginePeer.init)} ?? message.author.flatMap { .init($0) }, to: toPeer, purpose: purpose), ribbon: ribbon, uniqueAttributes: uniqueAttributes, authorLayout: authorLayout, author: authorPeer)
+                        self.giftData = .init(from: authorId ?? message.id.peerId, to: message.id.peerId, text: TextViewLayout(header, alignment: .center), info: info.string.isEmpty ? nil : TextViewLayout(info, maximumNumberOfLines: 4, alignment: .center), source: .starGift(amount: 0, date: message.timestamp, from: senderId.flatMap { message.peers[$0].flatMap(EnginePeer.init)} ?? (nameHidden ? nil : message.author.flatMap { .init($0) }), to: toPeer, purpose: purpose), ribbon: ribbon, uniqueAttributes: uniqueAttributes, authorLayout: authorLayout, author: authorPeer)
                         
                     }
                 case let .paidMessagesRefunded(_, stars):
