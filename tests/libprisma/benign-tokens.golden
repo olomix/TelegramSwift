@@ -1,0 +1,184 @@
+=== brightscript-basic ===
+S keyword // 5
+  T print
+T  
+S number // 1
+  T 1
+=== brightscript-multiline ===
+S keyword // 3
+  T sub
+T  
+S function // 4
+  T main
+S punctuation // 1
+  T (
+S punctuation // 1
+  T )
+T \n
+S keyword // 5
+  T print
+T  
+S string // 3
+  T "x"
+T \n
+S keyword // 3
+  T end
+T  
+S keyword // 3
+  T sub
+=== javascript-basic ===
+S keyword // 3
+  T var
+T  x 
+S operator // 1
+  T =
+T  
+S number // 1
+  T 1
+S punctuation // 1
+  T ;
+T  
+S keyword // 8
+  T function
+T  
+S function // 1
+  T f
+S punctuation // 1
+  T (
+S punctuation // 1
+  T )
+T  
+S punctuation // 1
+  T {
+T  
+S keyword /control-flow/ 6
+  T return
+T  x
+S punctuation // 1
+  T ;
+T  
+S punctuation // 1
+  T }
+=== javascript-template-string ===
+S keyword // 5
+  T const
+T  s 
+S operator // 1
+  T =
+T  
+S template-string // 21
+  S template-punctuation /string/ 1
+    T `
+  S string // 6
+    T hello 
+  S interpolation // 7
+    S interpolation-punctuation /punctuation/ 2
+      T ${
+    T name
+    S interpolation-punctuation /punctuation/ 1
+      T }
+  S string // 6
+    T  world
+  S template-punctuation /string/ 1
+    T `
+S punctuation // 1
+  T ;
+=== javascript-greedy ===
+S keyword // 3
+  T var
+T  s 
+S operator // 1
+  T =
+T  
+S string // 5
+  T "a+b"
+T  
+S operator // 1
+  T +
+T  
+S string // 3
+  T 'c'
+S punctuation // 1
+  T ;
+T  
+S comment // 13
+  T /* comment */
+=== javascript-regex ===
+S keyword // 3
+  T var
+T  re 
+S operator // 1
+  T =
+T  
+S regex // 6
+  S regex-delimiter // 1
+    T /
+  S regex-source /language-regex/ 3
+    T a
+    S quantifier /number/ 1
+      T +
+    T b
+  S regex-delimiter // 1
+    T /
+  S regex-flags // 1
+    T g
+S punctuation // 1
+  T ;
+=== swift-basic ===
+S keyword // 5
+  T class
+T  
+S class-name // 3
+  T Foo
+T  
+S punctuation // 1
+  T {
+T  
+S keyword // 4
+  T func
+T  
+S function-definition /function/ 3
+  T bar
+S punctuation // 1
+  T (
+S punctuation // 1
+  T )
+T  
+S operator // 2
+  T ->
+T  
+S class-name // 3
+  T Int
+T  
+S punctuation // 1
+  T {
+T  
+S keyword // 6
+  T return
+T  
+S number // 1
+  T 1
+T  
+S punctuation // 1
+  T }
+T  
+S punctuation // 1
+  T }
+=== swift-interpolation ===
+S keyword // 3
+  T let
+T  s 
+S operator // 1
+  T =
+T  
+S string-literal // 16
+  S string // 7
+    T "value 
+  S interpolation-punctuation /punctuation/ 2
+    T \\(
+  S interpolation // 1
+    T x
+  S interpolation-punctuation /punctuation/ 1
+    T )
+  S string // 5
+    T  end"

@@ -1,0 +1,101 @@
+libprisma development commit 23b0d70 (checked out at submodules/libprisma):
+bound the grammar recursion in SyntaxHighlighter::tokenize()/matchGrammar()
+with a depth counter. Prism grammars generated from grammars.dat can contain
+token cycles (brightscript's directive-statement <-> expression), which drove
+the mutual recursion between tokenize() and matchGrammar() until the thread
+stack was exhausted and the highlighter crashed with SIGSEGV. Matching now
+starts at depth 0, increments only when entering an `inside` grammar, passes
+the depth unchanged through greedy rematches, and stops recursing past
+kMaxTokenizeDepth = 128, keeping the deepest match as plain text. The
+exception handler around permitted matching is kept. Ported from the iOS
+libprisma sources at submodules/telegram-ios/third-party/libprisma.
+
+diff --git a/libprisma/SyntaxHighlighter.cpp b/libprisma/SyntaxHighlighter.cpp
+index b79fde1..dd80939 100644
+--- a/libprisma/SyntaxHighlighter.cpp
++++ b/libprisma/SyntaxHighlighter.cpp
+@@ -13,7 +13,7 @@ TokenList SyntaxHighlighter::tokenize(const std::string& text, const std::string
+     const Grammar* grammar = m_tree->find(language);
+     if (grammar)
+     {
+-        return tokenize(text, grammar);
++        return tokenize(text, grammar, 0);
+     }
+ 
+     return TokenList(text);
+@@ -24,18 +24,24 @@ std::map<std::string, std::string> SyntaxHighlighter::languages() const
+     return m_tree->keys();
+ }
+ 
+-TokenList SyntaxHighlighter::tokenize(std::string_view text, const Grammar* grammar)
++TokenList SyntaxHighlighter::tokenize(std::string_view text, const Grammar* grammar, size_t depth)
+ {
+     TokenList tokenList(text);
+-    try {
+-        matchGrammar(text, tokenList, grammar, tokenList.head, 0, nullptr);
+-    } catch (...) {
++
++    // Stop recursing into nested grammars once the depth cap is reached; the
++    // text is kept as-is rather than risking a stack-exhausting cycle.
++    if (depth <= kMaxTokenizeDepth)
++    {
++        try {
++            matchGrammar(text, tokenList, grammar, tokenList.head, 0, nullptr, depth);
++        } catch (...) {
++        }
+     }
+ 
+     return tokenList;
+ }
+ 
+-void SyntaxHighlighter::matchGrammar(std::string_view text, TokenList& tokenList, const Grammar* grammar, TokenListPtr startNode, size_t startPos, RematchOptions* rematch)
++void SyntaxHighlighter::matchGrammar(std::string_view text, TokenList& tokenList, const Grammar* grammar, TokenListPtr startNode, size_t startPos, RematchOptions* rematch, size_t depth)
+ {
+     for (const auto& token : grammar->tokens)
+     {
+@@ -158,7 +164,7 @@ void SyntaxHighlighter::matchGrammar(std::string_view text, TokenList& tokenList
+                 TokenList tokenEntries = [&]() {
+                     if (inside)
+                     {
+-                        return tokenize(match, inside);
++                        return tokenize(match, inside, depth + 1);
+                     }
+                     else
+                     {
+@@ -186,7 +192,7 @@ void SyntaxHighlighter::matchGrammar(std::string_view text, TokenList& tokenList
+                         .j = x
+                     };
+ 
+-                    matchGrammar(text, tokenList, grammar, currentNode->prev, pos, &nestedRematch);
++                    matchGrammar(text, tokenList, grammar, currentNode->prev, pos, &nestedRematch, depth);
+ 
+                     // the reach might have been extended because of the rematching
+                     if (rematch && nestedRematch.reach > rematch->reach)
+diff --git a/libprisma/SyntaxHighlighter.h b/libprisma/SyntaxHighlighter.h
+index 2510d4c..3bb466a 100644
+--- a/libprisma/SyntaxHighlighter.h
++++ b/libprisma/SyntaxHighlighter.h
+@@ -26,8 +26,20 @@ public:
+     std::map<std::string, std::string> languages() const;
+ 
+ private:
+-    TokenList tokenize(std::string_view text, const Grammar* grammar);
+-    void matchGrammar(std::string_view text, TokenList& tokenList, const Grammar* grammar, TokenListPtr startNode, size_t startPos, RematchOptions* rematch);
++    // Upper bound on grammar recursion depth. tokenize() re-enters itself for
++    // every matched token that has an `inside` grammar; some grammars generated
++    // from Prism.js contain token cycles (e.g. brightscript's
++    // directive-statement <-> expression), which without a bound recurse until
++    // the thread stack is exhausted and the process is killed. At ~1.1 KiB of
++    // stack per level this cap keeps the worst case well under a small
++    // secondary-thread stack, while being far deeper than any legitimate
++    // grammar's nesting, so real code is highlighted unchanged. Reaching the
++    // cap degrades gracefully: the deepest match is kept as plain text instead
++    // of being subdivided further.
++    static constexpr size_t kMaxTokenizeDepth = 128;
++
++    TokenList tokenize(std::string_view text, const Grammar* grammar, size_t depth);
++    void matchGrammar(std::string_view text, TokenList& tokenList, const Grammar* grammar, TokenListPtr startNode, size_t startPos, RematchOptions* rematch, size_t depth);
+ 
+     std::shared_ptr<LanguageTree> m_tree;
+ };
+\ No newline at end of file
