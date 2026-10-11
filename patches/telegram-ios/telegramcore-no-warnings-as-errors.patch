@@ -1,13 +1,14 @@
 diff --git a/submodules/TelegramCore/Package.swift b/submodules/TelegramCore/Package.swift
-index 91fb3410d3..9060a52b3b 100644
+index 522a92dbfa..1e939758d5 100644
 --- a/submodules/TelegramCore/Package.swift
 +++ b/submodules/TelegramCore/Package.swift
-@@ -45,7 +45,6 @@ let package = Package(
-                            .product(name: "FlatBuffers", package: "FlatBuffers", condition: nil),
+@@ -49,8 +49,7 @@ let package = Package(
                             .product(name: "FlatSerialization", package: "FlatSerialization", condition: nil),
-                            .product(name: "EncryptionProvider", package: "EncryptionProvider", condition: nil)],
+                            .product(name: "EncryptionProvider", package: "EncryptionProvider", condition: nil),
+                            .product(name: "MediaPreuploadRegistry", package: "MediaPreuploadRegistry", condition: nil)],
 -            path: "Sources",
 -            swiftSettings: [.unsafeFlags(["-warnings-as-errors"])]),
 +            path: "Sources"),
-     ]
- )
+         .testTarget(
+             name: "TelegramCoreTests",
+             dependencies: ["TelegramCore"],

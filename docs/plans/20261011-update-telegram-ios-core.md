@@ -147,22 +147,26 @@
 - Modify: `submodules/telegram-ios` (gitlink)
 - Modify: `patches/telegram-ios/*.patch`
 
-- [ ] record the current gitlink `6ad963e5` in this plan for rollback
-- [ ] reverse the applied patches (`git -C submodules/telegram-ios apply -R
+- [x] record the current gitlink `6ad963e5` in this plan for rollback
+      (rollback: `6ad963e5b62d354da79040f388ae2b9132fb17b8`)
+- [x] reverse the applied patches (`git -C submodules/telegram-ios apply -R
       ../../patches/telegram-ios/*.patch`) so the four modified files are
       clean. Leave the `tgcalls` and `webrtc` nested checkouts alone
-- [ ] `git -C submodules/telegram-ios checkout f1dd7a2d` (or the newest
-      upstream master at execution time, recorded here)
-- [ ] init only the new nested submodule:
+- [x] `git -C submodules/telegram-ios checkout f1dd7a2d` (or the newest
+      upstream master at execution time, recorded here). Upstream master
+      was still `f1dd7a2dbd` on 2026-10-11; checked out that commit
+- [x] init only the new nested submodule:
       `git -C submodules/telegram-ios submodule update --init
       third-party/mtproto-engine`. Do not use `--recursive` on the whole
       repo, because it would move `tgcalls` and `webrtc`. Update other
       nested submodules only where the Mac build uses them and upstream
-      moved them
-- [ ] regenerate `telegramcore-no-warnings-as-errors.patch` against the new
+      moved them. `mtproto-engine` is at `0de759a3`. No Mac build file
+      uses the other moved or new nested submodules (`rlottie`, `tlottie`,
+      `wallet-engine`, bazel rules), so they stay as they are
+- [x] regenerate `telegramcore-no-warnings-as-errors.patch` against the new
       `TelegramCore/Package.swift`. Confirm that the other three still
       apply with `git apply --check`
-- [ ] gate: `git apply --check` passes for all four patches
+- [x] gate: `git apply --check` passes for all four patches
 
 ### Task 2: Rebuild native libraries with ffmpeg 8.1.2
 
