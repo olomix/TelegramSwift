@@ -238,9 +238,46 @@
       the `network_use_mtproto` path in tgcalls would build but could break
       calls with peers that use it. Not switched to the tdesktop pair
       (`development` `1c236c09`, which lacks the MtProto-in-DTLS commits);
-      the user decides. Tasks 3-5 are on hold until then
+      the user decides. ➕ User decision: port the WebRTC seams into tg_owt
+      (Task 3) and keep `ios-13.0.0`
 
-### Task 3: Fix Mac call sites for the new tgcalls
+### Task 3: ➕ Port iOS WebRTC "tgcalls seams" into tg_owt and move tgcalls to ios-13.0.0
+
+User decision after the stop rule: carry the hooks iOS's WebRTC fork
+(`ali-fareed/webrtc`, checked out at
+`submodules/telegram-ios/third-party/webrtc/webrtc`, pinned `6513c71d6c`)
+added for tgcalls, as a tg_owt patch. Five commits, about 150 lines:
+`58d2ac4281` (Allow SCTP without DTLS; superseded by the next),
+`e806a6aa73` (three seams: `Options::external_transport_security`,
+`PeerConnectionDependencies::dtls_transport_factory`, …),
+`697ab266dc` (forward-declare `DtlsTransportFactory`), `4046a21626`
+(release an unnegotiated `sctp_mid` on rollback), `6513c71d6c`
+(`RTCConfiguration::disable_payload_type_demuxing`).
+
+**Files:**
+- Create: `patches/tg_owt/tgcalls-seams.patch`
+- Modify: `submodules/tgcalls` (gitlink → `a024eaab`)
+- Modify: `patches/tgcalls/group-call-is-broadcast.patch` (drafted in the
+  scratch dir: only the `.mm` mapping)
+- Create: `patches/tgcalls/package-exclude-v2wasm-tools.patch` (drafted in
+  the scratch dir)
+
+- [ ] port the five seam commits onto tg_owt `src/` (`git -C <webrtc> show
+      <sha>` and apply with path prefix `src/`, resolving context
+      differences by hand); save as `patches/tg_owt/tgcalls-seams.patch`
+- [ ] if a seam cannot be ported without reworking WebRTC internals
+      beyond these commits, apply the **stop rule** (⚠️ with exact errors,
+      `[deviation]`, stop) — the fallback (tdesktop pair) is the user's
+      call
+- [ ] delete `core-xprojects/webrtc/build`, rerun
+      `configure_frameworks.sh`; WebRTC must build
+- [ ] check out tgcalls `a024eaab`, install the two drafted tgcalls patches
+      (re-check them; keep `GroupInstanceReferenceImpl.cpp` excluded only
+      if it still needs hooks tg_owt lacks), rerun the patch loop
+- [ ] Debug app build succeeds; Swift call-site errors, if any, go to
+      Task 4 (➕)
+
+### Task 4: Fix Mac call sites for the new tgcalls
 
 **Files:**
 - Modify: `Telegram-Mac/OngoingCallContext.swift` and group-call files
@@ -259,7 +296,7 @@
 - [ ] launch check is manual (needs the user's account): mark it
       "(needs manual run)" in Post-Completion
 
-### Task 4: Verify acceptance criteria
+### Task 5: Verify acceptance criteria
 - [ ] `git submodule status` shows tgcalls at `a024eaab` and tg_owt at
       `d1cf250e`, and every `patches/*/*.patch` applies (`git apply
       --check -R` on the current tree)
@@ -272,7 +309,7 @@
       PasscodeAccessChallenge `swift test`
 - [ ] Debug and Release builds succeed
 
-### Task 5: [Final] Update documentation
+### Task 6: [Final] Update documentation
 - [ ] INSTALL.md: mention that after a tg_owt update
       `core-xprojects/webrtc/build` must be deleted before
       `configure_frameworks.sh` (like ffmpeg)
