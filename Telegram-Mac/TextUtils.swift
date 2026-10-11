@@ -545,19 +545,24 @@ func chatListText(account:Account, for message:Message?, messagesCount: Int = 1,
     return NSAttributedString()
 }
 
-// A hidden gift sender is left out of message.peers; never credit the author.
-func uniqueGiftSender(message: Message, senderId: PeerId?, nameHidden: Bool) -> Peer? {
-    if let peer = senderId.flatMap({ message.peers[$0] }) {
-        return peer
-    }
-    return nameHidden ? nil : message.author
+// A hidden gift sender stays anonymous to everyone but the sender, even if
+// their peer is in message.peers through the chat or another reference.
+func isUniqueGiftSenderHidden(message: Message, senderId: PeerId?, nameHidden: Bool, accountPeerId: PeerId) -> Bool {
+    return nameHidden && senderId != accountPeerId && message.author?.id != accountPeerId
 }
 
-func uniqueGiftSenderName(message: Message, senderId: PeerId?, nameHidden: Bool, fallback: String) -> String {
-    if let peer = senderId.flatMap({ message.peers[$0] }) {
-        return peer.displayTitle
+func uniqueGiftSender(message: Message, senderId: PeerId?, nameHidden: Bool, accountPeerId: PeerId) -> Peer? {
+    if isUniqueGiftSenderHidden(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: accountPeerId) {
+        return nil
     }
-    return nameHidden ? strings().chatServicePremiumUnknown : fallback
+    return senderId.flatMap { message.peers[$0] } ?? message.author
+}
+
+func uniqueGiftSenderName(message: Message, senderId: PeerId?, nameHidden: Bool, accountPeerId: PeerId, fallback: String) -> String {
+    if isUniqueGiftSenderHidden(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: accountPeerId) {
+        return strings().chatServicePremiumUnknown
+    }
+    return senderId.flatMap { message.peers[$0]?.displayTitle } ?? fallback
 }
 
 func serviceMessageText(_ message:Message, account:Account, isReplied: Bool = false) -> (String, [MessageTextEntity], [MediaId : Media]) {
@@ -1017,7 +1022,7 @@ func serviceMessageText(_ message:Message, account:Account, isReplied: Bool = fa
             }
         case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, savedId, _, _, _, _, _, _, _, _, _, _, nameHidden):
             
-            let authorName = uniqueGiftSenderName(message: message, senderId: senderId, nameHidden: nameHidden, fallback: authorName)
+            let authorName = uniqueGiftSenderName(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: account.peerId, fallback: authorName)
             
             if case let .unique(gift) = gift {
                 if isTransferred {

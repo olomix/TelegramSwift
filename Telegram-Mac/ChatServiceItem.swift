@@ -1584,7 +1584,13 @@ class ChatServiceItem: ChatRowItem {
                     if case let .unique(gift) = gift {
                         var text: String = ""
                         if let messagePeer = message.peers[message.id.peerId] {
-                            let peerName = uniqueGiftSenderName(message: message, senderId: senderId, nameHidden: nameHidden, fallback: messagePeer.compactDisplayTitle)
+                            // Outgoing texts name the recipient, i.e. the chat peer.
+                            let peerName: String
+                            if message.author?.id == context.account.peerId {
+                                peerName = messagePeer.compactDisplayTitle
+                            } else {
+                                peerName = uniqueGiftSenderName(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: context.account.peerId, fallback: messagePeer.compactDisplayTitle)
+                            }
                             let peerIds: [(Int, EnginePeer.Id?)] = [(0, messagePeer.id)]
                             if let resaleStars {
                                 if message.author?.id == context.account.peerId {
@@ -1628,7 +1634,8 @@ class ChatServiceItem: ChatRowItem {
                         }
                         attributedString.detectBoldColorInString(with: .medium(.text))
                         
-                        let purpose: Star_TransactionPurpose = .starGift(gift: .unique(gift), convertStars: nil, text: text, entities: nil, nameHidden: nameHidden, savedToProfile: savedToProfile, converted: false, fromProfile: false, upgraded: true, transferStars: transferStars, canExportDate: canExportDate, reference: .message(messageId: message.id), sender: senderId.flatMap { message.peers[$0].flatMap(EnginePeer.init)}, saverId: saverId, canTransferDate: canTransferDate, canResaleDate: canResaleDate)
+                        let senderHidden = isUniqueGiftSenderHidden(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: context.account.peerId)
+                        let purpose: Star_TransactionPurpose = .starGift(gift: .unique(gift), convertStars: nil, text: text, entities: nil, nameHidden: nameHidden, savedToProfile: savedToProfile, converted: false, fromProfile: false, upgraded: true, transferStars: transferStars, canExportDate: canExportDate, reference: .message(messageId: message.id), sender: senderHidden ? nil : senderId.flatMap { message.peers[$0].flatMap(EnginePeer.init)}, saverId: saverId, canTransferDate: canTransferDate, canResaleDate: canResaleDate)
                         
 
                         
@@ -1644,7 +1651,7 @@ class ChatServiceItem: ChatRowItem {
                         let header = NSMutableAttributedString()
                         
                         
-                        let senderName = uniqueGiftSenderName(message: message, senderId: senderId, nameHidden: nameHidden, fallback: authorName)
+                        let senderName = uniqueGiftSenderName(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: context.account.peerId, fallback: authorName)
                         header.append(string: strings().chatServiceStarGiftFrom(senderName), color: grayTextColor, font: .medium(theme.fontSize + 1))
 
                         
@@ -1682,7 +1689,7 @@ class ChatServiceItem: ChatRowItem {
                             info.append(string: strings().giftUpgradeRefunded, color: grayTextColor, font: .normal(theme.fontSize))
                         }
                         
-                        self.giftData = .init(from: authorId ?? message.id.peerId, to: message.id.peerId, text: TextViewLayout(header, alignment: .center), info: info.string.isEmpty ? nil : TextViewLayout(info, maximumNumberOfLines: 4, alignment: .center), source: .starGift(amount: 0, date: message.timestamp, from: uniqueGiftSender(message: message, senderId: senderId, nameHidden: nameHidden).flatMap(EnginePeer.init), to: toPeer, purpose: purpose), ribbon: ribbon, uniqueAttributes: uniqueAttributes, authorLayout: authorLayout, author: authorPeer)
+                        self.giftData = .init(from: authorId ?? message.id.peerId, to: message.id.peerId, text: TextViewLayout(header, alignment: .center), info: info.string.isEmpty ? nil : TextViewLayout(info, maximumNumberOfLines: 4, alignment: .center), source: .starGift(amount: 0, date: message.timestamp, from: uniqueGiftSender(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: context.account.peerId).flatMap(EnginePeer.init), to: toPeer, purpose: purpose), ribbon: ribbon, uniqueAttributes: uniqueAttributes, authorLayout: authorLayout, author: authorPeer)
                         
                     }
                 case let .paidMessagesRefunded(_, stars):
