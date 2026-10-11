@@ -18,6 +18,7 @@ url=git@github.com:overtake/rlottie.git
 	url = https://github.com/desktop-app/tg_owt.git
 [submodule "submodules/libprisma"]
 	path = submodules/libprisma
+	ignore = dirty
 url=git@github.com:desktop-app/libprisma.git
 [submodule "submodules/regex"]
 	path = submodules/regex

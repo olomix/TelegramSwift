@@ -85,7 +85,7 @@ static std::string flatten(const TokenList& tokens) {
 // terminates in plain text (a Text child) instead of recursing further.
 struct TreeStats {
     int maxSyntaxLevel = 0;         // outermost Syntax is level 1
-    bool deepestEndsInText = false; // a level-maxSyntaxList has a Text child
+    bool deepestEndsInText = false; // a level-maxSyntaxLevel has a Text child
     int syntaxCount = 0;
 };
 
@@ -115,8 +115,8 @@ static TreeStats treeStats(const TokenList& tokens) {
     return stats;
 }
 
-// Search the tree for a Syntax node of the given type whose direct text
-// children contain an exact match, to prove real highlighting happened.
+// True if any Syntax node of the given type exists anywhere in the tree. This
+// only proves the token kind was produced; the golden baseline pins the spans.
 static bool containsTypedSyntax(const TokenList& list, const char* type) {
     for (auto it = list.begin(); it != list.end(); ++it) {
         const TokenListNode& node = *it;
@@ -387,14 +387,11 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    std::ifstream f(argv[1], std::ios::binary);
-    if (!f) {
+    std::string grammars;
+    if (!readFile(argv[1], grammars)) {
         std::fprintf(stderr, "cannot open grammars.dat at %s\n", argv[1]);
         return 2;
     }
-    std::stringstream ss;
-    ss << f.rdbuf();
-    std::string grammars = ss.str();
     CHECK_TRUE(grammars.size() > 100000, "grammars.dat loaded");
 
     SyntaxHighlighter highlighter(grammars);

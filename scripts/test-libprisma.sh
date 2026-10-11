@@ -109,7 +109,8 @@ run_variant() {
 # Compile a variant; sources first so failures are easier to read.
 build_variant() {
     local subdir="$1"
-    local flags="$2"
+    local flags
+    read -ra flags <<< "$2"
     mkdir -p "$BUILD_DIR/$subdir"
     local objects=()
     local source
@@ -118,13 +119,15 @@ build_variant() {
         "$BOOST_REGEX_SRC/regex.cpp" "$BOOST_REGEX_SRC/static_mutex.cpp" \
         "$BOOST_REGEX_SRC/posix_api.cpp" "$BOOST_REGEX_SRC/wide_posix_api.cpp" \
         "$TEST_SRC"; do
-        local object="$BUILD_DIR/$subdir/$(basename "$source" .cpp).o"
-        local extra_flags=""
+        local object
+        object="$BUILD_DIR/$subdir/$(basename "$source" .cpp).o"
+        local extra_flags=()
         if [ "$source" = "$TEST_SRC" ]; then
             # Point default-mode runs at the tracked benign baseline.
-            extra_flags="-DTESTS_BENIGN_GOLDEN_PATH=\"${REPO_ROOT}/tests/libprisma/benign-tokens.golden\""
+            extra_flags=("-DTESTS_BENIGN_GOLDEN_PATH=\"${REPO_ROOT}/tests/libprisma/benign-tokens.golden\"")
         fi
-        if ! xcrun clang++ $flags $extra_flags -I"$BOOST_REGEX_INCLUDE" -I"$LIBPRISMA" \
+        if ! xcrun clang++ "${flags[@]}" ${extra_flags[@]+"${extra_flags[@]}"} \
+            -I"$BOOST_REGEX_INCLUDE" -I"$LIBPRISMA" \
             -c "$source" -o "$object"; then
             echo "error: compiling $(basename "$source") ($subdir) failed" >&2
             FAILURES=$(( FAILURES + 1 ))
@@ -132,7 +135,11 @@ build_variant() {
         fi
         objects+=("$object")
     done
-    xcrun clang++ "${objects[@]}" -o "$BUILD_DIR/$subdir/RecursionTests" || return 1
+    if ! xcrun clang++ "${objects[@]}" -o "$BUILD_DIR/$subdir/RecursionTests"; then
+        echo "error: linking RecursionTests ($subdir) failed" >&2
+        FAILURES=$(( FAILURES + 1 ))
+        return 1
+    fi
 }
 
 echo "Building debug and optimized variants in $BUILD_DIR"

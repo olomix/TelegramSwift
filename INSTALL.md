@@ -49,6 +49,7 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
 	git -C submodules/tgcalls checkout -- .
 	git -C submodules/tg_owt checkout -- .
 	git -C submodules/telegram-ios checkout -- .
+	git -C submodules/libprisma checkout -- .
 	git submodule sync submodules/tgcalls submodules/tg_owt
 	git submodule update --init
 	git -C submodules/telegram-ios submodule update --init third-party/mtproto-engine
