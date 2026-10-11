@@ -14,6 +14,9 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
 	brew install cmake ninja meson yasm nasm pkg-config
 	xcodebuild -downloadComponent MetalToolchain
 	```
+   Install Rust with [rustup](https://rustup.rs), which also gives you
+   `cargo`. The Rust MTProto engine pins its Rust version in
+   `rust-toolchain.toml`; rustup installs that version on the first build.
 3. Set your Apple team for code signing:
 	```
 	cp Telegram-Mac/Secrets.example.xcconfig Telegram-Mac/Secrets.xcconfig
@@ -28,10 +31,11 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
 4. Build the native libraries (takes 20+ minutes). Repeat after updating
    submodules:
 	```
-	CMAKE_POLICY_VERSION_MINIMUM=3.5 sh scripts/configure_frameworks.sh
+	CMAKE_POLICY_VERSION_MINIMUM=3.5 bash scripts/configure_frameworks.sh
 	```
    This also applies the local fixes in `patches/<submodule>/` to the
-   submodules.
+   submodules and builds the Rust MTProto engine
+   (`MTProtoEngineFFI.xcframework`).
 
 ## Build and run from the console
 
@@ -98,6 +102,15 @@ yet, it asks you to open Telegram first.
   mv ~/Library/Application\ Support/dev.alek.telegram/stable \
     ~/Library/Group\ Containers/<TeamID>.dev.alek.telegram/
   ```
+- Before you run a build with a new Telegram core the first time, back up
+  the app group folder. The database upgrade on first start (SQLCipher
+  4.19) can't be undone, so older builds can't open the data afterwards.
+- The app and the Share extension use the Rust MTProto engine and fall back
+  to MtProtoKit when it can't run. The app log shows which one runs:
+  `Network: Account N: engine rust` or `engine mtProtoKit`. A
+  `[MTProtoRust] declined: ...` line gives the reason for a fallback.
+- A WEB proxy works in the app but not in the Share extension, with either
+  engine.
 - Run only one copy of the app at a time; copies share the same data folder.
 - Run the FoundationUtils package's unit tests with
   `cd packages/FoundationUtils && swift test`.

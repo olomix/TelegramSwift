@@ -333,11 +333,11 @@
       (`--deep --strict` passes, team 3PB2Z94Q5T, appex validated)
 
 ### Task 7: [Final] Update documentation
-- [ ] in `INSTALL.md`, add rustup/cargo to the tools, say that the Rust
+- [x] in `INSTALL.md`, add rustup/cargo to the tools, say that the Rust
       engine is built by `configure_frameworks.sh`, and how to tell which
       engine runs (log lines)
-- [ ] update README.md if needed
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update README.md if needed (not needed: it states nothing the update made wrong)
+- [x] move plan (done by orchestrator at completion)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
