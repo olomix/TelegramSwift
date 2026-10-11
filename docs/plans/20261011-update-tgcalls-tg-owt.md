@@ -262,20 +262,26 @@ added for tgcalls, as a tg_owt patch. Five commits, about 150 lines:
 - Create: `patches/tgcalls/package-exclude-v2wasm-tools.patch` (drafted in
   the scratch dir)
 
-- [ ] port the five seam commits onto tg_owt `src/` (`git -C <webrtc> show
+- [x] port the five seam commits onto tg_owt `src/` (`git -C <webrtc> show
       <sha>` and apply with path prefix `src/`, resolving context
       differences by hand); save as `patches/tg_owt/tgcalls-seams.patch`
-- [ ] if a seam cannot be ported without reworking WebRTC internals
+      (the commits are contiguous, so ported their net diff
+      `58d2ac4281^..6513c71d6c`; `58d2ac4281` is fully reverted by
+      `e806a6aa73` and contributes nothing. Applied cleanly, 6 files,
+      +140/-7)
+- [x] if a seam cannot be ported without reworking WebRTC internals
       beyond these commits, apply the **stop rule** (⚠️ with exact errors,
       `[deviation]`, stop) — the fallback (tdesktop pair) is the user's
-      call
-- [ ] delete `core-xprojects/webrtc/build`, rerun
-      `configure_frameworks.sh`; WebRTC must build
-- [ ] check out tgcalls `a024eaab`, install the two drafted tgcalls patches
+      call (not needed: every API the seams use already exists in tg_owt)
+- [x] delete `core-xprojects/webrtc/build`, rerun
+      `configure_frameworks.sh`; WebRTC must build (1451/1451)
+- [x] check out tgcalls `a024eaab`, install the two drafted tgcalls patches
       (re-check them; keep `GroupInstanceReferenceImpl.cpp` excluded only
       if it still needs hooks tg_owt lacks), rerun the patch loop
-- [ ] Debug app build succeeds; Swift call-site errors, if any, go to
-      Task 4 (➕)
+      (exclusion dropped: its hooks are now in the seams, and it compiles;
+      the exclude patch only lists `tgcalls/v2wasm` and `tools`)
+- [x] Debug app build succeeds; Swift call-site errors, if any, go to
+      Task 4 (➕) (BUILD SUCCEEDED, no Swift call-site errors)
 
 ### Task 4: Fix Mac call sites for the new tgcalls
 

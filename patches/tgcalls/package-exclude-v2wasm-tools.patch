@@ -1,0 +1,15 @@
+diff --git a/Package.swift b/Package.swift
+index 3739a66..577bace 100644
+--- a/Package.swift
++++ b/Package.swift
+@@ -40,7 +40,9 @@ let package = Package(
+                       "tgcalls/group/StreamingAudioRendererTest.cpp",
+                       "tgcalls/group/GroupFrameTransformerTest.cpp",
+                       "tgcalls/legacy/InstanceImplLegacy.h",
+-                      "tgcalls/legacy/InstanceImplLegacy.cpp"
++                      "tgcalls/legacy/InstanceImplLegacy.cpp",
++                      "tgcalls/v2wasm",
++                      "tools"
+                      ],
+             publicHeadersPath: "macos/PublicHeaders",
+             cxxSettings: [
