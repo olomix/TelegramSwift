@@ -624,7 +624,7 @@ func layoutInstantPageBlock(webpage: TelegramMediaWebpage, rtl: Bool, block: Ins
         contentSize.height += captionSize.height
         
         return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
-    case let .table(title, rows, bordered, striped):
+    case let .table(title, rows, bordered, striped, _):
         var contentSize = CGSize(width: boundingWidth, height: 0.0)
         var items: [InstantPageItem] = []
         

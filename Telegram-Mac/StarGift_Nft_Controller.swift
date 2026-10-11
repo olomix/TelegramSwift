@@ -1541,7 +1541,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
     switch source {
     case let .quickLook(_, gift):
         if let _ = gift.resellStars {
-            let formAndMaybeValidatedInfo = context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: false), themeParams: nil)
+            let formAndMaybeValidatedInfo = context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: false, hideName: false, text: nil, entities: nil), themeParams: nil)
             
             actionsDisposable.add(formAndMaybeValidatedInfo.startStrict(next: { form in
                 updateState { current in
@@ -1578,7 +1578,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 sourceValue = .buy(suffix: nil, amount: resellStars)
                 showModal(with: Star_ListScreen(context: context, source: sourceValue), for: window)
             } else if let form = state.form {
-                _ = showModalProgress(signal: context.engine.payments.sendStarsPaymentForm(formId: form.id, source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: false)), for: window).startStandalone(next: { result in
+                _ = showModalProgress(signal: context.engine.payments.sendStarsPaymentForm(formId: form.id, source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: false, hideName: false, text: nil, entities: nil)), for: window).startStandalone(next: { result in
                     switch result {
                     case let .done(receiptMessageId, subscriptionPeerId, _):
                         PlayConfetti(for: window, stars: true)
@@ -1986,7 +1986,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 giftsContext?.reload()
             }, error: { error in
                 switch error {
-                case .generic:
+                case .generic, .alreadyUpgraded:
                     showModalText(for: window, text: strings().unknownError)
                 }
             })

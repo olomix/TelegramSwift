@@ -2785,6 +2785,8 @@ func applyExternalProxy(_ server:ProxyServerSettings, accountManager: AccountMan
         }
     case let .mtp(secret):
         textInfo += "\n" + strings().proxyForceEnableTextSecret(MTProxySecret.parseData(secret)?.serializeToString() ?? "")
+    case let .web(secret, _):
+        textInfo += "\n" + strings().proxyForceEnableTextSecret((secret as NSData).hexString)
     }
    
     textInfo += "\n\n" + strings().proxyForceEnableText
@@ -3164,16 +3166,19 @@ extension ProxySettings {
 
 extension ProxyServerSettings {
     var link: String {
+        if case .web = self.connection {
+            return webProxySettingsLink(self) ?? ""
+        }
         let prefix: String
         switch self.connection {
-        case .mtp:
+        case .mtp, .web:
             prefix = "proxy"
         case .socks5:
             prefix = "socks"
         }
         var link = "tg://\(prefix)?server=\(self.host)&port=\(self.port)"
         switch self.connection {
-        case let .mtp(secret):
+        case let .mtp(secret), let .web(secret, _):
             link += "&secret=\((secret as NSData).hexString)"
         case let .socks5(username, password):
             if let username = username {
@@ -4071,7 +4076,7 @@ extension MessageTextEntity {
             return self.weight == rhs.weight
         case .Underline:
             return self.weight == rhs.weight
-        case .BankCard:
+        case .BankCard, .TonAddress:
             return self.weight == rhs.weight
         case .Spoiler:
             return self.weight == rhs.weight
@@ -4153,6 +4158,8 @@ extension MessageTextEntity {
             return 22
         case .FormattedDate:
             return 23
+        case .TonAddress:
+            return 24
         }
     }
 }

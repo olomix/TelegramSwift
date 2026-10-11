@@ -63,6 +63,9 @@ func sharedAccountInfos(accountManager: AccountManager<TelegramAccountManagerTyp
                     password = passwordValue
                 case let .mtp(secretValue):
                     secret = secretValue
+                case .web:
+                    // AccountProxyConnection has no fields for a WEB proxy path.
+                    return nil
                 }
                 return AccountProxyConnection(host: proxyServer.host, port: proxyServer.port, username: username, password: password, secret: secret)
             }

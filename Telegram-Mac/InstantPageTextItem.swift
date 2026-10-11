@@ -567,8 +567,11 @@ func attributedStringForRichText(_ text: RichText, styleStack: InstantPageTextSt
         return result
     case let .textCustomEmoji(_, alt):
         return attributedStringForRichText(.plain(alt), styleStack: styleStack, url: url, boundingWidth: boundingWidth)
-    case let .textAutoEmail(text), let .textAutoPhone(text), let .textAutoUrl(text), let .textBankCard(text), let .textBotCommand(text), let .textCashtag(text), let .textHashtag(text), let .textMention(text), let .textMentionName(text, _), let .textSpoiler(text), let .textDate(text, _, _):
+    case let .textAutoEmail(text), let .textAutoPhone(text), let .textAutoUrl(text), let .textBankCard(text), let .textBotCommand(text), let .textCashtag(text), let .textHashtag(text), let .textMention(text), let .textMentionName(text, _), let .textSpoiler(text), let .textDate(text, _, _), let .textTonAddress(text):
         return attributedStringForRichText(text, styleStack: styleStack, url: url, boundingWidth: boundingWidth)
+    case let .textButton(button):
+        // No page-button UI on Mac yet; show the label as plain text.
+        return attributedStringForRichText(button.text, styleStack: styleStack, url: url, boundingWidth: boundingWidth)
     case let .formula(latex):
         return attributedStringForRichText(.plain(latex), styleStack: styleStack, url: url, boundingWidth: boundingWidth)
     }

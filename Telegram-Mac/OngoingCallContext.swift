@@ -460,7 +460,7 @@ final class OngoingCallContext {
                 switch proxyServer.connection {
                 case let .socks5(username, password):
                     voipProxyServer = VoipProxyServerWebrtc(host: proxyServer.host, port: proxyServer.port, username: username, password: password)
-                case .mtp:
+                case .mtp, .web:
                     break
                 }
             }

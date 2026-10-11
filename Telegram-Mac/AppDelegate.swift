@@ -553,7 +553,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         
         let appEncryption = AppEncryptionParameters(path: rootPath)
 
-        let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true)
+        let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true, accessChallenge: .passthrough)
 
         if let credentials = ApiEnvironment.storedCredentials {
             unlockAndLaunch(accountManager: accountManager, appEncryption: appEncryption, credentials: credentials)
@@ -593,7 +593,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                         subscriber.putCompletion()
                         DispatchQueue.main.async {
                             let appEncryption = AppEncryptionParameters(path: rootPath)
-                            let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: self.containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true)
+                            let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: self.containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true, accessChallenge: .passthrough)
                             if let params = appEncryption.decrypt() {
                                 let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: params.key)!, salt: ValueBoxEncryptionParameters.Salt(data: params.salt)!)
                                 self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
@@ -750,7 +750,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                     if !value.isEmpty {
                         appEncryption.change(value)
                         _ = accountManager.transaction {
-                            $0.setAccessChallengeData(.plaintextPassword(value: ""))
+                            $0.storeAccessChallengeData(.plaintextPassword(value: ""))
                         }.start()
                     }
                 default:

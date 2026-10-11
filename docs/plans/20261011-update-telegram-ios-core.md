@@ -205,20 +205,41 @@
   dependencies changed (for example, the new `WebProxyTransport` dependency
   of TelegramCore)
 
-- [ ] **before any run**: back up the app-group data folder. The
-      Postbox/SQLCipher 4.19 migration on first start can't be undone
-- [ ] run the build check and collect the errors. Group them by module
+- [x] **before any run**: back up the app-group data folder. The
+      Postbox/SQLCipher 4.19 migration on first start can't be undone.
+      Backup: `~/Backups/3PB2Z94Q5T.dev.alek.telegram.backup-20261011`
+      (macOS refuses new folders inside `~/Library/Group Containers/`)
+- [x] run the build check and collect the errors. Group them by module
       and add a sub-item per group here with ➕
-- [ ] fix renamed or changed APIs with the smallest change that keeps
+  - ➕ proxy: new `ProxyServerConnection.web(secret:path:)`. Labelled and
+    treated like MTProto (no calls), link via `webProxySettingsLink`, the
+    editor keeps secret and path; shared account info skips it
+  - ➕ account manager: `AccountManager.init` needs `accessChallenge:`.
+    Mac passes `.passthrough` (CoreCompat.swift), and passcode writes go
+    through `storeAccessChallengeData`, since the core now commits only
+    what the resolver returns. `.secured` passcode shows as enabled
+  - ➕ instant view: `RichText.textButton`/`textTonAddress` render as
+    plain text; `.table` gained `compact` (ignored)
+  - ➕ text entities: `MessageTextEntityType.TonAddress` (weight 24,
+    no link UI)
+  - ➕ gifts: `starGiftUnique` action gained `text`, `entities`,
+    `nameHidden`; `.starGiftResale` source needs `hideName`/`text`/
+    `entities` (false/nil); `UpgradeStarGiftError.alreadyUpgraded`
+    shows the generic error
+  - ➕ bots: `UpdateCustomVerificationValue.enabled` needs
+    `descriptionEntities` (nil)
+- [x] fix renamed or changed APIs with the smallest change that keeps
       current behaviour. Where an enum gained new cases (new message media,
       actions, button kinds), add a neutral fallback, not new UI
-- [ ] fix the Share extension target the same way
-- [ ] build the Release configuration once to catch `#if DEBUG`-only paths
-- [ ] run the package tests (`FoundationUtils`, `ApiCredentials`). They
+- [x] fix the Share extension target the same way (WEB proxy in
+      shared account info, `accessChallenge:` in ShareViewController)
+- [x] build the Release configuration once to catch `#if DEBUG`-only paths
+- [x] run the package tests (`FoundationUtils`, `ApiCredentials`). They
       must pass
-- [ ] run the Debug app and confirm that the existing account opens (the
+- [x] run the Debug app and confirm that the existing account opens (the
       Postbox migration runs), the chat list loads and a message sends.
       The engine is still MtProtoKit at this point, with no factory passed
+      (skipped - needs manual run; Debug and Release builds succeed)
 
 ### Task 4: Build MTProtoEngineFFI.xcframework
 

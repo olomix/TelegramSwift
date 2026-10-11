@@ -469,7 +469,7 @@ private func entries(state: State, data: DataAndStorageData, proxy: ProxySetting
         switch active.connection {
         case .socks5:
             text = strings().proxySettingsSocks5
-        case .mtp:
+        case .mtp, .web:
             text = strings().proxySettingsMTP
         }
     } else {

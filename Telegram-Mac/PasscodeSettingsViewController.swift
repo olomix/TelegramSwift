@@ -84,7 +84,7 @@ private func passcodeSettinsEntry(_ passcode: PostboxAccessChallengeData, passco
     case .none:
         entries.append(.turnOn(sectionId: sectionId, viewType: .singleItem))
         entries.append(.turnOnDescription(sectionId: sectionId, viewType: .textBottomItem))
-    case .plaintextPassword, let .numericalPassword:
+    case .plaintextPassword, .numericalPassword, .secured:
         entries.append(.turnOff(sectionId: sectionId, viewType: .firstItem))
         entries.append(.change(sectionId: sectionId, viewType: .lastItem))
         entries.append(.turnOffDescription(sectionId: sectionId, viewType: .textBottomItem))

@@ -236,7 +236,7 @@ final class SharedNotificationManager : NSObject, NSUserNotificationCenterDelega
         let accountManager = self.accountManager
         let signal = combineLatest(self.activeAccounts.accounts.map { logoutFromAccount(id: $0.0, accountManager: self.accountManager, alreadyLoggedOutRemotely: false) }) |> deliverOnMainQueue
         appEncryption.remove()
-        let removePasscode = accountManager.transaction { $0.setAccessChallengeData(.none) }  |> deliverOnMainQueue
+        let removePasscode = accountManager.transaction { $0.storeAccessChallengeData(.none) }  |> deliverOnMainQueue
         return combineLatest(removePasscode, signal) |> ignoreValues
     }
     

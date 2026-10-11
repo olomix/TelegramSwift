@@ -265,7 +265,7 @@ class UserInfoArguments : PeerInfoArguments {
                                 if currentVerification?.botId == botId {
                                     update = .disabled
                                 } else {
-                                    update = .enabled(description: text.isEmpty ? nil : text)
+                                    update = .enabled(description: text.isEmpty ? nil : text, descriptionEntities: nil)
                                 }
                                 
                                 subscriber.putNext(true)

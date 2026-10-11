@@ -1552,7 +1552,7 @@ class ChatServiceItem: ChatRowItem {
                         }
                     }
 
-                case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, saverId, resaleStars, canTransferDate, canResaleDate, _, _, _, _, _):
+                case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, saverId, resaleStars, canTransferDate, canResaleDate, _, _, _, _, _, _, _, _):
                     
                     
                     let authorPeer: EnginePeer?

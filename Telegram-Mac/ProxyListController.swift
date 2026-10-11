@@ -88,7 +88,7 @@ private func proxyListSettingsEntries(_ state: ProxyListState, status: Connectio
         var enabled = true
         if let server = state.settings.effectiveActiveServer {
             switch server.connection {
-            case .mtp:
+            case .mtp, .web:
                 enabled = false
             default:
                 break
@@ -182,7 +182,7 @@ private extension ProxyServerConnection {
         switch self {
         case .socks5:
             return .socks5
-        case .mtp:
+        case .mtp, .web:
             return .mtp
         }
     }
@@ -370,6 +370,9 @@ private func addProxyController(accountManager: AccountManager<TelegramAccountMa
                 return current.withUpdatedServer(ProxyServerSettings(host: data[_id_host]?.stringValue ?? "", port: port.isEmpty ? 0 : Int32(port)!, connection: .mtp(secret: secret)))
             case .socks5:
                 return current.withUpdatedServer(ProxyServerSettings(host: data[_id_host]?.stringValue ?? "", port: port.isEmpty ? 0 : (Int32(port) ?? 0), connection: .socks5(username: data[_id_username]?.stringValue, password: data[_id_pass]?.stringValue)))
+            case .web:
+                // The editor has no WEB proxy fields; keep secret and path as they are.
+                return current.withUpdatedServer(ProxyServerSettings(host: data[_id_host]?.stringValue ?? "", port: port.isEmpty ? 0 : (Int32(port) ?? 0), connection: current.server.connection))
             }
         }
         return .fail(.none)
@@ -457,7 +460,7 @@ private func addProxySettingsEntries(state: ProxySettingsState, updateType:@esca
     switch server.connection {
     case .mtp:
         portViewType = .innerItem
-    case .socks5:
+    case .socks5, .web:
         portViewType = .lastItem
     }
     
@@ -478,6 +481,8 @@ private func addProxySettingsEntries(state: ProxySettingsState, updateType:@esca
         
         entries.append(.input(sectionId: sectionId, index: index, value: .string(password ?? ""), error: nil, identifier: _id_pass, mode: .secure, data: InputDataRowData(viewType: .lastItem), placeholder: nil, inputPlaceholder: strings().proxySettingsPassword, filter: {$0}, limit: 255))
         index += 1
+    case .web:
+        break
     }
     
     if case .mtp = server.connection {
