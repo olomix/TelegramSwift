@@ -1,0 +1,32 @@
+tgcalls development commits 6d5ce90 and 1c236c0 (not in ios-13.0.0):
+free zlib state and enforce the size limit when decompression stops.
+
+diff --git a/tgcalls/utils/gzip.cpp b/tgcalls/utils/gzip.cpp
+index 2ae6e07..43e1431 100644
+--- a/tgcalls/utils/gzip.cpp
++++ b/tgcalls/utils/gzip.cpp
+@@ -74,6 +74,7 @@ absl::optional<std::vector<uint8_t>> gunzipData(std::vector<uint8_t> const &data
+         output.resize(data.size() * 2);
+         while (status == Z_OK) {
+             if (sizeLimit > 0 && stream.total_out > sizeLimit) {
++                inflateEnd(&stream);
+                 return absl::nullopt;
+             }
+ 
+@@ -87,12 +88,14 @@ absl::optional<std::vector<uint8_t>> gunzipData(std::vector<uint8_t> const &data
+         if (inflateEnd(&stream) == Z_OK) {
+             if (status == Z_STREAM_END) {
+                 output.resize(stream.total_out);
+-            } else if (sizeLimit > 0 && output.size() > sizeLimit) {
+-                return absl::nullopt;
+             }
+         }
+     }
+ 
++    if (sizeLimit > 0 && output.size() > sizeLimit) {
++        return absl::nullopt;
++    }
++
+     return output;
+ }
+ 

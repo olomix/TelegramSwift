@@ -31,6 +31,8 @@
   tgcalls sources use exist in tg_owt `d1cf250e`, including the DTLS
   transport API `MtProtoDtlsTransport` overrides. tdesktop builds
   `development` against this tg_owt, so WebRTC API errors are unlikely.
+  (Disproved in Task 2: `InstanceV2ReferenceImpl.cpp` needs WebRTC hooks
+  only iOS's fork has; Task 3 ports them.)
 - The real build risk is SwiftPM: `Package.swift` uses `path: "."`, so it
   compiles every new `.cpp` that is not excluded. At `a024eaab` that is 17
   files under `tgcalls/v2wasm` and `tools`:
@@ -68,10 +70,11 @@
   deleted.
 - tg_owt's nested submodules (abseil-cpp, crc32c, libsrtp, libyuv) are
   at the same commits in `be39b8c8` and `d1cf250e`, with https URLs.
-- tg_owt `d1cf250e` no longer forces `CMAKE_OSX_DEPLOYMENT_TARGET 10.13`;
-  it takes the target from Xcode's environment (27.0, same as the app).
-  Harmless; noted in case the linker warns about deployment targets.
-- `.gitmodules` URLs:
+- tg_owt stopped forcing `CMAKE_OSX_DEPLOYMENT_TARGET 10.13` in
+  `65d3d606` (included in `d1cf250e`); it takes the target from Xcode's
+  environment (27.0). That breaks `desktop_capture/mac`, so `build.sh`
+  pins 10.13 (Task 1).
+- `.gitmodules` URLs before this change:
   - tgcalls: `git@github.com:overtake/tgcalls.git`
   - tg_owt: `git@github.com:desktop-app/tg_owt.git`
 - Both submodules have `ignore = dirty`. Use `git -C submodules/<name>
@@ -80,8 +83,7 @@
 ## Development Approach
 - **testing approach**: Regular (code first, then tests). The call code
   has no unit tests. Verification is building the native libraries,
-  `swift build` of the tgcalls package where possible, the Debug and
-  Release app builds, and the existing package tests. Real calls are a
+  the Debug and Release app builds, and the existing package tests. Real calls are a
   manual post-completion check.
 - complete each task fully before moving to the next
 - make small, focused changes
@@ -128,15 +130,15 @@
   separates tg_owt breakage from tgcalls breakage.
 - Then move tgcalls, drop the patch that upstream now contains, and fix
   the Mac call sites.
-- Check which call versions the Mac now advertises (including 18.0.0 and
-  19.0.0, the native and wasm cores). Record the list; don't change it
-  unless a version fails to build.
+- Check which call versions the Mac now advertises. Record the list;
+  don't change it unless a version fails to build (Task 4: the same nine
+  versions; 14.0.0, 18.0.0 and 19.0.0 are not registered on Mac).
 
 ## Technical Details
 - Pins:
   - tgcalls `a024eaabf13c189d9577a14fb244bd242825ac96`
   - tg_owt `d1cf250ea73de26c4c1f0a3c8173eb2648efbb04`
-- Rollback pins (current):
+- Rollback pins (previous):
   - tgcalls `5ddc3ccf20`
   - tg_owt `be39b8c8d0db1f377118f813f0c4bd331d341d5e`
 - Alternative tgcalls pin if the user chooses it later: `1c236c09`
@@ -257,10 +259,9 @@ added for tgcalls, as a tg_owt patch. Five commits, about 150 lines:
 **Files:**
 - Create: `patches/tg_owt/tgcalls-seams.patch`
 - Modify: `submodules/tgcalls` (gitlink → `a024eaab`)
-- Modify: `patches/tgcalls/group-call-is-broadcast.patch` (drafted in the
-  scratch dir: only the `.mm` mapping)
-- Create: `patches/tgcalls/package-exclude-v2wasm-tools.patch` (drafted in
-  the scratch dir)
+- Modify: `patches/tgcalls/group-call-is-broadcast.patch` (only the `.mm`
+  mapping)
+- Create: `patches/tgcalls/package-exclude-v2wasm-tools.patch`
 
 - [x] port the five seam commits onto tg_owt `src/` (`git -C <webrtc> show
       <sha>` and apply with path prefix `src/`, resolving context
@@ -346,17 +347,46 @@ added for tgcalls, as a tg_owt patch. Five commits, about 150 lines:
       manual call test)
 - [x] move plan (done by orchestrator at completion)
 
+### Task 7: ➕ Review fixes
+
+**Files:**
+- Create: `patches/tgcalls/pass-call-custom-parameters.patch`,
+  `patches/tgcalls/gzip-decompression-limits.patch`
+- Modify: `Telegram-Mac/PCallSession.swift`,
+  `Telegram-Mac/OngoingCallContext.swift`,
+  `patches/tg_owt/tgcalls-seams.patch` (header only),
+  `scripts/configure_frameworks.sh`, `INSTALL.md`
+
+- [x] pass the server `customParameters` of a 1:1 call into
+      `tgcalls::Config` as iOS does (default `{}`); before this the Mac
+      never read `network_use_mtproto` and the other network flags, so
+      the seams were compiled but unused. Group calls take no custom
+      parameters on iOS either
+- [x] carry `development`'s decompression-limit fixes `6d5ce90` and
+      `1c236c0` as a patch (they apply cleanly to `a024eaab`)
+- [x] `configure_frameworks.sh` deletes `core-xprojects/webrtc/build` when
+      the tg_owt commit, `patches/tg_owt/` or `build.sh` change (stamp)
+- [x] INSTALL.md: discard applied patches and `git submodule sync` before
+      `git submodule update`; provenance header and rebase notes on the
+      seams patch (kept as the exact iOS mirror)
+- [x] smoke check of the seams (see Post-Completion), configure, Debug and
+      Release builds, package tests
+
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
 
 **Manual verification**:
 - Launch the Debug app on your account; no crash (needs manual run).
 - 1:1 voice and video call with an up-to-date iPhone, both directions.
+  A normal call negotiates 13.0.0 (`InstanceV2Impl`, no PeerConnection)
+  and does not exercise the tg_owt seams; it does switch to
+  `MtProtoRtpTransport` when the server sends `network_use_mtproto`. The
+  seams run only in 10.0.0/11.0.0 (`InstanceV2ReferenceImpl`); their
+  runtime path is unverified.
 - Group call / video chat: join, speak, unmute mid-call, screen share.
 - If calls fail, the fallback is the tdesktop pair: tgcalls
   `development` `1c236c09` with the same tg_owt.
 
 **Follow-ups**:
-- The 2 decompression-limit fixes on `development` (`6d5ce90`,
-  `1c236c0`) are not in `ios-13.0.0`. Pick them up when the branches
-  merge, or carry them as a patch.
+- Drop `patches/tgcalls/gzip-decompression-limits.patch` once the pinned
+  tgcalls contains `6d5ce90` and `1c236c0`.

@@ -39,22 +39,30 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
    submodules and builds the Rust MTProto engine
    (`MTProtoEngineFFI.xcframework`).
 
-   In an existing clone, after pulling a `submodules/telegram-ios` update,
-   fetch the engine's nested submodule before running the script:
+   In an existing clone, after pulling a submodule update, discard the
+   previously applied patches (the script re-applies the current ones),
+   pick up changed submodule URLs and fetch the engine's nested submodule
+   before running the script:
 	```
+	git -C submodules/tgcalls checkout -- .
+	git -C submodules/tg_owt checkout -- .
+	git submodule sync submodules/tgcalls submodules/tg_owt
 	git submodule update --init
 	git -C submodules/telegram-ios submodule update --init third-party/mtproto-engine
 	```
-   Don't use `--recursive` on the whole repo: it moves the `tgcalls` and
-   `webrtc` checkouts. If you built before the ffmpeg 8.1.2 update, run
+   Don't use `--recursive` on the whole repo: it moves telegram-ios's own
+   nested `tgcalls` and `webrtc` checkouts.
+   If you built before the ffmpeg 8.1.2 update, run
    `rm -rf core-xprojects/ffmpeg/build` first; ffmpeg is rebuilt only when
-   that folder is missing. Likewise, after a `tg_owt` update run
-   `rm -rf core-xprojects/webrtc/build` first; WebRTC is rebuilt only when
-   that folder is missing.
+   that folder is missing. WebRTC is rebuilt automatically when the
+   `tg_owt` commit, `patches/tg_owt/` or
+   `core-xprojects/webrtc/webrtc/build.sh` change.
 
-   `patches/tg_owt/tgcalls-seams.patch` adds WebRTC hooks that tgcalls
-   needs (MtProto-in-DTLS) and that only iOS's WebRTC fork has. A `tg_owt`
-   update must keep this patch applying.
+   `patches/tg_owt/tgcalls-seams.patch` ports the WebRTC hooks tgcalls
+   uses for MtProto-in-DTLS and `GroupInstanceReferenceImpl`, which only
+   iOS's WebRTC fork has. It is the exact net diff of the iOS fork commits
+   (see its header); keep it that way. A `tg_owt` update must keep this
+   patch applying.
 
 ## Build and run from the console
 

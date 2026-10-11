@@ -1,0 +1,51 @@
+Pass the server custom parameters (network_use_mtproto and others) into
+tgcalls::Config, as iOS does; both sides must read the same flags.
+
+diff --git a/macos/PublicHeaders/TgVoipWebrtc/OngoingCallThreadLocalContext.h b/macos/PublicHeaders/TgVoipWebrtc/OngoingCallThreadLocalContext.h
+index 0edca1b..77d1c87 100644
+--- a/macos/PublicHeaders/TgVoipWebrtc/OngoingCallThreadLocalContext.h
++++ b/macos/PublicHeaders/TgVoipWebrtc/OngoingCallThreadLocalContext.h
+@@ -238,7 +238,7 @@ typedef NS_ENUM(int32_t, OngoingCallDataSavingWebrtc) {
+ @property (nonatomic, copy) void (^ _Nullable signalBarsChanged)(int32_t);
+ @property (nonatomic, copy) void (^ _Nullable audioLevelUpdated)(float);
+ 
+-- (instancetype _Nonnull)initWithVersion:(NSString * _Nonnull)version queue:(id<OngoingCallThreadLocalContextQueueWebrtc> _Nonnull)queue proxy:(VoipProxyServerWebrtc * _Nullable)proxy networkType:(OngoingCallNetworkTypeWebrtc)networkType dataSaving:(OngoingCallDataSavingWebrtc)dataSaving derivedState:(NSData * _Nonnull)derivedState key:(NSData * _Nonnull)key isOutgoing:(bool)isOutgoing connections:(NSArray<OngoingCallConnectionDescriptionWebrtc *> * _Nonnull)connections maxLayer:(int32_t)maxLayer allowP2P:(BOOL)allowP2P allowTCP:(BOOL)allowTCP enableStunMarking:(BOOL)enableStunMarking logPath:(NSString * _Nonnull)logPath statsLogPath:(NSString * _Nonnull)statsLogPath sendSignalingData:(void (^ _Nonnull)(NSData * _Nonnull))sendSignalingData videoCapturer:(OngoingCallThreadLocalContextVideoCapturer * _Nullable)videoCapturer preferredVideoCodec:(NSString * _Nullable)preferredVideoCodec inputDeviceId: (NSString * _Nonnull)inputDeviceId outputDeviceId: (NSString * _Nonnull)outputDeviceId;
++- (instancetype _Nonnull)initWithVersion:(NSString * _Nonnull)version customParameters:(NSString * _Nullable)customParameters queue:(id<OngoingCallThreadLocalContextQueueWebrtc> _Nonnull)queue proxy:(VoipProxyServerWebrtc * _Nullable)proxy networkType:(OngoingCallNetworkTypeWebrtc)networkType dataSaving:(OngoingCallDataSavingWebrtc)dataSaving derivedState:(NSData * _Nonnull)derivedState key:(NSData * _Nonnull)key isOutgoing:(bool)isOutgoing connections:(NSArray<OngoingCallConnectionDescriptionWebrtc *> * _Nonnull)connections maxLayer:(int32_t)maxLayer allowP2P:(BOOL)allowP2P allowTCP:(BOOL)allowTCP enableStunMarking:(BOOL)enableStunMarking logPath:(NSString * _Nonnull)logPath statsLogPath:(NSString * _Nonnull)statsLogPath sendSignalingData:(void (^ _Nonnull)(NSData * _Nonnull))sendSignalingData videoCapturer:(OngoingCallThreadLocalContextVideoCapturer * _Nullable)videoCapturer preferredVideoCodec:(NSString * _Nullable)preferredVideoCodec inputDeviceId: (NSString * _Nonnull)inputDeviceId outputDeviceId: (NSString * _Nonnull)outputDeviceId;
+ 
+ - (void)beginTermination;
+ - (void)stop:(void (^_Nullable)(NSString * _Nullable debugLog, int64_t bytesSentWifi, int64_t bytesReceivedWifi, int64_t bytesSentMobile, int64_t bytesReceivedMobile))completion;
+diff --git a/macos/Sources/OngoingCallThreadLocalContext.mm b/macos/Sources/OngoingCallThreadLocalContext.mm
+index 8cc5f62..32b9713 100644
+--- a/macos/Sources/OngoingCallThreadLocalContext.mm
++++ b/macos/Sources/OngoingCallThreadLocalContext.mm
+@@ -815,7 +815,7 @@ + (void)ensureRegisteredImplementations {
+     }
+ }
+ 
+-- (instancetype _Nonnull)initWithVersion:(NSString * _Nonnull)version queue:(id<OngoingCallThreadLocalContextQueueWebrtc> _Nonnull)queue proxy:(VoipProxyServerWebrtc * _Nullable)proxy networkType:(OngoingCallNetworkTypeWebrtc)networkType dataSaving:(OngoingCallDataSavingWebrtc)dataSaving derivedState:(NSData * _Nonnull)derivedState key:(NSData * _Nonnull)key isOutgoing:(bool)isOutgoing connections:(NSArray<OngoingCallConnectionDescriptionWebrtc *> * _Nonnull)connections maxLayer:(int32_t)maxLayer allowP2P:(BOOL)allowP2P allowTCP:(BOOL)allowTCP enableStunMarking:(BOOL)enableStunMarking logPath:(NSString * _Nonnull)logPath statsLogPath:(NSString * _Nonnull)statsLogPath sendSignalingData:(void (^)(NSData * _Nonnull))sendSignalingData videoCapturer:(OngoingCallThreadLocalContextVideoCapturer * _Nullable)videoCapturer preferredVideoCodec:(NSString * _Nullable)preferredVideoCodec inputDeviceId: (NSString * _Nonnull)inputDeviceId outputDeviceId: (NSString * _Nonnull)outputDeviceId {
++- (instancetype _Nonnull)initWithVersion:(NSString * _Nonnull)version customParameters:(NSString * _Nullable)customParameters queue:(id<OngoingCallThreadLocalContextQueueWebrtc> _Nonnull)queue proxy:(VoipProxyServerWebrtc * _Nullable)proxy networkType:(OngoingCallNetworkTypeWebrtc)networkType dataSaving:(OngoingCallDataSavingWebrtc)dataSaving derivedState:(NSData * _Nonnull)derivedState key:(NSData * _Nonnull)key isOutgoing:(bool)isOutgoing connections:(NSArray<OngoingCallConnectionDescriptionWebrtc *> * _Nonnull)connections maxLayer:(int32_t)maxLayer allowP2P:(BOOL)allowP2P allowTCP:(BOOL)allowTCP enableStunMarking:(BOOL)enableStunMarking logPath:(NSString * _Nonnull)logPath statsLogPath:(NSString * _Nonnull)statsLogPath sendSignalingData:(void (^)(NSData * _Nonnull))sendSignalingData videoCapturer:(OngoingCallThreadLocalContextVideoCapturer * _Nullable)videoCapturer preferredVideoCodec:(NSString * _Nullable)preferredVideoCodec inputDeviceId: (NSString * _Nonnull)inputDeviceId outputDeviceId: (NSString * _Nonnull)outputDeviceId {
+     self = [super init];
+     if (self != nil) {
+         _version = version;
+@@ -892,6 +892,11 @@ - (instancetype _Nonnull)initWithVersion:(NSString * _Nonnull)version queue:(id<
+         
+         std::vector<tgcalls::Endpoint> endpoints;
+         
++        std::string customParametersString = "{}";
++        if (customParameters && customParameters.length != 0) {
++            customParametersString = std::string(customParameters.UTF8String);
++        }
++        
+         tgcalls::Config config = {
+             .initializationTimeout = _callConnectTimeout,
+             .receiveTimeout = _callPacketTimeout,
+@@ -908,7 +913,8 @@ - (instancetype _Nonnull)initWithVersion:(NSString * _Nonnull)version queue:(id<
+             .maxApiLayer = [OngoingCallThreadLocalContextWebrtc maxLayer],
+             .enableHighBitrateVideo = true,
+             .preferredVideoCodecs = preferredVideoCodecs,
+-            .protocolVersion = [OngoingCallThreadLocalContextWebrtc protocolVersionFromLibraryVersion:version]
++            .protocolVersion = [OngoingCallThreadLocalContextWebrtc protocolVersionFromLibraryVersion:version],
++            .customParameters = customParametersString
+         };
+         
+         auto encryptionKeyValue = std::make_shared<std::array<uint8_t, 256>>();

@@ -1,3 +1,14 @@
+Port of iOS WebRTC (ali-fareed/webrtc, telegram-ios third-party/webrtc)
+commits 58d2ac4281^..6513c71d6c: tgcalls hooks for MtProto-in-DTLS and
+GroupInstanceReferenceImpl. Keep it the exact net diff of those commits.
+
+When rebasing onto a new tg_owt, keep in mind:
+- The SdpOfferAnswerHandler::Rollback hunk is unconditional: it releases
+  the SCTP data mid on every rollback (iOS fix for an offer/answer loop).
+- OnUnDemuxableRtpPacket calls observer_ raw on the network thread. That is
+  safe only while PeerConnection::Close() destroys transport_controller_
+  on the network thread before it clears observer_.
+
 diff --git a/src/api/peer_connection_interface.cc b/src/api/peer_connection_interface.cc
 index dedfd355..c83348d5 100644
 --- a/src/api/peer_connection_interface.cc
