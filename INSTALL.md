@@ -46,6 +46,7 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
 	```
 	git -C submodules/tgcalls checkout -- .
 	git -C submodules/tg_owt checkout -- .
+	git -C submodules/telegram-ios checkout -- .
 	git submodule sync submodules/tgcalls submodules/tg_owt
 	git submodule update --init
 	git -C submodules/telegram-ios submodule update --init third-party/mtproto-engine
@@ -59,10 +60,9 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
    `core-xprojects/webrtc/webrtc/build.sh` change.
 
    `patches/tg_owt/tgcalls-seams.patch` ports the WebRTC hooks tgcalls
-   uses for MtProto-in-DTLS and `GroupInstanceReferenceImpl`, which only
-   iOS's WebRTC fork has. It is the exact net diff of the iOS fork commits
-   (see its header); keep it that way. A `tg_owt` update must keep this
-   patch applying.
+   uses for MTProto-in-DTLS and `GroupInstanceReferenceImpl`, which only
+   iOS's WebRTC fork has. Its header lists the source commits and rebase
+   notes; a `tg_owt` update must keep it applying.
 
 ## Build and run from the console
 

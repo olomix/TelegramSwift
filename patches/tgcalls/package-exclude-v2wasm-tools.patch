@@ -1,3 +1,6 @@
+Exclude v2wasm (needs WAMR and a Bazel-generated wasm module, duplicates
+createModuleCore) and tools/ (CLI mains); the Mac wrapper uses neither.
+
 diff --git a/Package.swift b/Package.swift
 index 3739a66..577bace 100644
 --- a/Package.swift

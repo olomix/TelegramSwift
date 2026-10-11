@@ -35,7 +35,7 @@ OUT_DIR=$CURRENT_ARCH
 mkdir -p $OUT_DIR || true
 cd $OUT_DIR
 
-# tg_owt stopped forcing 10.13 (65d3d606); Xcode's 27.0 target makes its
+# tg_owt stopped forcing 10.13 (65d3d606); the project's 27.0 target makes its
 # CGDisplayStream screen capture code unavailable (obsoleted in macOS 15).
 cmake -G Ninja \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 \

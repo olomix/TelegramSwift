@@ -54,13 +54,14 @@ fi
 # The webrtc project rebuilds only when build/ is missing, so drop it when
 # the tg_owt commit, its patches or build.sh change.
 WEBRTC_BUILD_DIR="${SCRIPT_DIR}/../core-xprojects/webrtc/build"
+WEBRTC_STAMP_FILE="$WEBRTC_BUILD_DIR/.stamp"
 WEBRTC_STAMP=$( {
     git -C "${SCRIPT_DIR}/../submodules/tg_owt" rev-parse HEAD
     cat "${SCRIPT_DIR}"/../patches/tg_owt/*.patch \
         "${SCRIPT_DIR}/../core-xprojects/webrtc/webrtc/build.sh"
 } | shasum | cut -d' ' -f1 )
 if [ -d "$WEBRTC_BUILD_DIR" ] &&
-    [ "$(cat "$WEBRTC_BUILD_DIR/.stamp" 2>/dev/null)" != "$WEBRTC_STAMP" ]; then
+    [ "$(cat "$WEBRTC_STAMP_FILE" 2>/dev/null)" != "$WEBRTC_STAMP" ]; then
     rm -rf "$WEBRTC_BUILD_DIR"
 fi
 
@@ -83,8 +84,11 @@ do
         -derivedDataPath "${DERIVED_DATA_PATH}" \
         -destination 'generic/platform=macOS'
 
+    # Stamp right away so a later lib failing doesn't force a WebRTC rebuild.
+    if [ "$LIB" = "webrtc" ]; then
+        echo "$WEBRTC_STAMP" > "$WEBRTC_STAMP_FILE"
+    fi
 done
-echo "$WEBRTC_STAMP" > "$WEBRTC_BUILD_DIR/.stamp"
 
 
 
