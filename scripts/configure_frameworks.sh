@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 set -x
 
@@ -11,7 +11,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 PATH="$HOME/.cargo/bin:$PATH"
 if ! command -v rustup >/dev/null; then
-    echo "error: rustup not found; install it from https://rustup.rs to build the Rust MTProto engine" >&2
+    echo "error: rustup not found; install it from https://rustup.rs" \
+        "to build the Rust MTProto engine" >&2
     exit 1
 fi
 
@@ -120,11 +121,17 @@ done
 
 MTPROTO_ENGINE_DIR="${SCRIPT_DIR}/../submodules/telegram-ios/third-party/mtproto-engine"
 MTPROTO_ENGINE_XCFRAMEWORK="${SCRIPT_DIR}/../submodules/telegram-ios/submodules/MTProtoRustEngine/MTProtoEngineFFI.xcframework"
+# The app builds for Apple Silicon only (ARCHS = arm64, see INSTALL.md).
 MTPROTO_ENGINE_TARGET="aarch64-apple-darwin"
+# Matches the macOS platform in MTProtoRustEngine/Package.swift.
+MTPROTO_ENGINE_DEPLOYMENT_TARGET="10.13"
 
 MTPROTO_ENGINE_TOOLCHAIN=$( sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$MTPROTO_ENGINE_DIR/rust-toolchain.toml" )
 if [ -z "$MTPROTO_ENGINE_TOOLCHAIN" ]; then
-    echo "error: no toolchain channel in $MTPROTO_ENGINE_DIR/rust-toolchain.toml; run git submodule update --init in submodules/telegram-ios for third-party/mtproto-engine" >&2
+    echo "error: no toolchain channel in" \
+        "$MTPROTO_ENGINE_DIR/rust-toolchain.toml; run" \
+        "git submodule update --init third-party/mtproto-engine" \
+        "in submodules/telegram-ios" >&2
     exit 1
 fi
 rustup toolchain install "$MTPROTO_ENGINE_TOOLCHAIN" --profile minimal --target "$MTPROTO_ENGINE_TARGET"
@@ -133,7 +140,7 @@ rustup toolchain install "$MTPROTO_ENGINE_TOOLCHAIN" --profile minimal --target 
 # relative to the working directory. rustup run ignores a non-rustup cargo on PATH.
 (
     cd "$MTPROTO_ENGINE_DIR"
-    MACOSX_DEPLOYMENT_TARGET=10.13 rustup run "$MTPROTO_ENGINE_TOOLCHAIN" cargo build -p mtproto-ffi --release --locked --target "$MTPROTO_ENGINE_TARGET"
+    MACOSX_DEPLOYMENT_TARGET="$MTPROTO_ENGINE_DEPLOYMENT_TARGET" rustup run "$MTPROTO_ENGINE_TOOLCHAIN" cargo build -p mtproto-ffi --release --locked --target "$MTPROTO_ENGINE_TARGET"
 )
 
 # Headers go in a subfolder: Xcode merges every static xcframework's Headers

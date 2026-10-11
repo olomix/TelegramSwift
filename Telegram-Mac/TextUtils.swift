@@ -545,6 +545,21 @@ func chatListText(account:Account, for message:Message?, messagesCount: Int = 1,
     return NSAttributedString()
 }
 
+// A hidden gift sender is left out of message.peers; never credit the author.
+func uniqueGiftSender(message: Message, senderId: PeerId?, nameHidden: Bool) -> Peer? {
+    if let peer = senderId.flatMap({ message.peers[$0] }) {
+        return peer
+    }
+    return nameHidden ? nil : message.author
+}
+
+func uniqueGiftSenderName(message: Message, senderId: PeerId?, nameHidden: Bool, fallback: String) -> String {
+    if let peer = senderId.flatMap({ message.peers[$0] }) {
+        return peer.displayTitle
+    }
+    return nameHidden ? strings().chatServicePremiumUnknown : fallback
+}
+
 func serviceMessageText(_ message:Message, account:Account, isReplied: Bool = false) -> (String, [MessageTextEntity], [MediaId : Media]) {
     
     var authorName:String = ""
@@ -1002,8 +1017,7 @@ func serviceMessageText(_ message:Message, account:Account, isReplied: Bool = fa
             }
         case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, savedId, _, _, _, _, _, _, _, _, _, _, nameHidden):
             
-            // A hidden sender is left out of message.peers; don't fall back to the author.
-            let authorName = senderId.flatMap { message.peers[$0]?.displayTitle } ?? (nameHidden ? strings().chatServicePremiumUnknown : authorName)
+            let authorName = uniqueGiftSenderName(message: message, senderId: senderId, nameHidden: nameHidden, fallback: authorName)
             
             if case let .unique(gift) = gift {
                 if isTransferred {

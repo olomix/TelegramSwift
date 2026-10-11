@@ -543,13 +543,7 @@ private func proxySearchableItems(context: AccountContext, servers: [ProxyServer
     
     let presentProxySettings: (AccountContext, @escaping(SettingsSearchableItemPresentation, ViewController?) -> Void) -> Void = { context, present in
         let controller = proxyListController(accountManager: context.sharedContext.accountManager, network: context.account.network, share: { servers in
-            var message: String = ""
-            for server in servers {
-                if let link = server.link {
-                    message += link + "\n\n"
-                }
-            }
-            message = message.trimmed
+            let message = servers.shareMessage
             
             showModal(with: ShareModalController(ShareLinkObject(context, link: message)), for: context.window)
         }, pushController: { controller in

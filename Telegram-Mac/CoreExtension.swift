@@ -3202,6 +3202,12 @@ extension ProxyServerSettings {
     }
 }
 
+extension Array where Element == ProxyServerSettings {
+    var shareMessage: String {
+        return compactMap(\.link).joined(separator: "\n\n").trimmed
+    }
+}
+
 
 struct SecureIdDocumentValue {
     let document: SecureIdVerificationDocument

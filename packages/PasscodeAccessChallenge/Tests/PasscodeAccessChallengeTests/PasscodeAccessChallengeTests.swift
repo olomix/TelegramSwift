@@ -3,6 +3,9 @@ import SwiftSignalKit
 import TelegramCore
 import PasscodeAccessChallenge
 
+// Written by AccountManagerImpl.cleanPasscodeMetadataIfNeeded after a vacuum.
+private let passcodeCleanupMarkerName = "passcode-v1-metadata-clean"
+
 final class PasscodeAccessChallengeTests: XCTestCase {
     private var basePath: String!
 
@@ -17,8 +20,12 @@ final class PasscodeAccessChallengeTests: XCTestCase {
         super.tearDown()
     }
 
-    private func openManager(isReadOnly: Bool = false) -> AccountManager<TelegramAccountManagerTypes> {
-        return AccountManager<TelegramAccountManagerTypes>(basePath: basePath, isTemporary: false, isReadOnly: isReadOnly, useCaches: false, removeDatabaseOnError: true, accessChallenge: .passthrough)
+    private var cleanupMarkerPath: String {
+        return basePath + "/" + passcodeCleanupMarkerName
+    }
+
+    private func openManager(isReadOnly: Bool = false, accessChallenge: AccountManagerAccessChallenge = .passthrough) -> AccountManager<TelegramAccountManagerTypes> {
+        return AccountManager<TelegramAccountManagerTypes>(basePath: basePath, isTemporary: false, isReadOnly: isReadOnly, useCaches: false, removeDatabaseOnError: true, accessChallenge: accessChallenge)
     }
 
     private func run<T>(_ manager: AccountManager<TelegramAccountManagerTypes>, _ f: @escaping (AccountManagerModifier<TelegramAccountManagerTypes>) -> T) -> T {
@@ -60,7 +67,7 @@ final class PasscodeAccessChallengeTests: XCTestCase {
         XCTAssertEqual(storedMarker(isReadOnly: true), .none)
     }
 
-    // Pins the core contract the wrapper exists for: a plain set is dropped.
+    // Pins the core contract behind the wrapper: a plain set is dropped.
     func testPlainSetIsDropped() {
         let manager = openManager()
         run(manager) { $0.setAccessChallengeData(.plaintextPassword(value: "")) }
@@ -76,7 +83,19 @@ final class PasscodeAccessChallengeTests: XCTestCase {
             run(openManager()) { $0.storeAccessChallengeData(marker) }
             XCTAssertEqual(storedMarker(), marker)
             XCTAssertEqual(storedMarker(isReadOnly: true), marker)
-            XCTAssertFalse(FileManager.default.fileExists(atPath: basePath + "/passcode-v1-metadata-clean"))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: cleanupMarkerPath))
         }
+    }
+
+    // Keeps the check above meaningful if the core renames its marker file.
+    func testCoreWritesCleanupMarkerAtExpectedPath() {
+        let resolving = AccountManagerAccessChallenge(
+            prepare: { _ in },
+            resolve: { current, _ in current ?? PostboxAccessChallengeData.none },
+            finishInitialization: {}
+        )
+        let manager = openManager(accessChallenge: resolving)
+        XCTAssertEqual(run(manager) { $0.getAccessChallengeData() }, .none)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: cleanupMarkerPath))
     }
 }

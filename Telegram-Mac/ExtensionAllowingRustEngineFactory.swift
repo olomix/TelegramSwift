@@ -3,8 +3,8 @@ import MtProtoKit
 import TelegramCore
 import MTProtoRustEngine
 
-/// Supplies the Rust MTProto engine in the app and in app extensions alike.
-/// Every other refusal of `RustNetworkEngineFactory` still falls back to MtProtoKit.
+/// Supplies the Rust MTProto engine in the app and in app extensions.
+/// Other `RustNetworkEngineFactory` refusals still fall back to MtProtoKit.
 struct ExtensionAllowingRustEngineFactory: NetworkEngineFactory {
     private let base = RustNetworkEngineFactory()
 

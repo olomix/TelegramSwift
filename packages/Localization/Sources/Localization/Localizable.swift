@@ -16179,6 +16179,8 @@ public final class L10n {
   public static var proxySettingsUseForCalls: String  { return L10n.tr("Localizable", "ProxySettings.UseForCalls") }
   /// Username
   public static var proxySettingsUsername: String  { return L10n.tr("Localizable", "ProxySettings.Username") }
+  /// WEB
+  public static var proxySettingsWeb: String  { return L10n.tr("Localizable", "ProxySettings.Web") }
   /// available (ping: %@ ms)
   public static func proxySettingsItemAvailable(_ p1: String) -> String {
     return L10n.tr("Localizable", "ProxySettings.Item.Available", p1)

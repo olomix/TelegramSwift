@@ -28,8 +28,10 @@ class ProxyListRowItem: GeneralRowItem {
         switch proxy.connection {
         case .socks5:
             title = strings().proxySettingsSocks5
-        case .mtp, .web:
+        case .mtp:
              title = strings().proxySettingsMTP
+        case .web:
+             title = strings().proxySettingsWeb
         }
         _ = attr.append(string: "\(proxy.host)", color: theme.colors.text, font: .medium(.text))
         _ = attr.append(string: ":\(proxy.port)", color: theme.colors.grayText, font: .normal(.text))

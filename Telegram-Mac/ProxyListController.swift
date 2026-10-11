@@ -177,17 +177,6 @@ private final class ProxyListArguments {
     }
 }
 
-private extension ProxyServerConnection {
-    var type: ProxyType {
-        switch self {
-        case .socks5:
-            return .socks5
-        case .mtp, .web:
-            return .mtp
-        }
-    }
-}
-
 func proxyListController(accountManager: AccountManager<TelegramAccountManagerTypes>, network: Network, showUseCalls: Bool = true, share:@escaping([ProxyServerSettings])->Void = {_ in}, pushController:@escaping(ViewController) -> Void = { _ in }) -> ViewController {
     let actionsDisposable = DisposableSet()
     
@@ -209,11 +198,7 @@ func proxyListController(accountManager: AccountManager<TelegramAccountManagerTy
     }))
     
     let arguments = ProxyListArguments(edit: { proxy in
-        if let proxy = proxy {
-            pushController(addProxyController(accountManager: accountManager, network: network, settings: proxy, type: proxy.connection.type))
-        } else {
-            pushController(addProxyController(accountManager: accountManager, network: network, settings: nil, type: .socks5))
-        }
+        pushController(addProxyController(accountManager: accountManager, network: network, settings: proxy, newServerType: .socks5))
     }, delete: { proxy in
         updateDisposable.set(updateProxySettingsInteractively(accountManager: accountManager, { current in
             return current.withRemovedServer(proxy)
@@ -268,24 +253,26 @@ private enum ProxyType {
     }
 }
 
-private func addProxyController(accountManager: AccountManager<TelegramAccountManagerTypes>, network: Network, settings: ProxyServerSettings?, type: ProxyType) -> (InputDataController) {
+private func addProxyController(accountManager: AccountManager<TelegramAccountManagerTypes>, network: Network, settings: ProxyServerSettings?, newServerType: ProxyType) -> (InputDataController) {
     
     let actionsDisposable = DisposableSet()
 
-    let new = settings?.withHexedStringData() ?? ProxyServerSettings(host: "", port: 0, connection: type.defaultConnection)
+    let new = settings?.withHexedStringData() ?? ProxyServerSettings(host: "", port: 0, connection: newServerType.defaultConnection)
     
-    let stateValue:Atomic<ProxySettingsState> = Atomic(value: ProxySettingsState(server: new, type: settings == nil ? type : nil))
-    let statePromise:ValuePromise<ProxySettingsState> = ValuePromise(ProxySettingsState(server: new, type: settings == nil ? type : nil), ignoreRepeated: false)
+    let stateValue:Atomic<ProxySettingsState> = Atomic(value: ProxySettingsState(server: new, type: settings == nil ? newServerType : nil))
+    let statePromise:ValuePromise<ProxySettingsState> = ValuePromise(ProxySettingsState(server: new, type: settings == nil ? newServerType : nil), ignoreRepeated: false)
     let updateState:(_ f:(ProxySettingsState)->ProxySettingsState)-> Void = { f in
         statePromise.set(stateValue.modify(f))
     }
 
     let title: String
-    switch type {
+    switch new.connection {
     case .socks5:
         title = strings().proxySettingsSocks5
     case .mtp:
         title = strings().proxySettingsMTP
+    case .web:
+        title = strings().proxySettingsWeb
     }
     
     weak var _controller: ViewController?
@@ -373,7 +360,7 @@ private func addProxyController(accountManager: AccountManager<TelegramAccountMa
             case .socks5:
                 return current.withUpdatedServer(ProxyServerSettings(host: data[_id_host]?.stringValue ?? "", port: port.isEmpty ? 0 : (Int32(port) ?? 0), connection: .socks5(username: data[_id_username]?.stringValue, password: data[_id_pass]?.stringValue)))
             case .web:
-                // Mac can't edit WEB proxies yet; keep the stored server untouched.
+                // WEB proxies aren't editable on Mac; keep the stored server.
                 return current
             }
         }

@@ -2,9 +2,9 @@ import Foundation
 import SwiftSignalKit
 import TelegramCore
 
-// The Mac keeps its passcode outside TelegramCore and stores only a marker in
-// the account manager. The core now commits a marker only when the access
-// challenge resolver returns it, so the resolver hands back the value being set.
+// The Mac keeps its passcode outside TelegramCore and stores only a marker
+// in the account manager. The core commits a marker only when the access
+// challenge resolver returns it, so the resolver returns the value being set.
 private let pendingAccessChallengeData = Atomic<PostboxAccessChallengeData?>(value: nil)
 
 extension AccountManagerAccessChallenge {

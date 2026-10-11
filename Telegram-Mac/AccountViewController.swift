@@ -374,13 +374,7 @@ private enum AccountInfoEntry : TableItemListNodeEntry {
         case let .proxy(_, viewType, status):
             return GeneralInteractedRowItem(initialSize, stableId: stableId, name: strings().accountSettingsProxy, icon: theme.icons.settingsProxy, activeIcon: theme.icons.settingsProxyActive, type: .nextContext(status ?? ""), viewType: viewType, action: {
                 let controller = proxyListController(accountManager: arguments.context.sharedContext.accountManager, network: arguments.context.account.network, share: { servers in
-                    var message: String = ""
-                    for server in servers {
-                        if let link = server.link {
-                            message += link + "\n\n"
-                        }
-                    }
-                    message = message.trimmed
+                    let message = servers.shareMessage
                     
                     showModal(with: ShareModalController(ShareLinkObject(arguments.context, link: message)), for: arguments.context.window)
                 }, pushController: { controller in

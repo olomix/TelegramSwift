@@ -469,8 +469,10 @@ private func entries(state: State, data: DataAndStorageData, proxy: ProxySetting
         switch active.connection {
         case .socks5:
             text = strings().proxySettingsSocks5
-        case .mtp, .web:
+        case .mtp:
             text = strings().proxySettingsMTP
+        case .web:
+            text = strings().proxySettingsWeb
         }
     } else {
         text = strings().proxySettingsDisabled
@@ -650,13 +652,7 @@ class DataAndStorageViewController: TableViewController {
             }).start()
         }, openProxySettings: {
             let controller = proxyListController(accountManager: context.sharedContext.accountManager, network: context.account.network, share: { servers in
-                var message: String = ""
-                for server in servers {
-                    if let link = server.link {
-                        message += link + "\n\n"
-                    }
-                }
-                message = message.trimmed
+                let message = servers.shareMessage
                 
                 showModal(with: ShareModalController(ShareLinkObject(context, link: message)), for: context.window)
             }, pushController: { controller in
