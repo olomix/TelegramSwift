@@ -317,17 +317,23 @@ added for tgcalls, as a tg_owt patch. Five commits, about 150 lines:
       "(needs manual run)" in Post-Completion
 
 ### Task 5: Verify acceptance criteria
-- [ ] `git submodule status` shows tgcalls at `a024eaab` and tg_owt at
+- [x] `git submodule status` shows tgcalls at `a024eaab` and tg_owt at
       `d1cf250e`, and every `patches/*/*.patch` applies (`git apply
-      --check -R` on the current tree)
-- [ ] fresh-clone check (needs Tasks 1-3 committed): plain `git clone`
+      --check -R` on the current tree) (both commits match; all 8
+      patches in telegram-ios, tg_owt and tgcalls reverse-check OK)
+- [x] fresh-clone check (needs Tasks 1-3 committed): plain `git clone`
       of the local repo into the scratch directory, then
       `git submodule update --init --recursive submodules/tgcalls
       submodules/tg_owt`; both fetch over https with no SSH key. Delete
-      the clone afterwards
-- [ ] full test suite: FoundationUtils, ApiCredentials,
-      PasscodeAccessChallenge `swift test`
-- [ ] Debug and Release builds succeed
+      the clone afterwards (run with `GIT_CONFIG_GLOBAL=/dev/null` and
+      `GIT_SSH_COMMAND=false`, so no insteadOf rewrite and no SSH
+      possible; tgcalls, tg_owt and its nested submodules all cloned
+      over https at the pinned commits; clone deleted)
+- [x] full test suite: FoundationUtils, ApiCredentials,
+      PasscodeAccessChallenge `swift test` (reused Task 4 results:
+      no commits or working-tree changes since a1d67511a)
+- [x] Debug and Release builds succeed (reused Task 4 results, same
+      reason)
 
 ### Task 6: [Final] Update documentation
 - [ ] INSTALL.md: mention that after a tg_owt update
