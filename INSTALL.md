@@ -93,9 +93,12 @@ yet, it asks you to open Telegram first.
 
 ## Notes
 
-- Each build bumps the build number in `Telegram-Mac/Info.plist` and
-  `TelegramShare/Info.plist`. Discard it before committing:
-  `git checkout -- Telegram-Mac/Info.plist TelegramShare/Info.plist`
+- The build number is `CURRENT_PROJECT_VERSION` in the Telegram and
+  TelegramShare targets; both must match. Builds no longer change it.
+- The submodules show no local changes in `git status`
+  (`ignore = dirty` in `.gitmodules`): the build applies
+  `patches/<submodule>/` inside them and leaves build output there. Use
+  `git -C submodules/<name> status` to see their working tree.
 - The app stores its data in the app group folder
   `~/Library/Group Containers/<TeamID>.dev.alek.telegram/`. Debug builds use
   its `debug/` subfolder and Release builds use `stable/`, so each needs its

@@ -3,15 +3,18 @@
 url=git@github.com:telegramdesktop/libtgvoip
 [submodule "submodules/telegram-ios"]
 	path = submodules/telegram-ios
+	ignore = dirty
 	url = https://github.com/TelegramMessenger/Telegram-iOS.git
 [submodule "submodules/rlottie"]
 	path = submodules/rlottie
 url=git@github.com:overtake/rlottie.git
 [submodule "submodules/tgcalls"]
 	path = submodules/tgcalls
+	ignore = dirty
 url=git@github.com:overtake/tgcalls.git
 [submodule "submodules/tg_owt"]
 	path = submodules/tg_owt
+	ignore = dirty
 	url = git@github.com:desktop-app/tg_owt.git
 [submodule "submodules/libprisma"]
 	path = submodules/libprisma
