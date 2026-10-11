@@ -9,6 +9,12 @@ declare -a libname=("OpenH264" "OpenSSLEncryption" "libopus" "libvpx" "Mozjpeg" 
 arraylength=${#libs[@]}
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
+PATH="$PATH:$HOME/.cargo/bin"
+if ! command -v cargo >/dev/null; then
+    echo "error: cargo not found; install rustup (https://rustup.rs) to build the Rust MTProto engine" >&2
+    exit 1
+fi
+
 
 mkdir -p "$SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSerialization/Sources"
 
@@ -110,6 +116,38 @@ for pair in "${DIRECTORY_PAIRS[@]}"; do
     echo "Headers copied successfully from $SOURCE_DIR to $DEST_DIR!"
 done
 
+
+
+MTPROTO_ENGINE_DIR="${SCRIPT_DIR}/../submodules/telegram-ios/third-party/mtproto-engine"
+MTPROTO_ENGINE_XCFRAMEWORK="${SCRIPT_DIR}/../submodules/telegram-ios/submodules/MTProtoRustEngine/MTProtoEngineFFI.xcframework"
+MTPROTO_ENGINE_TARGET="aarch64-apple-darwin"
+
+# Run from the crate directory: cargo reads .cargo/config.toml (hardware AES)
+# and rust-toolchain.toml relative to the working directory.
+(
+    cd "$MTPROTO_ENGINE_DIR"
+    rustup target add --toolchain "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" "$MTPROTO_ENGINE_TARGET"
+    MACOSX_DEPLOYMENT_TARGET=10.13 cargo build -p mtproto-ffi --release --locked --target "$MTPROTO_ENGINE_TARGET"
+)
+
+# Headers go in a subfolder: Xcode merges every static xcframework's Headers
+# into one include/ directory, where a top-level module.modulemap collides.
+MTPROTO_ENGINE_HEADERS=$( mktemp -d )
+mkdir -p "$MTPROTO_ENGINE_HEADERS/MTProtoEngineFFI"
+cp "$MTPROTO_ENGINE_DIR/crates/mtproto-ffi/include/mtproto_engine.h" "$MTPROTO_ENGINE_HEADERS/MTProtoEngineFFI/"
+cat > "$MTPROTO_ENGINE_HEADERS/MTProtoEngineFFI/module.modulemap" <<'EOF'
+module MTProtoEngineFFI {
+    header "mtproto_engine.h"
+    export *
+}
+EOF
+
+rm -rf "$MTPROTO_ENGINE_XCFRAMEWORK"
+xcrun xcodebuild -create-xcframework \
+    -library "$MTPROTO_ENGINE_DIR/target/$MTPROTO_ENGINE_TARGET/release/libmtproto_engine_ffi.a" \
+    -headers "$MTPROTO_ENGINE_HEADERS" \
+    -output "$MTPROTO_ENGINE_XCFRAMEWORK"
+rm -rf "$MTPROTO_ENGINE_HEADERS"
 
 
 sh $SCRIPT_DIR/../submodules/telegram-ios/third-party/td/macos-cleanup.sh $SCRIPT_DIR/../submodules/telegram-ios/third-party/td/td $SCRIPT_DIR/../submodules/telegram-ios/third-party/td/TdBinding/SharedHeaders

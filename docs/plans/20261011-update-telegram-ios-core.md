@@ -246,20 +246,30 @@
 **Files:**
 - Modify: `scripts/configure_frameworks.sh`
 
-- [ ] find the xcframework build script or instructions in
+- [x] find the xcframework build script or instructions in
       `third-party/mtproto-engine` (README, `scripts/`, `Makefile`). Check
-      for a pinned `rust-toolchain.toml`
-- [ ] add a step to `configure_frameworks.sh` that runs from the crate
+      for a pinned `rust-toolchain.toml`. The crate has no xcframework
+      script; `docs/swift-integration.md` §2 describes upstream's Mac
+      `build.sh`, which this repo lacks. The toolchain is pinned to 1.96.1
+      (installed with rustup)
+- [x] add a step to `configure_frameworks.sh` that runs from the crate
       directory, so `.cargo/config.toml` (hardware AES) applies. It builds
       `--release` for `aarch64-apple-darwin` only and places the result at
       `submodules/telegram-ios/submodules/MTProtoRustEngine/MTProtoEngineFFI.xcframework`.
-      Run the crate's link-verify script if it has one
-- [ ] fail early with a clear message when `cargo` is missing
-- [ ] run `shellcheck scripts/configure_frameworks.sh` and fix what it
-      reports
-- [ ] run `cd submodules/telegram-ios/submodules/MTProtoRustEngine && swift test`.
+      Run the crate's link-verify script if it has one.
+      `scripts/verify-ios-link.sh` needs a linked binary, so it is not in
+      the script; run by hand on the `MTProtoRustEngineTests` binary: one
+      std, 72 AES instructions in mtproto_core. Its SHA-256 check reports
+      FAIL only because it expects v0 mangling; `otool` shows 32
+      `sha256h` in `sha2::sha256::compress256`
+- [x] fail early with a clear message when `cargo` is missing (checked
+      at the top of the script, `~/.cargo/bin` added to `PATH`)
+- [x] run `shellcheck scripts/configure_frameworks.sh` and fix what it
+      reports (no new findings; the 20 older ones are untouched)
+- [x] run `cd submodules/telegram-ios/submodules/MTProtoRustEngine && swift test`.
       The mapping and bridge tests must pass. Record any network-dependent
-      end-to-end failures here with ⚠️
+      end-to-end failures here with ⚠️ (all 65 pass, end-to-end included,
+      after `cargo build --release -p mtproto-testserver`)
 
 ### Task 5: Wire the Rust engine into the app and the Share extension
 
