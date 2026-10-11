@@ -37,7 +37,9 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
 	```
    This also applies the local fixes in `patches/<submodule>/` to the
    submodules and builds the Rust MTProto engine
-   (`MTProtoEngineFFI.xcframework`).
+   (`MTProtoEngineFFI.xcframework`). If a pull only changes
+   `patches/<submodule>/`, the script resets that submodule and re-applies
+   its patches itself.
 
    In an existing clone, after pulling a submodule update, discard the
    previously applied patches (the script re-applies the current ones),

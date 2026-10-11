@@ -22,12 +22,23 @@ mkdir -p "$SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSer
 sh $SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSerialization/macOS/generate.sh --input $SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSerialization/Models --output $SCRIPT_DIR/../submodules/telegram-ios/submodules/TelegramCore/FlatSerialization/Sources --binary $SCRIPT_DIR/../scripts/flatc
 
 # Submodule sources we can't commit to: patches/<submodule>/*.patch.
-# Skip patches that are already applied.
-for PATCH in "$SCRIPT_DIR"/../patches/*/*.patch; do
-    MODULE="$SCRIPT_DIR/../submodules/$(basename "$(dirname "$PATCH")")"
-    if ! git -C "$MODULE" apply --reverse --check "$PATCH" 2>/dev/null; then
-        git -C "$MODULE" apply "$PATCH"
-    fi
+# Skip applied patches. Submodule trees carry only these patches, so a
+# patch that neither reverts nor applies was changed: reset and re-apply all.
+for PATCH_DIR in "$SCRIPT_DIR"/../patches/*/; do
+    MODULE_NAME=$(basename "$PATCH_DIR")
+    MODULE="$SCRIPT_DIR/../submodules/$MODULE_NAME"
+    for PATCH in "$PATCH_DIR"*.patch; do
+        if ! git -C "$MODULE" apply --reverse --check "$PATCH" 2>/dev/null &&
+            ! git -C "$MODULE" apply "$PATCH" 2>/dev/null; then
+            echo "patches for $MODULE_NAME changed;" \
+                "resetting submodules/$MODULE_NAME and re-applying"
+            git -C "$MODULE" checkout -- .
+            for RESET_PATCH in "$PATCH_DIR"*.patch; do
+                git -C "$MODULE" apply "$RESET_PATCH"
+            done
+            break
+        fi
+    done
 done
 
 
