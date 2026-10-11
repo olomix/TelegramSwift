@@ -336,12 +336,15 @@ added for tgcalls, as a tg_owt patch. Five commits, about 150 lines:
       reason)
 
 ### Task 6: [Final] Update documentation
-- [ ] INSTALL.md: mention that after a tg_owt update
+- [x] INSTALL.md: mention that after a tg_owt update
       `core-xprojects/webrtc/build` must be deleted before
-      `configure_frameworks.sh` (like ffmpeg)
-- [ ] `nogit_todo.md`: remove the tgcalls and tg_owt items, or update
-      them with what is left
-- [ ] move this plan to `docs/plans/completed/`
+      `configure_frameworks.sh` (like ffmpeg) (also notes that
+      `patches/tg_owt/tgcalls-seams.patch` must keep applying)
+- [x] `nogit_todo.md`: remove the tgcalls and tg_owt items, or update
+      them with what is left (one item left: the 2 `development`
+      decompression-limit fixes; calls line marked done, pending a
+      manual call test)
+- [x] move plan (done by orchestrator at completion)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*

@@ -48,7 +48,13 @@ and runs as `dev.alek.telegram`, separate from the official Telegram app.
    Don't use `--recursive` on the whole repo: it moves the `tgcalls` and
    `webrtc` checkouts. If you built before the ffmpeg 8.1.2 update, run
    `rm -rf core-xprojects/ffmpeg/build` first; ffmpeg is rebuilt only when
+   that folder is missing. Likewise, after a `tg_owt` update run
+   `rm -rf core-xprojects/webrtc/build` first; WebRTC is rebuilt only when
    that folder is missing.
+
+   `patches/tg_owt/tgcalls-seams.patch` adds WebRTC hooks that tgcalls
+   needs (MtProto-in-DTLS) and that only iOS's WebRTC fork has. A `tg_owt`
+   update must keep this patch applying.
 
 ## Build and run from the console
 
