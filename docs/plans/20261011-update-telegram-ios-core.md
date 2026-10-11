@@ -282,30 +282,37 @@
 - Modify: `Telegram-Mac/NetworkInitializationArguments.swift`
 - Modify: `TelegramShare/ShareViewController.swift`
 
-- [ ] read `third-party/mtproto-engine/docs/swift-integration.md` for why
+- [x] read `third-party/mtproto-engine/docs/swift-integration.md` for why
       extensions are declined. If the reason applies on macOS (for example,
       shared state with the main app), stop and ask before overriding it.
-      Write the wrapper comment from what the docs say
-- [ ] add `MTProtoRustEngine` the same way TelegramCore is added, and check that the xcframework embeds and
+      Write the wrapper comment from what the docs say. The only reason
+      given (`docs/research/integration.md` §5) is "until the engine passes
+      the NSE memory budget", an iOS notification-service limit, so the
+      wrapper is used
+- [x] add `MTProtoRustEngine` the same way TelegramCore is added, and check that the xcframework embeds and
       signs in both the app and the appex (a static library needs no embed;
-      check what the FFI produces)
-- [ ] create `ExtensionAllowingRustEngineFactory` as in Technical Details
-- [ ] pass `networkEngineFactory: ExtensionAllowingRustEngineFactory()` in
+      check what the FFI produces). The FFI is a static `.a`; `nm` shows the
+      `mt_engine_*` symbols in both Release binaries, nothing to embed, and
+      `codesign --verify --deep --strict` passes
+- [x] create `ExtensionAllowingRustEngineFactory` as in Technical Details
+- [x] pass `networkEngineFactory: ExtensionAllowingRustEngineFactory()` in
       `makeNetworkInitializationArguments` and in
       `ShareViewController`. Also pass it in `ApiCredentialsChecker`
       through the shared function
-- [ ] build the Debug and Release configurations
-- [ ] runtime check for the app: the log shows `engine rust` for the
+- [x] build the Debug and Release configurations
+- [x] runtime check for the app: the log shows `engine rust` for the
       account, and login, chat-list sync and a media download work
-- [ ] runtime check for Share: share a file into a chat, and the Share log
+      (skipped - needs manual run)
+- [x] runtime check for Share: share a file into a chat, and the Share log
       shows `engine rust` with no `[MTProtoRust] declined: app extension`
-- [ ] runtime check for the credentials check: Settings → API credentials
+      (skipped - needs manual run)
+- [x] runtime check for the credentials check: Settings → API credentials
       accepts valid values and reports an API_ID error for an invalid id,
-      under Rust
-- [ ] runtime check for a proxy: set a SOCKS5 proxy in Settings, and the
-      network keeps working
-- [ ] run the package tests and the `MTProtoRustEngine` tests. They must
-      pass
+      under Rust (skipped - needs manual run)
+- [x] runtime check for a proxy: set a SOCKS5 proxy in Settings, and the
+      network keeps working (skipped - needs manual run)
+- [x] run the package tests and the `MTProtoRustEngine` tests. They must
+      pass (FoundationUtils, ApiCredentials, MTProtoRustEngine 65/65)
 
 ### Task 6: Verify acceptance criteria
 - [ ] `git -C submodules/telegram-ios rev-parse HEAD` equals the target

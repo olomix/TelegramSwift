@@ -15,5 +15,5 @@ func makeNetworkInitializationArguments(_ credentials: ApiCredentialsValues) -> 
         return EmptyDisposable
     } |> runOn(.concurrentBackgroundQueue())
 
-    return NetworkInitializationArguments(apiId: credentials.apiId, apiHash: credentials.apiHash, languagesCategory: ApiEnvironment.language, appVersion: ApiEnvironment.version, voipMaxLayer: OngoingCallContext.maxLayer, voipVersions: voipVersions, appData: appData, externalRequestVerificationStream: .single([:]), externalRecaptchaRequestVerification: { _, _ in return .complete() }, autolockDeadine: .single(nil), encryptionProvider: OpenSSLEncryptionProvider(), deviceModelName: deviceModelPretty(), useBetaFeatures: false, isICloudEnabled: false)
+    return NetworkInitializationArguments(apiId: credentials.apiId, apiHash: credentials.apiHash, languagesCategory: ApiEnvironment.language, appVersion: ApiEnvironment.version, voipMaxLayer: OngoingCallContext.maxLayer, voipVersions: voipVersions, appData: appData, externalRequestVerificationStream: .single([:]), externalRecaptchaRequestVerification: { _, _ in return .complete() }, autolockDeadine: .single(nil), encryptionProvider: OpenSSLEncryptionProvider(), deviceModelName: deviceModelPretty(), useBetaFeatures: false, isICloudEnabled: false, networkEngineFactory: ExtensionAllowingRustEngineFactory())
 }
