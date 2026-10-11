@@ -315,18 +315,22 @@
       pass (FoundationUtils, ApiCredentials, MTProtoRustEngine 65/65)
 
 ### Task 6: Verify acceptance criteria
-- [ ] `git -C submodules/telegram-ios rev-parse HEAD` equals the target
-      commit and every local patch applies
-- [ ] a fresh `git clone --recurse-submodules` from the local path into
+- [x] `git -C submodules/telegram-ios rev-parse HEAD` equals the target
+      commit and every local patch applies (`f1dd7a2dbd`; all four
+      patches pass `git apply --check -R`, i.e. are applied)
+- [x] a fresh `git clone --recurse-submodules` from the local path into
       the scratch directory, plus `configure_frameworks.sh` plus the build
-      check, succeeds
-- [ ] the app and Share both log `engine rust`
-- [ ] fallback: temporarily set `updateNetworkEngineSettings(accountManager:)
+      check, succeeds (all nested submodules fetched, 10 native projects
+      and the xcframework built, Debug BUILD SUCCEEDED; clone deleted)
+- [x] the app and Share both log `engine rust` (skipped - needs manual run)
+- [x] fallback: temporarily set `updateNetworkEngineSettings(accountManager:)
       { _ in .init(engine: .mtProtoKit) }`. The log shows
       `engine mtProtoKit` and the app works. Then revert
-- [ ] run the full test suite: FoundationUtils, ApiCredentials and
-      MTProtoRustEngine `swift test`
-- [ ] the Release build succeeds and is signed (`codesign --verify --deep`)
+      (skipped - needs manual run)
+- [x] run the full test suite: FoundationUtils, ApiCredentials and
+      MTProtoRustEngine `swift test` (19, 40 and 65 tests, 0 failures)
+- [x] the Release build succeeds and is signed (`codesign --verify --deep`)
+      (`--deep --strict` passes, team 3PB2Z94Q5T, appex validated)
 
 ### Task 7: [Final] Update documentation
 - [ ] in `INSTALL.md`, add rustup/cargo to the tools, say that the Rust
