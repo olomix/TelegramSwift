@@ -1,0 +1,20 @@
+diff --git a/submodules/MtProtoKit/Sources/MTContext.m b/submodules/MtProtoKit/Sources/MTContext.m
+index 0c83e98a64..e9e92c215a 100644
+--- a/submodules/MtProtoKit/Sources/MTContext.m
++++ b/submodules/MtProtoKit/Sources/MTContext.m
+@@ -395,9 +395,14 @@ - (void)cleanup
+     id<MTDisposable> cleanupSessionInfoDisposables = _cleanupSessionInfoDisposables;
+     
+     NSDictionary *transportSchemeDisposableByDatacenterId = _transportSchemeDisposableByDatacenterId;
+-    
++
++    id<MTDisposable> backupAddressListDisposable = _backupAddressListDisposable;
++    _backupAddressListDisposable = nil;
++
+     [[MTContext contextQueue] dispatchOnQueue:^
+     {
++        [backupAddressListDisposable dispose];
++
+         for (NSNumber *nDatacenterId in discoverDatacenterAddressActions)
+         {
+             MTDiscoverDatacenterAddressAction *action = discoverDatacenterAddressActions[nDatacenterId];
