@@ -161,21 +161,30 @@
 - Modify: `.gitmodules` (tg_owt URL → https)
 - Modify: `submodules/tg_owt` (gitlink)
 - Delete: `patches/tg_owt/candidate-lifetimebound.patch`
+- ➕ Modify: `core-xprojects/webrtc/webrtc/build.sh` (pin
+  `CMAKE_OSX_DEPLOYMENT_TARGET=10.13`)
 
-- [ ] reverse `patches/tg_owt/*.patch` in the submodule, change the URL
+- [x] reverse `patches/tg_owt/*.patch` in the submodule, change the URL
       to `https://github.com/desktop-app/tg_owt.git`, `git submodule sync`
-- [ ] check out `d1cf250e` and run
+      (global `insteadOf` still rewrites https to ssh locally; harmless)
+- [x] check out `d1cf250e` and run
       `git -C submodules/tg_owt submodule update --init --recursive`
       (safety; the nested commits don't change)
-- [ ] delete `patches/tg_owt/candidate-lifetimebound.patch` (upstream in
+- [x] delete `patches/tg_owt/candidate-lifetimebound.patch` (upstream in
       `89df288d`); confirm `src/api/candidate.h` has no
-      `ABSL_ATTRIBUTE_LIFETIME_BOUND` on `set_type`
-- [ ] delete `core-xprojects/webrtc/build` and rerun
+      `ABSL_ATTRIBUTE_LIFETIME_BOUND` on `set_type` (only the constructor
+      parameter keeps it)
+- [x] delete `core-xprojects/webrtc/build` and rerun
       `configure_frameworks.sh`; WebRTC must build
-- [ ] Debug app build with the OLD tgcalls must succeed. If tgcalls fails
+      (first run failed: with Xcode's 27.0 target, `CGDisplayCreateImage`,
+      `CGWindowListCreateImage`, `CGDisplayStream*` are unavailable in
+      `desktop_capture/mac`; fixed by passing
+      `-DCMAKE_OSX_DEPLOYMENT_TARGET=10.13` in `build.sh`, which tg_owt
+      itself forced before `65d3d606`)
+- [x] Debug app build with the OLD tgcalls must succeed. If tgcalls fails
       only because of tg_owt API changes, record the errors (⚠️). They
       are expected to go away with the new tgcalls in Task 2, so continue
-      to Task 2 without fixing old tgcalls
+      to Task 2 without fixing old tgcalls (succeeded, no tgcalls errors)
 
 ### Task 2: Move tgcalls to ios-13.0.0
 

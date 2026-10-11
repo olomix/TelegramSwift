@@ -15,7 +15,7 @@ url=git@github.com:overtake/tgcalls.git
 [submodule "submodules/tg_owt"]
 	path = submodules/tg_owt
 	ignore = dirty
-	url = git@github.com:desktop-app/tg_owt.git
+	url = https://github.com/desktop-app/tg_owt.git
 [submodule "submodules/libprisma"]
 	path = submodules/libprisma
 url=git@github.com:desktop-app/libprisma.git
