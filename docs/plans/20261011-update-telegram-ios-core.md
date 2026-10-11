@@ -175,18 +175,26 @@
 - Modify: `scripts/configure_frameworks.sh` (only if needed)
 - Modify: `core-xprojects/ffmpeg/ffmpeg.xcodeproj/project.pbxproj` (only if needed)
 
-- [ ] set `FF_VERSION="8.1.2"` in `core-xprojects/ffmpeg/ffmpeg/build.sh`.
+- [x] set `FF_VERSION="8.1.2"` in `core-xprojects/ffmpeg/ffmpeg/build.sh`.
       Diff its `CONFIGURE_FLAGS` against upstream
-      `submodules/ffmpeg/Sources/FFMpeg/build-ffmpeg-bazel.sh`
-- [ ] delete `core-xprojects/ffmpeg/build` and rerun
+      `submodules/ffmpeg/Sources/FFMpeg/build-ffmpeg-bazel.sh`. Kept the Mac
+      flags: upstream only adds the `av1` decoder and `ogg` muxer, which the
+      Mac never had, and every Mac component exists in ffmpeg 8.1.2
+- [x] delete `core-xprojects/ffmpeg/build` and rerun
       `CMAKE_POLICY_VERSION_MINIMUM=3.5 sh scripts/configure_frameworks.sh`
-- [ ] fix any configure options that ffmpeg 8 removed or renamed
-- [ ] fix `FFMpegBinding` and `MediaPlayer` header-path breakage
-      (`SharedHeaders/ffmpeg/include`)
-- [ ] check that the script's patch loop applies cleanly on a fresh
-      checkout. Running it a second time must be a no-op
-- [ ] the build check compiles past the native-library stage (Swift errors
-      are allowed until Task 3)
+- [x] fix any configure options that ffmpeg 8 removed or renamed (none:
+      configure ran with no warnings, built FFMPEG_VERSION 8.1.2,
+      libavcodec 62)
+- [x] fix `FFMpegBinding` and `MediaPlayer` header-path breakage
+      (`SharedHeaders/ffmpeg/include`) (none: headers copied by the script,
+      FFMpegBinding compiles)
+- [x] check that the script's patch loop applies cleanly on a fresh
+      checkout. Running it a second time must be a no-op (reversed all four
+      patches, ran the loop twice, identical diffs)
+- [x] the build check compiles past the native-library stage (Swift errors
+      are allowed until Task 3). First Swift error:
+      `ManageSharedAccountInfo.swift:60` switch must be exhaustive
+      (TelegramShare)
 
 ### Task 3: Fix Mac call sites for the new TelegramCore and Postbox APIs
 
