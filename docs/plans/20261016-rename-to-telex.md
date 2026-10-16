@@ -99,8 +99,9 @@
 - The SVG is drawn on the macOS 1024 grid (824 px tile, 100 px margin,
   drop shadow), so no extra padding is needed.
 - Known limitations (out of scope):
-  - language packs downloaded from Telegram's servers for non-English UI
-    languages still say "Quit Telegram" etc.;
+  - language packs downloaded from Telegram's servers name the app
+    "Telegram"; only the app-menu, About, Hide and Quit titles are patched
+    (`MMMenuItem.swift`), other pack strings keep "Telegram";
   - upstream strings that name the app keep "Telegram": permission prompts
     (`Localizable.strings:3601,3610,3611,5189,5190,5602`),
     `Telegram.UpgradeDatabase.Text` (`:4230`), the log-out text (`:4139`),
@@ -159,27 +160,32 @@
 
 **Files:**
 - Modify: `Telegram-Mac/System.swift`
+- Modify: `Telegram-Mac/MMMenuItem.swift`
 - Modify: `Telegram-Mac/Base.lproj/MainMenu.xib`
 - Modify: `Telegram-Mac/en.lproj/Localizable.strings`
 - Modify: `TelegramShare/Info.plist`
 
-- [ ] set `appName = "Telex"` in `Telegram-Mac/System.swift`
-- [ ] in `Base.lproj/MainMenu.xib` only, change titles `About Telegram`,
+- [x] set `appName = "Telex"` in `Telegram-Mac/System.swift`
+- [x] in `Base.lproj/MainMenu.xib` only, change titles `About Telegram`,
       `Hide Telegram`, `Quit Telegram`, menu `TelegramMac` and window
       `Telegram` to Telex; don't touch `customModule` attributes or other
       `*.lproj/MainMenu.xib` copies
-- [ ] in `en.lproj/Localizable.strings` (keep UTF-16 LE), set
+- [x] in `en.lproj/Localizable.strings` (keep UTF-16 LE), set
       `1Xt-HY-uBw.title` and `uQy-DD-JDr.title` to `Telex`, and
       `5kV-Vb-QxS.title`, `Cag-YX-WT6.title`, `4sb-4s-VLi.title` to
       About/Hide/Quit Telex
-- [ ] in the same file, say Telex in the fork-authored strings
+- [x] in the same file, say Telex in the fork-authored strings
       `ShareExtension.Unauthorized.Description` (also fix the "Telegam"
       typo), `ShareExtension.Setup.Description` and
       `ApiCredentials.RelaunchFailed`
-- [ ] check `file` still reports UTF-16 and `plutil -lint` passes
-- [ ] set `CFBundleDisplayName` to `Telex` in `TelegramShare/Info.plist`
-- [ ] build Debug; it must succeed
-- [ ] run the app and check that the app menu says Telex and About/Hide/Quit
+- [x] check `file` still reports UTF-16 and `plutil -lint` passes
+- [x] ➕ replace "Telegram" with `appName` in the app-menu, About, Hide and
+      Quit titles in `MMMenuItem.swift`: the downloaded language pack (also
+      for English) overrides the bundled strings, so the menu kept saying
+      Telegram
+- [x] set `CFBundleDisplayName` to `Telex` in `TelegramShare/Info.plist`
+- [x] build Debug; it must succeed
+- [x] run the app and check that the app menu says Telex and About/Hide/Quit
       Telex, the About window says Telex, and an existing account is still
       logged in
 
