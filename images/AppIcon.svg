@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+  <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.28"/>
+</filter>
+<clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="185" ry="185"/></clipPath>
+<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFCF5A"/><stop offset="1" stop-color="#FF4E6A"/></linearGradient>
+</defs>
+<g filter="url(#shadow)"><rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#g)"/></g>
+<g clip-path="url(#tile)"><circle cx="512" cy="560" r="230" fill="#fff" opacity=".25"/><path d="M250 520 L770 300 L640 760 L520 610 L700 380 L470 580 Z" fill="#fff" transform="translate(20 -20) scale(.95)" /><path d="M180 700 Q330 640 420 660" fill="none" stroke="#fff" stroke-width="18" stroke-dasharray="40 30" stroke-linecap="round"/></g>
+</svg>
