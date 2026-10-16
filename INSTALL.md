@@ -1,7 +1,8 @@
 # How to Build Telegram for macOS
 
 This fork builds for Apple Silicon only, requires macOS 27 and Xcode 27,
-and runs as `dev.alek.telegram`, separate from the official Telegram app.
+and builds `Telex.app`, which runs as `dev.alek.telegram`, separate from
+the official Telegram app.
 
 ## One-time setup
 
@@ -75,12 +76,12 @@ xcodebuild -workspace Telegram-Mac.xcworkspace -scheme Telegram \
   -derivedDataPath ~/build/TelegramSwift \
   -allowProvisioningUpdates build
 
-open ~/build/TelegramSwift/Build/Products/Debug/Telegram.app
+open ~/build/TelegramSwift/Build/Products/Debug/Telex.app
 ```
 
 To see the app's console output, run the binary directly instead of `open`:
 ```
-~/build/TelegramSwift/Build/Products/Debug/Telegram.app/Contents/MacOS/Telegram
+~/build/TelegramSwift/Build/Products/Debug/Telex.app/Contents/MacOS/Telex
 ```
 
 ## Build and run in Xcode
@@ -154,5 +155,8 @@ yet, it asks you to open Telegram first.
 - Run the PasscodeAccessChallenge package's unit tests with
   `cd packages/PasscodeAccessChallenge && swift test`.
 - After a build, check that the packages' images (call screen icons) load:
-  `swift scripts/check-package-assets.swift ~/build/TelegramSwift/Build/Products/Debug/Telegram.app`
+  `swift scripts/check-package-assets.swift ~/build/TelegramSwift/Build/Products/Debug/Telex.app`
   (adjust the path to your build output).
+- The app icon is drawn in `images/AppIcon.svg`. After changing it, run
+  `bash scripts/render-app-icon.sh` (needs `brew install librsvg`) to
+  render the PNGs in `Telegram-Mac/Assets.xcassets/AppIcon.appiconset/`.

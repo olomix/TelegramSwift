@@ -2,13 +2,13 @@
 // the built app. Generated `NSImage(resource:)` force-unwraps, so a missing
 // image crashes the app when the screen using it first appears.
 //
-// Usage: swift scripts/check-package-assets.swift <path/to/Telegram.app>
+// Usage: swift scripts/check-package-assets.swift <path/to/Telex.app>
 
 import AppKit
 
 let arguments = CommandLine.arguments
 guard arguments.count == 2 else {
-    FileHandle.standardError.write("usage: check-package-assets.swift <Telegram.app>\n".data(using: .utf8)!)
+    FileHandle.standardError.write("usage: check-package-assets.swift <Telex.app>\n".data(using: .utf8)!)
     exit(2)
 }
 

@@ -190,11 +190,12 @@
       logged in
 
 ### Task 4: Update docs and script references
-- [ ] update `INSTALL.md` paths (`Telex.app`, `Contents/MacOS/Telex`) and
+- [x] update `INSTALL.md` paths (`Telex.app`, `Contents/MacOS/Telex`) and
       mention `scripts/render-app-icon.sh` for regenerating the icon
-- [ ] update usage text in `scripts/check-package-assets.swift` to
+- [x] update usage text in `scripts/check-package-assets.swift` to
       `<path/to/Telex.app>`
-- [ ] update `README.md` if it names the app
+- [x] update `README.md` if it names the app (left as is - it describes
+      the official upstream app, not the fork's build)
 
 ### Task 5: Verify acceptance criteria
 - [ ] delete the old `~/build/TelegramSwift/Build/Products/Debug/Telegram.app`
