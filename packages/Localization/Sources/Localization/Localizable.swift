@@ -55,17 +55,17 @@ public final class L10n {
   public static var yourCardsZipCodeIsInvalid: String  { return L10n.tr("Localizable", "Your_cards_zip_code_is_invalid") }
   /// Check for Updates
   public static var _1000Title: String  { return L10n.tr("Localizable", "1000.title") }
-  /// Telegram
+  /// Telex
   public static var _1XtHYUBwTitle: String  { return L10n.tr("Localizable", "1Xt-HY-uBw.title") }
   /// Transformations
   public static var _2oIRnZJCTitle: String  { return L10n.tr("Localizable", "2oI-Rn-ZJC.title") }
   /// Enter Full Screen
   public static var _4J7DPTxaTitle: String  { return L10n.tr("Localizable", "4J7-dP-txa.title") }
-  /// Quit Telegram
+  /// Quit Telex
   public static var _4sb4sVLiTitle: String  { return L10n.tr("Localizable", "4sb-4s-VLi.title") }
   /// Edit
   public static var _5QFOaP0TTitle: String  { return L10n.tr("Localizable", "5QF-Oa-p0T.title") }
-  /// About Telegram
+  /// About Telex
   public static var _5kVVbQxSTitle: String  { return L10n.tr("Localizable", "5kV-Vb-QxS.title") }
   /// Redo
   public static var _6dhZSVamTitle: String  { return L10n.tr("Localizable", "6dh-zS-Vam.title") }
@@ -495,7 +495,7 @@ public final class L10n {
   public static var apiCredentialsErrorRequired: String  { return L10n.tr("Localizable", "ApiCredentials.Error.Required") }
   /// Get your api_id and api_hash at [my.telegram.org](https://my.telegram.org) → API development tools.
   public static var apiCredentialsHint: String  { return L10n.tr("Localizable", "ApiCredentials.Hint") }
-  /// Couldn't restart Telegram. Quit and reopen it to use the new API credentials.
+  /// Couldn't restart Telex. Quit and reopen it to use the new API credentials.
   public static var apiCredentialsRelaunchFailed: String  { return L10n.tr("Localizable", "ApiCredentials.RelaunchFailed") }
   /// Save
   public static var apiCredentialsSave: String  { return L10n.tr("Localizable", "ApiCredentials.Save") }
@@ -1535,7 +1535,7 @@ public final class L10n {
   public static var businessSwitchAdInfo: String  { return L10n.tr("Localizable", "Business.SwitchAd.Info") }
   /// ADS IN CHANNELS
   public static var businessSwitchAdTitle: String  { return L10n.tr("Localizable", "Business.SwitchAd.Title") }
-  /// Hide Telegram
+  /// Hide Telex
   public static var cagYXWT6Title: String  { return L10n.tr("Localizable", "Cag-YX-WT6.title") }
   /// F
   public static var calendarWeekDaysFriday: String  { return L10n.tr("Localizable", "Calendar.WeekDays.Friday") }
@@ -17435,9 +17435,9 @@ public final class L10n {
   public static var shareExtensionPasscodeNext: String  { return L10n.tr("Localizable", "ShareExtension.Passcode.Next") }
   /// passcode
   public static var shareExtensionPasscodePlaceholder: String  { return L10n.tr("Localizable", "ShareExtension.Passcode.Placeholder") }
-  /// Open Telegram to finish setup.
+  /// Open Telex to finish setup.
   public static var shareExtensionSetupDescription: String  { return L10n.tr("Localizable", "ShareExtension.Setup.Description") }
-  /// To share via Telegram, please open the Telegam app and log in.
+  /// To share via Telex, please open the Telex app and log in.
   public static var shareExtensionUnauthorizedDescription: String  { return L10n.tr("Localizable", "ShareExtension.Unauthorized.Description") }
   /// OK
   public static var shareExtensionUnauthorizedOK: String  { return L10n.tr("Localizable", "ShareExtension.Unauthorized.OK") }
@@ -22797,7 +22797,7 @@ public final class L10n {
   public static var sZhCtGQSTitle: String  { return L10n.tr("Localizable", "sZh-ct-GQS.title") }
   /// Data Detectors
   public static var tRrPd1PSTitle: String  { return L10n.tr("Localizable", "tRr-pd-1PS.title") }
-  /// Telegram
+  /// Telex
   public static var uQyDDJDrTitle: String  { return L10n.tr("Localizable", "uQy-DD-JDr.title") }
   /// Cut
   public static var uRlIYUnGTitle: String  { return L10n.tr("Localizable", "uRl-iY-unG.title") }

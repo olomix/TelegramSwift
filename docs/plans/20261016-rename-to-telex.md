@@ -101,7 +101,9 @@
 - Known limitations (out of scope):
   - language packs downloaded from Telegram's servers name the app
     "Telegram"; only the app-menu, About, Hide and Quit titles are patched
-    (`MMMenuItem.swift`), other pack strings keep "Telegram";
+    (`MMMenuItem.swift`), and only where the pack spells it "Telegram" in
+    Latin letters (packs writing "Телеграм" or "تلگرام" keep the local
+    name); other pack strings keep "Telegram";
   - upstream strings that name the app keep "Telegram": permission prompts
     (`Localizable.strings:3601,3610,3611,5189,5190,5602`),
     `Telegram.UpgradeDatabase.Text` (`:4230`), the log-out text (`:4139`),
@@ -132,6 +134,9 @@
 - [x] run the script and check with `sips -g pixelWidth -g pixelHeight` that
       each of the ten PNGs has the expected size
 - [x] view `Logo_1024.png` and `Logo_32.png` to confirm they look right
+- [x] ➕ also render `Icon_TelegramLogin.imageset` (80 and 160 px), the
+      logo on the Share extension's "not set up" screen, which now says
+      Telex; the image is used nowhere else
 
 ### Task 2: Rename the built product to Telex
 
@@ -182,7 +187,7 @@
 - [x] ➕ replace "Telegram" with `appName` in the app-menu, About, Hide and
       Quit titles in `MMMenuItem.swift`: the downloaded language pack (also
       for English) overrides the bundled strings, so the menu kept saying
-      Telegram
+      Telegram (covers packs that spell it "Telegram" in Latin letters)
 - [x] set `CFBundleDisplayName` to `Telex` in `TelegramShare/Info.plist`
 - [x] build Debug; it must succeed
 - [x] run the app and check that the app menu says Telex and About/Hide/Quit
@@ -201,23 +206,24 @@
 - [x] delete the old `~/build/TelegramSwift/Build/Products/Debug/Telegram.app`
       so LaunchServices doesn't see two bundles with the same ID (already
       gone; pid 15950 still runs from the deleted bundle and was left alone)
-- [x] run `pluginkit -m -v -i dev.alek.telegram.TelegramShare` and confirm
-      the path is inside `Telex.app` (registered with `pluginkit -a`, but
-      pluginkit still elects the same-version copy in the stale Xcode
-      DerivedData `Telegram.app`; manual step: delete
+- [ ] ⚠️ run `pluginkit -m -v -i dev.alek.telegram.TelegramShare` and
+      confirm the path is inside `Telex.app` (not verified: registered with
+      `pluginkit -a`, but pluginkit still elects the same-version copy in the
+      stale Xcode DerivedData `Telegram.app`; manual step: delete
       `~/Library/Developer/Xcode/DerivedData/Telegram-Mac-*` and
-      `~/build/TelegramSwift/Build/Products/Release/Telegram.app`)
-- [x] in Settings > Appearance > App Icon, pick Default if a custom icon is
-      set, then relaunch (skipped - setting not changed by automation;
+      `~/build/TelegramSwift/Build/Products/Release/Telegram.app`, then
+      re-check)
+- [ ] ⚠️ in Settings > Appearance > App Icon, pick Default if a custom icon
+      is set, then relaunch (manual step: setting not changed by automation;
       `Telex.app` has no custom Finder icon xattr)
-- [x] confirm the Dock, menu bar, Finder (`Telex.app`) and Cmd-Tab show
+- [ ] ⚠️ confirm the Dock, menu bar, Finder (`Telex.app`) and Cmd-Tab show
       Telex with the new icon (run `killall Dock` if it shows a cached icon)
-      (Finder icon and menu titles verified; Dock/Cmd-Tab skipped - screen
-      locked, needs a human; `killall Dock` left as a manual step)
-- [x] confirm the Share menu lists Telex; if it shows the old icon, replace
-      `TelegramShare/icon.icns` too (appex `CFBundleDisplayName` is Telex and
-      its icon resolves to the new app icon, since its Info.plist sets no
-      icon file; Share menu itself skipped - screen locked)
+      (Finder icon and menu titles verified; Dock/Cmd-Tab not checked -
+      screen locked, needs a human)
+- [ ] ⚠️ confirm the Share menu lists Telex; if it shows the old icon,
+      replace `TelegramShare/icon.icns` too (appex `CFBundleDisplayName` is
+      Telex and its icon resolves to the new app icon, since its Info.plist
+      sets no icon file; Share menu itself not checked - screen locked)
 - [x] confirm `git grep -n "Telegram\.app"` hits only `buildbox/*`,
       `AppUpdateViewController.swift` (update zip name, unused since Sparkle
       was removed) and `docs/plans/completed/`
@@ -226,7 +232,8 @@
 
 ### Task 6: [Final] Close the plan
 - [x] update CLAUDE.md if new patterns were discovered (added a short root CLAUDE.md: module name pin, UTF-16 strings, language pack menu titles)
-- [x] move this plan to `docs/plans/completed/` (done by the exec completion step)
+- [ ] move this plan to `docs/plans/completed/` (left to the exec
+      completion step, not done yet)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*

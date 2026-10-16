@@ -107,7 +107,7 @@ To change the values later, open Settings → API credentials. The app
 restarts only when the saved values differ from the ones it runs with.
 
 The Share extension uses the same saved values. If you have not set them
-yet, it asks you to open Telegram first.
+yet, it asks you to open Telex first.
 
 ## Notes
 
@@ -159,4 +159,13 @@ yet, it asks you to open Telegram first.
   (adjust the path to your build output).
 - The app icon is drawn in `images/AppIcon.svg`. After changing it, run
   `bash scripts/render-app-icon.sh` (needs `brew install librsvg`) to
-  render the PNGs in `Telegram-Mac/Assets.xcassets/AppIcon.appiconset/`.
+  render the PNGs in `Telegram-Mac/Assets.xcassets/AppIcon.appiconset/`
+  and the Share extension's `Icon_TelegramLogin.imageset/`.
+- Builds before the rename made `Telegram.app` with the same bundle ID.
+  Delete old copies (`~/build/TelegramSwift/Build/Products/*/Telegram.app`,
+  `~/Library/Developer/Xcode/DerivedData/Telegram-Mac-*`), or the Share
+  menu and Dock may still use them. Check which Share extension is used
+  with `pluginkit -m -v -i dev.alek.telegram.TelegramShare`. A custom icon
+  picked in Settings → Appearance → App Icon replaces the new icon at
+  launch; pick Default to see it, and run `killall Dock` if the Dock shows
+  a cached icon.
