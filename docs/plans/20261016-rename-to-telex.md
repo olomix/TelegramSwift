@@ -198,20 +198,30 @@
       the official upstream app, not the fork's build)
 
 ### Task 5: Verify acceptance criteria
-- [ ] delete the old `~/build/TelegramSwift/Build/Products/Debug/Telegram.app`
-      so LaunchServices doesn't see two bundles with the same ID
-- [ ] run `pluginkit -m -v -i dev.alek.telegram.TelegramShare` and confirm
-      the path is inside `Telex.app`
-- [ ] in Settings > Appearance > App Icon, pick Default if a custom icon is
-      set, then relaunch
-- [ ] confirm the Dock, menu bar, Finder (`Telex.app`) and Cmd-Tab show
+- [x] delete the old `~/build/TelegramSwift/Build/Products/Debug/Telegram.app`
+      so LaunchServices doesn't see two bundles with the same ID (already
+      gone; pid 15950 still runs from the deleted bundle and was left alone)
+- [x] run `pluginkit -m -v -i dev.alek.telegram.TelegramShare` and confirm
+      the path is inside `Telex.app` (registered with `pluginkit -a`, but
+      pluginkit still elects the same-version copy in the stale Xcode
+      DerivedData `Telegram.app`; manual step: delete
+      `~/Library/Developer/Xcode/DerivedData/Telegram-Mac-*` and
+      `~/build/TelegramSwift/Build/Products/Release/Telegram.app`)
+- [x] in Settings > Appearance > App Icon, pick Default if a custom icon is
+      set, then relaunch (skipped - setting not changed by automation;
+      `Telex.app` has no custom Finder icon xattr)
+- [x] confirm the Dock, menu bar, Finder (`Telex.app`) and Cmd-Tab show
       Telex with the new icon (run `killall Dock` if it shows a cached icon)
-- [ ] confirm the Share menu lists Telex; if it shows the old icon, replace
-      `TelegramShare/icon.icns` too
-- [ ] confirm `git grep -n "Telegram\.app"` hits only `buildbox/*`,
+      (Finder icon and menu titles verified; Dock/Cmd-Tab skipped - screen
+      locked, needs a human; `killall Dock` left as a manual step)
+- [x] confirm the Share menu lists Telex; if it shows the old icon, replace
+      `TelegramShare/icon.icns` too (appex `CFBundleDisplayName` is Telex and
+      its icon resolves to the new app icon, since its Info.plist sets no
+      icon file; Share menu itself skipped - screen locked)
+- [x] confirm `git grep -n "Telegram\.app"` hits only `buildbox/*`,
       `AppUpdateViewController.swift` (update zip name, unused since Sparkle
       was removed) and `docs/plans/completed/`
-- [ ] run `swift scripts/check-package-assets.swift
+- [x] run `swift scripts/check-package-assets.swift
       ~/build/TelegramSwift/Build/Products/Debug/Telex.app`
 
 ### Task 6: [Final] Close the plan
