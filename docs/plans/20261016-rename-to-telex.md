@@ -123,14 +123,14 @@
 - Create: `scripts/render-app-icon.sh`
 - Modify: `Telegram-Mac/Assets.xcassets/AppIcon.appiconset/*.png`
 
-- [ ] write `scripts/render-app-icon.sh` that renders `images/AppIcon.svg`
+- [x] write `scripts/render-app-icon.sh` that renders `images/AppIcon.svg`
       with `rsvg-convert` into each size from Technical Details in
       `Telegram-Mac/Assets.xcassets/AppIcon.appiconset`, failing early if
       `rsvg-convert` is missing; resolve paths from the script location
-- [ ] run `shellcheck scripts/render-app-icon.sh`; fix all findings
-- [ ] run the script and check with `sips -g pixelWidth -g pixelHeight` that
+- [x] run `shellcheck scripts/render-app-icon.sh`; fix all findings
+- [x] run the script and check with `sips -g pixelWidth -g pixelHeight` that
       each of the ten PNGs has the expected size
-- [ ] view `Logo_1024.png` and `Logo_32.png` to confirm they look right
+- [x] view `Logo_1024.png` and `Logo_32.png` to confirm they look right
 
 ### Task 2: Rename the built product to Telex
 
