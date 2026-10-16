@@ -140,19 +140,19 @@
 - Modify: `Telegram.xcodeproj/xcshareddata/xcschemes/Release.xcscheme`
 - Modify: `Telegram.xcodeproj/xcshareddata/xcschemes/TelegramShare.xcscheme`
 
-- [ ] in the `Telegram` target's configurations
+- [x] in the `Telegram` target's configurations
       `D098C7241D7E175A007784E4` and `C232EA261E1BC1A100C4D38C`, set
       `PRODUCT_NAME = Telex` and `PRODUCT_MODULE_NAME = Telegram`; leave the
       extension targets alone
-- [ ] rename the product file reference `Telegram.app` → `Telex.app`
+- [x] rename the product file reference `Telegram.app` → `Telex.app`
       (`path` and comments)
-- [ ] update `BuildableName = "Telegram.app"` → `"Telex.app"` in the three
+- [x] update `BuildableName = "Telegram.app"` → `"Telex.app"` in the three
       schemes
-- [ ] build Debug; it must succeed
-- [ ] verify the built bundle: `Telex.app/Contents/MacOS/Telex` exists,
+- [x] build Debug; it must succeed
+- [x] verify the built bundle: `Telex.app/Contents/MacOS/Telex` exists,
       `plutil -extract CFBundleName raw` prints `Telex`, and
       `CFBundleIdentifier` is still `dev.alek.telegram`
-- [ ] verify `Telex.app/Contents/PlugIns/TelegramShare.appex` exists with
+- [x] verify `Telex.app/Contents/PlugIns/TelegramShare.appex` exists with
       bundle ID `dev.alek.telegram.TelegramShare`
 
 ### Task 3: Use Telex in in-app name strings
