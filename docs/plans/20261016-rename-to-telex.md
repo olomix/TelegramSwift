@@ -225,8 +225,8 @@
       ~/build/TelegramSwift/Build/Products/Debug/Telex.app`
 
 ### Task 6: [Final] Close the plan
-- [ ] update CLAUDE.md if new patterns were discovered
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update CLAUDE.md if new patterns were discovered (added a short root CLAUDE.md: module name pin, UTF-16 strings, language pack menu titles)
+- [x] move this plan to `docs/plans/completed/` (done by the exec completion step)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
