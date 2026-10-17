@@ -192,29 +192,90 @@
 
 ## Implementation Steps
 
-### Task 1: Spike: PasscodeCore on the macOS login keychain
+### Task 1: Spike: PasscodeCore on the macOS login keychain ⚠️ FAILED
 **Files:**
 - Modify: `Telegram.xcodeproj/project.pbxproj` (link PasscodeCore products)
 - Create: a temporary debug-only check (launch argument), removed at the end
 
-- [ ] add `submodules/telegram-ios/submodules/PasscodeCore` as a local
+- [x] add `submodules/telegram-ios/submodules/PasscodeCore` as a local
       package; link `PasscodeCore` + `PasscodeAccountManager` to the app
       and TelegramShare; Debug build passes
-- [ ] (a) app creates a test credential (`configure` + `setPasscode`);
+- [x] (a) app creates a test credential (`configure` + `setPasscode`);
       TelegramShare reads it with `verify` without a keychain access
-      prompt or `errSecInteractionNotAllowed`
-- [ ] (b) a wrong code in TelegramShare writes the `attempts` item and the
-      cooldown is visible to the app afterwards
-- [ ] (c) rebuilding Debug (new binary, same signing) still reads the
+      prompt or `errSecInteractionNotAllowed` ⚠️ FAILED: `errSecAuthFailed`
+- [x] (b) a wrong code in TelegramShare writes the `attempts` item and the
+      cooldown is visible to the app afterwards ⚠️ FAILED: never reached
+- [x] (c) rebuilding Debug (new binary, same signing) still reads the
       item without prompts; note behaviour for ad-hoc signed configs
-- [ ] (d) `enableBiometrics` + `authenticateBiometrics` work on the file
+- [x] (d) `enableBiometrics` + `authenticateBiometrics` work on the file
       keychain (`.biometryCurrentSet`), or fail cleanly with
-      `biometricsUnavailable`
-- [ ] (e) a second `keychainScope` does not see the first scope's items
-- [ ] record (a)–(e) in this plan; on any failure mark this task ⚠️,
+      `biometricsUnavailable` (fails cleanly)
+- [x] (e) a second `keychainScope` does not see the first scope's items
+- [x] record (a)–(e) in this plan; on any failure mark this task ⚠️,
       list the options, remove the temporary code and STOP
-- [ ] remove the temporary check (keep the package link); clean up the
+- [x] remove the temporary check (keep the package link); clean up the
       test credential with `resetCredential`; run the build check
+
+**Spike results** (2026-10-17, macOS 27.0.1, login keychain). The check
+ran as a harness outside the repo, not as a launch argument: a SwiftPM
+tool on PasscodeCore, signed twice with the Debug identity (Apple
+Development: Oleh Lomaka, team 2FKX9S8MFA) as bundles with the app's and
+the extension's identifiers and entitlements (the extension copy
+sandboxed), so both designated requirements equal the real ones. Keychain
+UI was disabled (`SecKeychainSetUserInteractionAllowed(false)`), so a
+would-be prompt shows up as an error. Scope `com.korthane.telex.spike`.
+- (a) **Fails.** App harness: `setPasscode` OK, items
+  `org.telegram.scoped.com.korthane.telex.spike/org.telegram.passcode.v1`
+  `#credential` and `#device`. Extension harness: `hasStoredCredential`,
+  `protectionSettings` and `verify` all throw `keychain(-25293)`
+  (`errSecAuthFailed`); same without the sandbox. `security dump-keychain
+  -a` shows why: `decrypt` is allowed for one application, requirement
+  `identifier "com.korthane.telex" …`; partition `teamid:2FKX9S8MFA` does
+  not widen it. With UI allowed this would be an access prompt. Not run
+  in the real Share extension (needs a share from another app); the
+  harness has the same code requirement, which is what the ACL checks.
+- (b) **Fails.** A wrong code in the extension stops at the same
+  `keychain(-25293)` before `attempts` is written. Raw probe: an item the
+  extension creates is unreadable by the app (`-25293`); the app can
+  still overwrite it (`SecItemUpdate` = 0; `encrypt` is open to all).
+- (c) **Passes for team-signed builds.** Five rebuilds with new cdhashes
+  and a copy to another path read the credential, verify, and delete
+  `attempts` with status 0. Ad-hoc signing (designated requirement =
+  cdhash): after a rebuild `verify` throws `keychain(-25293)`, i.e. every
+  ad-hoc rebuild would lose the credential (target configs are all
+  "Apple Development"; only project-level defaults are `-`). Items made
+  by a bare, non-bundle tool could not be deleted by the bundle build
+  (`-25244`, `errSecInvalidOwnerEdit`); irrelevant for the app bundle.
+- (d) **Fails cleanly.** Touch ID present (`canEvaluatePolicy` true).
+  `enableBiometrics` → `biometricsUnavailable`; raw `SecItemAdd` with
+  `.biometryCurrentSet` access control returns `-34018`
+  (`errSecMissingEntitlement`), which PasscodeCore maps to
+  `biometricsUnavailable`; `authenticateBiometrics` → same.
+- (e) **Passes.** Scope `com.korthane.telex.spike2`: no credential, no
+  items listed, `verify` → `authenticationRequired`.
+- Other probes: data protection keychain with the app group as access
+  group: `SecItemAdd` = `-34018` in both binaries (needs a provisioning
+  profile). An item added with an explicit `SecAccess` trusting both
+  binaries (`SecTrustedApplicationCreateFromPath`): extension read 0,
+  extension update 0, app read afterwards 0, no prompt.
+- Cleanup: all spike items deleted (`security dump-keychain | grep -c
+  com.korthane.telex.spike` → 0). Debug build passes with the package
+  linked; `ApiCredentials` tests pass (25).
+
+**Options** (pick one before Task 2; the rest of the plan assumes (a)):
+1. Patch PasscodeCore's macOS write path to add items with a `SecAccess`
+   trusting the app and the embedded `TelegramShare.appex` (probe above
+   works). Costs: a change in upstream code, deprecated legacy APIs, the
+   `attempts` item needs it too, and ACLs follow the code requirement, so
+   Debug/Release and ad-hoc builds still differ.
+2. Keep the extension away from the keychain: with a passcode set it
+   asks to open Telex instead of unlocking itself. Smallest change; the
+   Share sheet loses passcode unlock.
+3. Use the data protection keychain with the app group as access group.
+   Needs provisioning profiles for Debug and Developer ID builds; also
+   enables `.biometryCurrentSet` items (d).
+4. Leave PasscodeCore and fix the file scheme instead (salted slow KDF,
+   attempts outside the lock screen), without the keychain binding.
 
 ### Task 2: MacPasscode package
 **Files:**
