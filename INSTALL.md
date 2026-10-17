@@ -31,9 +31,10 @@ the official Telegram app.
    "Apple Development" by default. The file is git-ignored; never commit it.
 4. Register the App IDs and get provisioning profiles. The app and the
    Share extension share Keychain items through the access group
-   `<TeamID>.com.korthane.telex.shared` (`keychain-access-groups`), which
-   macOS allows only with a provisioning profile, so a paid developer team
-   is required.
+   `<TeamID>.com.korthane.telex.shared` (`keychain-access-groups`); the
+   app also uses the app-only group `<TeamID>.com.korthane.telex.private`.
+   macOS allows these only with a provisioning profile, so a paid
+   developer team is required.
    - In the [developer portal](https://developer.apple.com/account/resources/identifiers/list)
      register the App IDs `com.korthane.telex` and
      `com.korthane.telex.TelegramShare`, both with the App Groups
@@ -183,8 +184,9 @@ yet, it asks you to open Telex first.
 - After the update, open Telex once before sharing: until then the Share
   extension asks you to. The Share extension unlocks with the passcode
   only, never with Touch ID.
-- Release builds still carry the `get-task-allow` entitlement (Xcode
-  injects it outside an archive export), so they can't be notarized yet.
+- Release sets `CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO`, so Release
+  bundles carry no `get-task-allow` and can be submitted for
+  notarization.
 - The app and the Share extension use the Rust MTProto engine and fall back
   to MtProtoKit when it can't run. The app log shows which one runs:
   `Network: Account N: engine rust` or `engine mtProtoKit (...)`. The

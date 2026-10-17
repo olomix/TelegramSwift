@@ -14,4 +14,7 @@
   provisioning profiles; it seals the database key (`db-key.v2`). Never call
   `PasscodeKeychainScope.migrateLegacyItems` or `setupAccountManager`; the
   Share extension uses only `ReadOnlyUnlock`.
+* The app-only keychain group is `<prefix>com.korthane.telex.private`,
+  never the app group ID (the extension can read that one). Both targets
+  get the prefix from Info.plist `TGKeychainGroupPrefix`.
 * Leave `README.md` as upstream wrote it to keep merge diffs small.

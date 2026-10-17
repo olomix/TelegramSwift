@@ -827,12 +827,14 @@ works); the fingerprint step is still the user's (checkbox above).
   that entitlement, so a notarized release needs
   `CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO` for Release or an
   archive/export. Not changed here (signing settings are out of scope).
+  Fixed in the review: Release now sets it to NO; a rebuilt Release
+  bundle and appex show no `get-task-allow`.
 - Not launched: no switch moves the data root (`ApiEnvironment.dataRootURL`
   is always the app group container), so any launch would migrate the
   user's real `debug/` data. Left for Post-Completion after a backup.
 
 ### Task 11: [Final] Update documentation
-- [x] INSTALL.md: passcode in PasscodeCore / login keychain; data depends
+- [x] INSTALL.md: passcode in PasscodeCore / data protection Keychain; data depends
       on that keychain item ("Log out and reset" if lost); Touch ID; Share
       extension needs Telex opened once after the update; downgrading
       after the update cannot open local data; update the test-command
@@ -849,13 +851,39 @@ works); the fingerprint step is still the user's (checkbox above).
   the old key file irreversibly (back up first, no downgrade); Touch ID
   asks for the passcode, one prompt for the carry-over; the Share
   extension needs Telex opened once and has no Touch ID; Release still
-  carries `get-task-allow` (Task 10 ⚠️, unchanged), so not notarizable.
+  carries `get-task-allow` (Task 10 ⚠️, unchanged), so not notarizable
+  (fixed in the review, see below).
   The signing steps (Task 2) and the MacPasscode test line (Task 9) were
   already there.
 - `nogit_todo.md` (untracked): passcode item removed from "Finish the
   move"; the manual checks point to Post-Completion.
 - CLAUDE.md: one rule on the patch, profiles, `migrateLegacyItems`,
   `setupAccountManager` and `ReadOnlyUnlock`.
+
+### Review fixes (2026-10-17)
+- A marker migration interrupted after the credential took the code no
+  longer drops the passcode: while the old key file is live, a credential
+  that holds a passcode makes `state()` ask for it, and only the
+  credential checks it (no reset on a wrong code). The no-code migration
+  never resets a credential with a passcode; it resets an unmanaged one so
+  the account manager accepts `.none`.
+- A crash after `db-key.v2` was written but before the old file was
+  retired is finished by the next `.v2` unlock (retired marker, `.none`).
+- The runtime logout reset no longer deletes key files:
+  `LaunchUnlock.resetCredential(keeping:)` resets the credential, then
+  overwrites `db-key.v2`; a failure shows Try Again / Quit instead of a
+  log line. `sealAfterReset` and `offersBiometrics` are gone.
+- Cold start: one main-queue launch claim covers Touch ID, the typed
+  code, Log Out and the error alert; claiming cancels a pending Touch ID
+  prompt. Cold-start Log Out clears account records only after the reset
+  worked. The settings Touch ID prompt runs on the biometric queue.
+- Key files are written with `F_FULLFSYNC` on the file and directory.
+- Tests: crash loops for the marker path, a stale credential and the
+  runtime reset; a contract suite and two crash loops run against the
+  real `PasscodeCredentialStore` over in-memory items (`@testable`);
+  `MacPasscodeEnvironment.configure` per role.
+- Release configs set `CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO` for Telex
+  and TelegramShare, so Release bundles no longer carry `get-task-allow`.
 
 ## Post-Completion
 *Manual, with signed builds and real data*
@@ -873,7 +901,7 @@ rewrites the database key file.
 - Touch ID: enable, lock, unlock; cancel falls back to the code.
 - Share extension with a passcode set; and before the main app has run
   once after the update.
-- Delete the scoped Keychain items by hand → "Log out and reset" appears
+- Delete the scoped Keychain items by hand → "Log Out and Reset" appears
   and works.
 - Log out from the lock screen; next launch starts clean.
 - Debug and Release: a passcode in one does not lock the other.
