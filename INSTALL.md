@@ -147,7 +147,15 @@ yet, it asks you to open Telex first.
   line giving the reason.
 - WEB proxies are not supported on the Mac yet: the app can't add one, and
   the WEB carrier is not hooked up.
-- Run only one copy of the app at a time; copies share the same data folder.
+- The app refuses to start a second copy, of any build type: copies share
+  the app group folder, and two copies on the same database crash. Even a
+  Debug build next to a Release one is refused: their accounts are separate,
+  but they share files at the top of the app group folder. A second copy
+  shows an alert, brings the running one to the front and quits. A `tg://`
+  link that started the second copy is lost; open it again in the running
+  copy. If the lock can't be taken at all, the app starts anyway and logs
+  `Taking the app lock at ... failed`. Builds made before this guard (e.g.
+  an old `Telegram.app`) do not check, so delete them.
 - Run the FoundationUtils package's unit tests with
   `cd packages/FoundationUtils && swift test`.
 - Run the ApiCredentials package's unit tests with
