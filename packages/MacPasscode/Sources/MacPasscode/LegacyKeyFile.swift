@@ -15,6 +15,7 @@ public struct LegacyKeyFile {
     public static let defaultPasscode = "no-matter-key"
     public static let encryptedFileName = ".tempkeyEncrypted"
     public static let plaintextFileName = ".tempkey"
+    public static let passcodeForgottenFileName = ".legacy-passcode-forgotten"
     static let retiredMarker = Data("telex.legacy-key.retired".utf8)
     static let retiredLength = 64
     static let hashLength = 4
@@ -28,11 +29,13 @@ public struct LegacyKeyFile {
 
     public let encryptedURL: URL
     public let plaintextURL: URL
+    public let passcodeForgottenURL: URL
     private let storage: KeyFileStorage
 
     public init(directory: URL, storage: KeyFileStorage = LocalKeyFileStorage()) {
         self.encryptedURL = directory.appendingPathComponent(Self.encryptedFileName)
         self.plaintextURL = directory.appendingPathComponent(Self.plaintextFileName)
+        self.passcodeForgottenURL = directory.appendingPathComponent(Self.passcodeForgottenFileName)
         self.storage = storage
     }
 
@@ -65,12 +68,30 @@ public struct LegacyKeyFile {
         } while Self.decrypt(marker, passcode: Self.defaultPasscode) != nil
         try self.storage.writeAtomically(marker, to: self.encryptedURL)
         try self.storage.remove(self.plaintextURL)
+        try self.removePasscodeForgotten()
+    }
+
+    /// Records that the user dropped the passcode of this live file, so an
+    /// old account-manager marker must not set it again.
+    public func markPasscodeForgotten() throws {
+        try self.storage.writeAtomically(Data(), to: self.passcodeForgottenURL)
+    }
+
+    public func isPasscodeForgotten() throws -> Bool {
+        try self.storage.read(self.passcodeForgottenURL) != nil
     }
 
     /// Deletes both files; only for a reset that drops the databases too.
     public func remove() throws {
         try self.storage.remove(self.encryptedURL)
         try self.storage.remove(self.plaintextURL)
+        try self.removePasscodeForgotten()
+    }
+
+    private func removePasscodeForgotten() throws {
+        if try self.isPasscodeForgotten() {
+            try self.storage.remove(self.passcodeForgottenURL)
+        }
     }
 
     private func plaintextKey() throws -> DatabaseKey? {

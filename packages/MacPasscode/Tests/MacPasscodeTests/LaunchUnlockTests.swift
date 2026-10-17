@@ -39,10 +39,10 @@ private final class World {
                      })
     }
 
-    /// As `LocalPasscode.legacyMarkerCode`: the account manager replaces the
-    /// marker once the credential is managed.
+    /// As `LocalPasscode.legacyMarkerCode`: the app's resolver replaces the
+    /// marker with a managed credential's state once the old file is gone.
     var legacyMarkerCode: String? {
-        if (try? self.launchStore.isManaged()) == true {
+        if (try? self.launchStore.isManaged()) == true, (try? self.unlock.keepsLegacyMarker()) == false {
             self.marker = nil
         }
         return self.marker
@@ -393,6 +393,21 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertEqual(try world.unlock.unlockV2(code: "123456"), databaseKey)
     }
 
+    func testStaleCredentialWithoutPasscodeKeepsTheMarkerPasscode() throws {
+        for realStore in [false, true] {
+            let world = World(realStore: realStore)
+            // Left by an earlier install, e.g. before an older container
+            // was restored.
+            try world.launchStore.resetCredential(removingProtectedData: {})
+            world.installLegacy(Self.key, passcode: nil)
+            world.marker = "123456"
+            XCTAssertTrue(try world.unlock.keepsLegacyMarker(), "real \(realStore)")
+            XCTAssertEqual(world.legacyMarkerCode, "123456", "real \(realStore)")
+            try Self.assertMigrated(world, passcode: "123456", "real \(realStore)")
+            XCTAssertFalse(try world.unlock.keepsLegacyMarker(), "real \(realStore)")
+        }
+    }
+
     func testMigrationReplacesCredentialWithAnotherCode() throws {
         let world = World()
         world.store.credential = .init(code: "0000", kind: .digits4, protectionEnabled: true, managed: true)
@@ -485,6 +500,27 @@ final class LaunchUnlockTests: XCTestCase {
                 try Self.assertMigrated(world, passcode: nil, "real \(realStore) step \(step)")
             })
             XCTAssertGreaterThanOrEqual(steps, 4, "real \(realStore)")
+        }
+    }
+
+    func testForgetPasscodeInterruptedNeverRestoresTheMarkerPasscode() throws {
+        // The forgotten code is the marker's (an interrupted marker
+        // migration) or another one left in the credential.
+        for (realStore, credential) in [(false, "123456"), (true, "123456"), (false, "0000"), (true, "0000")] {
+            let name = "real \(realStore) credential \(credential)"
+            let steps = try World.crashAtEachStep(realStore: realStore, setUp: { world in
+                world.installCredential(passcode: credential)
+                world.installLegacy(Self.key, passcode: nil)
+                world.marker = "123456"
+            }, run: { world in
+                _ = try world.unlock.forgetPasscode()
+            }, check: { world, step in
+                if try world.unlock.canForgetPasscode() {
+                    XCTAssertEqual(try world.unlock.forgetPasscode(), Self.key, "\(name) step \(step)")
+                }
+                try Self.assertMigrated(world, passcode: nil, "\(name) step \(step)")
+                XCTAssertNil(world.legacyMarkerCode, "\(name) step \(step)")            })
+            XCTAssertGreaterThanOrEqual(steps, 4, name)
         }
     }
 

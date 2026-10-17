@@ -60,7 +60,7 @@ final class LocalPasscode {
                 }
             },
             resolve: { current, _ in
-                return try LocalPasscode.resolveAccessChallenge(current)
+                return try self.resolveAccessChallenge(current)
             },
             finishInitialization: {
                 try PasscodeCredentialStore.shared.resumeCleanup()
@@ -68,7 +68,17 @@ final class LocalPasscode {
         ))
     }
 
-    private static func resolveAccessChallenge(_ current: PostboxAccessChallengeData?) throws -> PostboxAccessChallengeData? {
+    private func resolveAccessChallenge(_ current: PostboxAccessChallengeData?) throws -> PostboxAccessChallengeData? {
+        switch current {
+        case .numericalPassword?, .plaintextPassword?:
+            // A stale credential must not replace it; migration stores the
+            // new state through `storeAccessChallenge`.
+            if try self.launchUnlock(nil).keepsLegacyMarker() {
+                return nil
+            }
+        default:
+            break
+        }
         let credentials = PasscodeCredentialStore.shared
         if case .secured? = current {
             credentials.requireExistingCredential()

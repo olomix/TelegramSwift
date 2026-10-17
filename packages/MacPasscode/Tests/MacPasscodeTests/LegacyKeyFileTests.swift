@@ -145,4 +145,17 @@ final class LegacyKeyFileTests: XCTestCase {
         try reader.retire()
         XCTAssertEqual(try reader.state(), .retired)
     }
+
+    func testRetireAndRemoveDropTheForgottenPasscodeRecord() throws {
+        let (reader, _) = self.reader(LegacyFixture.all[0])
+        XCTAssertFalse(try reader.isPasscodeForgotten())
+        try reader.markPasscodeForgotten()
+        XCTAssertTrue(try reader.isPasscodeForgotten())
+        XCTAssertEqual(try reader.state(), .present(needsPasscode: false))
+        try reader.retire()
+        XCTAssertFalse(try reader.isPasscodeForgotten())
+        try reader.markPasscodeForgotten()
+        try reader.remove()
+        XCTAssertFalse(try reader.isPasscodeForgotten())
+    }
 }

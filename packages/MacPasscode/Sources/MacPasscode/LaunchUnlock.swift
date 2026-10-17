@@ -83,6 +83,14 @@ public struct LaunchUnlock {
         return .v2(needsPasscode: try self.store.isProtectionEnabled())
     }
 
+    /// Whether the account manager must keep an old passcode marker as is:
+    /// until the live old key file is migrated it may hold the only copy.
+    /// False once the user forgot the passcode, so the marker is dropped.
+    public func keepsLegacyMarker() throws -> Bool {
+        guard case .present = try self.legacyKeyFile.state() else { return false }
+        return try !self.legacyKeyFile.isPasscodeForgotten()
+    }
+
     /// Opens `db-key.v2`; `code` is nil when protection is off.
     public func unlockV2(code: String?) throws -> DatabaseKey {
         try self.openV2(with: self.store.databaseSealingKey(code: code))
@@ -122,7 +130,8 @@ public struct LaunchUnlock {
     /// `settingPasscode ?? code`: an old marker's code may differ from it.
     public func unlockLegacy(code: String?, settingPasscode: String? = nil) throws -> DatabaseKey {
         if let databaseKey = try self.legacyKeyFile.read(passcode: code) {
-            try self.migrate(databaseKey, code: settingPasscode ?? code, replacingStaleCredential: true)
+            let markerCode = try self.legacyKeyFile.isPasscodeForgotten() ? nil : settingPasscode
+            try self.migrate(databaseKey, code: markerCode ?? code, replacingStaleCredential: true)
             return databaseKey
         }
         // Resuming a marker migration: only the credential can check `code`.
@@ -147,6 +156,9 @@ public struct LaunchUnlock {
         guard let databaseKey = try self.passcodelessLegacyKey() else {
             throw LaunchUnlockError.invalidCode
         }
+        // Recorded first: after the reset the old marker alone would look
+        // like a passcode still to migrate.
+        try self.legacyKeyFile.markPasscodeForgotten()
         if try self.store.hasPasscode() {
             try self.store.resetCredential(removingProtectedData: {})
         }
