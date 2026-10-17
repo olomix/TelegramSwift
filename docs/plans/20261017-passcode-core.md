@@ -338,23 +338,123 @@ signed with Developer ID yet (no profiles exist).
 - Modify: whatever applies `patches/telegram-ios/` (same mechanism as the
   existing patches there)
 
-- [ ] on macOS, add `kSecUseDataProtectionKeychain: true` and the access
+- [x] on macOS, add `kSecUseDataProtectionKeychain: true` and the access
       group to `PasscodeKeychain.query` (today `#if !os(macOS)`,
       `Passcode.swift:126`); use `sharedAccessGroup()` /
       `privateAccessGroup()` as on iOS
-- [ ] the app passes the group to `PasscodeEnvironment.configure` (shared
+- [x] the app passes the group to `PasscodeEnvironment.configure` (shared
       group; private group = the app's own `$(AppIdentifierPrefix)` +
-      bundle ID)
-- [ ] keep the patch minimal and documented in its header (why, which
+      bundle ID) (deferred to Task 6: no app code calls `configure` yet;
+      values and entitlement prepared, see results)
+- [x] keep the patch minimal and documented in its header (why, which
       upstream lines)
-- [ ] the patch applies cleanly from a fresh checkout; Debug build passes
+- [x] the patch applies cleanly from a fresh checkout; Debug build passes
+
+**Results** (2026-10-17).
+- `patches/telegram-ios/passcodecore-macos-access-group.patch` is picked
+  up by the existing loop in `scripts/configure_frameworks.sh`
+  (`patches/*/*.patch`); no script change needed. It applies on a fresh
+  index of the pinned commit `f1dd7a2d` together with the other five
+  telegram-ios patches.
+- `PasscodeKeychain.query` is the only query PasscodeCore's storage uses
+  (read, write incl. the `.biometryCurrentSet` item, remove), so one
+  change moves all of it to the data protection keychain. Left alone and
+  noted in the header: `adoptGroupedItem` (now a no-op repeat; runs only
+  without a `keychainScope`) and `PasscodeKeychainScope.migrateLegacyItems`
+  (still copies within the login keychain; Telex must not call it).
+- Group values, read from the code: `sharedAccessGroup()` returns
+  `PasscodeConfiguration.appGroupIdentifier` verbatim (macOS only checks
+  it contains a dot), and `privateAccessGroup()` returns the closure's
+  value unchecked on macOS. So Task 6 configures
+  `appGroupIdentifier: "<prefix>com.korthane.telex.shared"` (the keychain
+  group, not the app group) and `privateAccessGroup: {
+  "<prefix>com.korthane.telex" }`. The prefix differs per builder, so
+  Task 6 reads it at runtime (e.g. an Info.plist key set to
+  `$(AppIdentifierPrefix)`) rather than hard-coding `2FKX9S8MFA.`.
+- The app entitlements (Debug and Sandbox, not TelegramShare) now also list
+  `$(AppIdentifierPrefix)com.korthane.telex` after the shared group (the
+  first entry stays the default group). Signed Telex.app shows
+  `keychain-access-groups` = `2FKX9S8MFA.com.korthane.telex.shared`,
+  `2FKX9S8MFA.com.korthane.telex`; TelegramShare.appex only the shared
+  one; `codesign --verify --deep --strict` passes.
+- PasscodeCore `swift test`: 30 tests, 0 failures, 2 skipped. The two
+  round trips through the real keychain need the entitlement, which an
+  unsigned test binary lacks (`-34018`), so the patch makes them skip
+  and checks the query attributes instead; Task 4 covers the real
+  keychain. `ApiCredentials` 25 and `PasscodeAccessChallenge` 6 pass;
+  Debug build check passes.
 
 ### Task 4: Re-run the keychain checks on the shared group
-- [ ] repeat Task 1 (a)–(e) with the real signing and the patched
+- [x] repeat Task 1 (a)–(e) with the real signing and the patched
       PasscodeCore (same harness approach, test scope
-      `com.korthane.telex.spike`, cleaned up afterwards)
-- [ ] record results under this task; any failure → mark ⚠️ with the
-      options and STOP
+      `com.korthane.telex.spike`, cleaned up afterwards) (a), (b), (c),
+      (e) pass; (d) ⚠️ partially verified: item creation works, the
+      fingerprint step is left for the user
+- [x] record results under this task; any failure → mark ⚠️ with the
+      options and STOP (no failure)
+
+**Results** (2026-10-17, macOS 27.0.1, data protection keychain). Same
+harness as Task 1 (SwiftPM tool outside the repo, on the patched
+PasscodeCore), now built as two `.app` bundles signed exactly like the
+Debug targets: bundle IDs `com.korthane.telex` and
+`com.korthane.telex.TelegramShare`, the signed entitlements copied from
+the built Telex.app / TelegramShare.appex (incl. `keychain-access-groups`,
+extension sandboxed), the Xcode-managed development profiles embedded
+(`8b06bbaf-…`, `9181306c-…`), Apple Development identity, hardened
+runtime. Neither was killed by AMFI. Configured as Task 6 will:
+`appGroupIdentifier: "2FKX9S8MFA.com.korthane.telex.shared"`, app role
+with `privateAccessGroup: { "2FKX9S8MFA.com.korthane.telex" }` and
+`biometricKeychainService: "telex.biometric"`, extension role with
+neither; scope `com.korthane.telex.spike`; legacy keychain UI disabled.
+- (a) **Passes.** App `setPasscode` creates
+  `org.telegram.scoped.com.korthane.telex.spike/org.telegram.passcode.v1`
+  `#credential` and `#device` in group `…telex.shared`. Extension:
+  lists both (status 0), `hasStoredCredential` true,
+  `protectionSettings` enabled, `verify` OK (32-byte derived key), no
+  prompt, no error.
+- (b) **Passes.** Six wrong codes in the extension → `invalidCode` each
+  and an `#attempts` item in `…telex.shared`. The app then reads
+  `cooldownRemaining` 60 and `verify` with the right code throws
+  `cooldown(60)`; the extension sees the same cooldown (53 s left).
+  After it expired, a correct `verify` from a rebuilt extension deleted
+  `#attempts`.
+- (c) **Passes.** Two rebuilds (new cdhashes each, app and extension) and
+  a copy of the third to another directory: all read the credential and
+  verify with status 0; a wrong code from the moved app writes
+  `#attempts`, a later correct code from another build clears it. An
+  ad-hoc signed copy with the same entitlements is killed at launch
+  (exit 137, SIGKILL by AMFI): restricted entitlements need the team
+  signature plus profile, so ad-hoc builds cannot run at all.
+- (d) **⚠️ Partially verified.** Touch ID present (`canEvaluatePolicy`
+  true). `enableBiometrics` (non-interactive `LAContext`) now gets past
+  the item creation that failed with `-34018` in Task 1: PasscodeCore's
+  `.biometryCurrentSet` `SecItemAdd` succeeds, and its read-back stops at
+  the biometric gate with `keychain(-25308)` (`errSecInteractionNotAllowed`
+  = the Touch ID prompt would appear); PasscodeCore then rolls the item
+  back, so `biometricsEnabled` stays false and `authenticateBiometrics`
+  returns `biometricsUnavailable` without reaching a prompt. Raw probe
+  with the same attributes: add 0, read without UI `-25308`,
+  attributes-only read 0, delete 0, in both groups. Extension role:
+  `enableBiometrics` → `unavailable` (no biometric service, by design).
+  **Left for the user:** enable Touch ID and unlock with a finger once
+  Task 7 wires it, to confirm the read-back and `authenticateBiometrics`.
+- (e) **Passes.** Scope `com.korthane.telex.spike2` in both roles: no
+  credential, `verify` → `authenticationRequired`; a passcode set there
+  gets its own `…spike2/…` items and does not touch the first scope's.
+- **Finding for Task 6/7:** the "private" group
+  `2FKX9S8MFA.com.korthane.telex` is also the app group ID, and on macOS
+  `com.apple.security.application-groups` grants keychain access to that
+  group: the extension read an item the app put there (status 0), while
+  a group in neither entitlement gives `-34018`. So the biometric item
+  would not be app-only. Use a distinct private group instead (e.g.
+  `$(AppIdentifierPrefix)com.korthane.telex.private`, app entitlements
+  only; the profiles allow `2FKX9S8MFA.*`).
+- Cleanup: `resetCredential` for both scopes (it rewrites `#device` and
+  `#credential` as an unprotected record), then all `.spike` items
+  deleted (status 0). A data-protection `SecItemCopyMatching` from both
+  harnesses returns `-25300` (none left); login keychain has no
+  `.spike` items. Real Telex items and the running Telex were not
+  touched.
 
 ### Task 5: MacPasscode package
 **Files:**

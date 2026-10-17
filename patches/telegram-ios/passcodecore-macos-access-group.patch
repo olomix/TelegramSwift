@@ -1,0 +1,95 @@
+Use the data protection keychain and PasscodeCore's access groups on macOS.
+
+Why: upstream keeps macOS items in the file-based login keychain, whose
+ACL admits only the binary that created an item, so TelegramShare.appex
+cannot read the passcode the app stored (errSecAuthFailed; Task 1 of
+docs/plans/20261017-passcode-core.md). The data protection keychain
+shares items through a keychain-access-groups entitlement instead.
+
+Upstream lines (PasscodeCore/Sources/Passcode.swift, release-13.0.0):
+- PasscodeKeychain.query (:126-128) set kSecAttrAccessGroup only
+  `#if !os(macOS)`. Now every platform sets it (sharedAccessGroup(),
+  privateAccessGroup() for `biometric.` items) and macOS also sets
+  kSecUseDataProtectionKeychain. read, write (incl. the biometric
+  .biometryCurrentSet item) and remove all build on this query.
+- sharedAccessGroup() returns PasscodeConfiguration.appGroupIdentifier
+  verbatim, so on macOS the app passes the keychain group there
+  (`<team>.com.korthane.telex.shared`), not the app group.
+
+Left alone on purpose:
+- adoptGroupedItem (:166-184) now repeats the main query and finds
+  nothing new; it runs only without a keychainScope, which Telex sets.
+- PasscodeKeychainScope.migrateLegacyItems still copies login-keychain
+  items into the scoped login-keychain names, where the patched query no
+  longer looks. Telex has no such legacy items and never calls it.
+
+Tests: query assertions for the new attributes; the two round trips
+through the real keychain skip without the entitlement (swift test).
+
+diff --git a/submodules/PasscodeCore/Sources/Passcode.swift b/submodules/PasscodeCore/Sources/Passcode.swift
+index d1ff0f651b..b177d88bb8 100644
+--- a/submodules/PasscodeCore/Sources/Passcode.swift
++++ b/submodules/PasscodeCore/Sources/Passcode.swift
+@@ -123,9 +123,11 @@ final class PasscodeKeychain: PasscodeStorage {
+             kSecAttrAccount as String: account,
+             kSecAttrSynchronizable as String: false
+         ]
+-        #if !os(macOS)
+-        query[kSecAttrAccessGroup as String] = try account.hasPrefix("biometric.") ? self.environment.privateAccessGroup() : self.environment.sharedAccessGroup()
++        #if os(macOS)
++        // Login keychain ACLs admit one binary; the group also admits the extension.
++        query[kSecUseDataProtectionKeychain as String] = true
+         #endif
++        query[kSecAttrAccessGroup as String] = try account.hasPrefix("biometric.") ? self.environment.privateAccessGroup() : self.environment.sharedAccessGroup()
+         return query
+     }
+ 
+diff --git a/submodules/PasscodeCore/Tests/PasscodeCoreTests/PasscodeKeychainScopeTests.swift b/submodules/PasscodeCore/Tests/PasscodeCoreTests/PasscodeKeychainScopeTests.swift
+index 0a24296cb6..e62fd03d7b 100644
+--- a/submodules/PasscodeCore/Tests/PasscodeCoreTests/PasscodeKeychainScopeTests.swift
++++ b/submodules/PasscodeCore/Tests/PasscodeCoreTests/PasscodeKeychainScopeTests.swift
+@@ -97,6 +97,13 @@ final class PasscodeKeychainScopeTests: XCTestCase {
+         return String(data: data, encoding: .utf8)
+     }
+ 
++    // An unsigned swift test binary has no keychain-access-groups entitlement.
++    private func skipUnlessDataProtectionKeychain() throws {
++        var search = try PasscodeKeychain(environment: self.environment).query(self.account)
++        search[kSecMatchLimit as String] = kSecMatchLimitOne
++        try XCTSkipIf(SecItemCopyMatching(search as CFDictionary, nil) == errSecMissingEntitlement, "No keychain-access-groups entitlement")
++    }
++
+     private func scoped(_ service: String) -> String {
+         return "org.telegram.scoped.\(self.scope)/" + service
+     }
+@@ -131,12 +138,16 @@ final class PasscodeKeychainScopeTests: XCTestCase {
+ 
+     func testPasscodeItemsUseTheScopedService() throws {
+         let keychain = PasscodeKeychain(environment: self.environment)
++        let query = try keychain.query(self.account)
++        XCTAssertEqual(query[kSecAttrService as String] as? String, self.scoped(PasscodeKeychainScope.legacyPasscodeService))
++        XCTAssertEqual(query[kSecAttrAccessGroup as String] as? String, "6N38VWS5BX.org.telegram.tests")
++        XCTAssertEqual(query[kSecUseDataProtectionKeychain as String] as? Bool, true)
++        try self.skipUnlessDataProtectionKeychain()
+         try keychain.write(Data("scoped".utf8), account: self.account)
+-        XCTAssertEqual(self.value(service: self.scoped(PasscodeKeychainScope.legacyPasscodeService), account: self.account), "scoped")
+         XCTAssertNil(self.value(service: PasscodeKeychainScope.legacyPasscodeService, account: self.account))
+         XCTAssertEqual(try keychain.read(self.account), Data("scoped".utf8))
+         try keychain.remove(self.account)
+-        XCTAssertNil(self.value(service: self.scoped(PasscodeKeychainScope.legacyPasscodeService), account: self.account))
++        XCTAssertNil(try keychain.read(self.account))
+     }
+ 
+     func testBiometricItemsUseTheScopedService() throws {
+@@ -144,9 +155,11 @@ final class PasscodeKeychainScopeTests: XCTestCase {
+         XCTAssertEqual(scopedQuery[kSecAttrService as String] as? String, self.scoped(self.biometricService))
+         let unscopedQuery = try PasscodeKeychain(environment: try self.makeEnvironment(scope: nil)).query("biometric.\(self.account)")
+         XCTAssertEqual(unscopedQuery[kSecAttrService as String] as? String, self.biometricService)
++        XCTAssertEqual(scopedQuery[kSecUseDataProtectionKeychain as String] as? Bool, true)
+     }
+ 
+     func testScopedReadNeverFallsBackToUnscopedItems() throws {
++        try self.skipUnlessDataProtectionKeychain()
+         self.add("legacy", service: PasscodeKeychainScope.legacyPasscodeService, account: self.account)
+         let keychain = PasscodeKeychain(environment: self.environment)
+         XCTAssertNil(try keychain.read(self.account))
