@@ -57,9 +57,12 @@
     `PasscodeAccountManager`.
   - **On macOS it uses the file-based login keychain**: no
     `kSecAttrAccessGroup` (`Passcode.swift:119-130`); service
-    `org.telegram.passcode.v1` or `org.telegram.scoped.<scope>/…`. No
-    `keychain-access-groups` entitlement is needed (it is restricted on
-    macOS and would kill the app without a provisioning profile).
+    `org.telegram.passcode.v1` or `org.telegram.scoped.<scope>/…`. The
+    Task 1 spike showed the login keychain cannot be shared between the
+    app and TelegramShare (`errSecAuthFailed`), so the plan switches to
+    the data protection keychain with a `keychain-access-groups`
+    entitlement (restricted on macOS: needs provisioning profiles, Task 2)
+    and a small PasscodeCore patch (Task 3).
   - `configure` needs a `privateAccessGroup` closure for `.mainApp`
     (:54); biometrics need `biometricKeychainService` (:79-87) and are
     refused for `.appExtension` (:82).
@@ -109,9 +112,10 @@
 - document issues/blockers with ⚠️ prefix
 
 ## Solution Overview
-- **Spike first (Task 1)** on the questions that matter for the macOS
-  file keychain. If any answer is "no", **stop**: mark Task 1 ⚠️ with
-  what failed and the options, and do not start Task 2.
+- **Spike first (Task 1, done: failed on the login keychain).** Then
+  provisioning profiles + a shared keychain access group (Task 2), a
+  PasscodeCore patch to use it on macOS (Task 3), and the same checks
+  again (Task 4). Tasks 2 and 4 STOP the run on failure.
 - **Credential and protection.** `PasscodeCredentialStore` holds the
   passcode. When a passcode is set, protection is enabled
   (`protectionEnabled = true`), so the access key is reachable only
@@ -262,7 +266,7 @@ would-be prompt shows up as an error. Scope `com.korthane.telex.spike`.
   com.korthane.telex.spike` → 0). Debug build passes with the package
   linked; `ApiCredentials` tests pass (25).
 
-**Options** (pick one before Task 2; the rest of the plan assumes (a)):
+**Options** (decided 2026-10-17: option 3, see Task 2):
 1. Patch PasscodeCore's macOS write path to add items with a `SecAccess`
    trusting the app and the embedded `TelegramShare.appex` (probe above
    works). Costs: a change in upstream code, deprecated legacy APIs, the
@@ -277,7 +281,58 @@ would-be prompt shows up as an error. Scope `com.korthane.telex.spike`.
 4. Leave PasscodeCore and fix the file scheme instead (salted slow KDF,
    attempts outside the lock screen), without the keychain binding.
 
-### Task 2: MacPasscode package
+### Task 2: Signing with provisioning profiles and a shared keychain group
+Decision 2026-10-17 (after the Task 1 spike): use the data protection
+keychain shared through a keychain access group, which needs provisioning
+profiles. The user creates the profiles; this task wires the project.
+
+**Files:**
+- Modify: `Telegram.xcodeproj/project.pbxproj`
+- Modify: `Telegram-Mac/Telegram-Mac.entitlements`, `Telegram-Mac/Telegram-Sandbox.entitlements`, `TelegramShare/TelegramShare.entitlements`
+- Modify: `Telegram-Mac/Secrets.xcconfig.example` (or the template the project uses), `INSTALL.md`
+
+- [ ] add `keychain-access-groups` =
+      `$(AppIdentifierPrefix)com.korthane.telex.shared` to the app (Debug
+      and Sandbox) and TelegramShare entitlements
+- [ ] Debug: automatic signing creates the development profiles; document
+      `-allowProvisioningUpdates` for command-line builds and update the
+      plan's build check accordingly
+- [ ] Release: profile names (Developer ID) come from `Secrets.xcconfig`
+      (e.g. `TELEX_APP_PROFILE`, `TELEX_SHARE_PROFILE`), never committed
+- [ ] INSTALL.md: what each builder must register (App IDs
+      `com.korthane.telex` and `com.korthane.telex.TelegramShare` with App
+      Groups + Keychain Sharing; development and Developer ID profiles)
+- [ ] ⚠️ manual: the user creates the App IDs and profiles; if the Debug
+      build cannot be signed yet, mark this checkbox ⚠️ with the exact
+      signing error and STOP (do not start Task 3)
+- [ ] Debug build check passes with the new entitlement; `codesign -d
+      --entitlements -` shows the group on Telex.app and TelegramShare.appex
+
+### Task 3: Patch PasscodeCore to use the shared group on macOS
+**Files:**
+- Create: `patches/telegram-ios/passcodecore-macos-access-group.patch`
+- Modify: whatever applies `patches/telegram-ios/` (same mechanism as the
+  existing patches there)
+
+- [ ] on macOS, add `kSecUseDataProtectionKeychain: true` and the access
+      group to `PasscodeKeychain.query` (today `#if !os(macOS)`,
+      `Passcode.swift:126`); use `sharedAccessGroup()` /
+      `privateAccessGroup()` as on iOS
+- [ ] the app passes the group to `PasscodeEnvironment.configure` (shared
+      group; private group = the app's own `$(AppIdentifierPrefix)` +
+      bundle ID)
+- [ ] keep the patch minimal and documented in its header (why, which
+      upstream lines)
+- [ ] the patch applies cleanly from a fresh checkout; Debug build passes
+
+### Task 4: Re-run the keychain checks on the shared group
+- [ ] repeat Task 1 (a)–(e) with the real signing and the patched
+      PasscodeCore (same harness approach, test scope
+      `com.korthane.telex.spike`, cleaned up afterwards)
+- [ ] record results under this task; any failure → mark ⚠️ with the
+      options and STOP
+
+### Task 5: MacPasscode package
 **Files:**
 - Create: `packages/MacPasscode/Package.swift`
 - Create: `packages/MacPasscode/Sources/MacPasscode/{PasscodeKindMapping,DatabaseKeyFile,LegacyKeyReader,LaunchUnlock}.swift`
@@ -296,7 +351,7 @@ would-be prompt shows up as an error. Scope `com.korthane.telex.spike`.
       wrong code changes nothing
 - [ ] run `swift test`
 
-### Task 3: Switch the main app to PasscodeCore (launch, lock screens, settings, logout)
+### Task 6: Switch the main app to PasscodeCore (launch, lock screens, settings, logout)
 One task so no intermediate build mixes the schemes.
 
 **Files:**
@@ -330,8 +385,8 @@ One task so no intermediate build mixes the schemes.
 - [ ] tests for any new MacPasscode helper this task needs; run all unit
       tests and the build check
 
-### Task 4: Touch ID on PasscodeCore
-Only if Task 1 (d) passed; otherwise mark ⚠️ and keep the existing
+### Task 7: Touch ID on PasscodeCore
+Only if Task 4 (d) passed; otherwise mark ⚠️ and keep the existing
 UI-only Touch ID unchanged.
 
 **Files:**
@@ -347,7 +402,7 @@ UI-only Touch ID unchanged.
 - [ ] tests for helper logic (toggle visibility, carry-over decision)
 - [ ] run all unit tests and the build check
 
-### Task 5: Share extension unlock
+### Task 8: Share extension unlock
 **Files:**
 - Modify: `TelegramShare/ShareViewController.swift`
 - Modify: `TelegramShare/SEPasslockController.swift`
@@ -362,7 +417,7 @@ UI-only Touch ID unchanged.
 - [ ] tests for the extension's decision helper (wrong code, legacy-only,
       credential lost); run all unit tests and the build check
 
-### Task 6: Remove the old storage and the adapter
+### Task 9: Remove the old storage and the adapter
 **Files:**
 - Delete: `packages/PasscodeAccessChallenge`
 - Modify: `submodules/BuildConfig/Sources/BuildConfig.m`, `BuildConfig.h`
@@ -376,7 +431,7 @@ UI-only Touch ID unchanged.
 - [ ] `git grep` finds no remaining users
 - [ ] run all unit tests and the build check
 
-### Task 7: Verify acceptance criteria
+### Task 10: Verify acceptance criteria
 - [ ] fresh install: launch works, `db-key.v2` exists, no legacy file
 - [ ] legacy install with and without a passcode (fixture built by the
       old code path in a test): first unlock migrates, protection is on
@@ -385,7 +440,7 @@ UI-only Touch ID unchanged.
 - [ ] launch the Debug build once from the terminal and quit it (do not
       kill processes you did not start)
 
-### Task 8: [Final] Update documentation
+### Task 11: [Final] Update documentation
 - [ ] INSTALL.md: passcode in PasscodeCore / login keychain; data depends
       on that keychain item ("Log out and reset" if lost); Touch ID; Share
       extension needs Telex opened once after the update; downgrading
