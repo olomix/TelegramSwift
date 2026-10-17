@@ -56,7 +56,8 @@ final class LaunchUnlockTests: XCTestCase {
         let databaseKey = try world.unlock.createFresh()
         XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
         XCTAssertEqual(try world.unlock.unlockV2(code: nil), databaseKey)
-        XCTAssertNil(world.storage.files[world.legacyURL])
+        // A retired marker, so an older build never creates a key here.
+        XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
         XCTAssertEqual(world.accessChallenges, [nil])
     }
 
@@ -262,5 +263,92 @@ final class LaunchUnlockTests: XCTestCase {
             step += 1
         }
         XCTAssertGreaterThanOrEqual(step, 3)
+    }
+
+    func testLegacyMarkerCodeBecomesThePasscode() throws {
+        let world = World()
+        let databaseKey = DatabaseKey.random()
+        world.installLegacy(databaseKey, passcode: nil)
+        XCTAssertEqual(try world.unlock.unlockLegacy(code: nil, settingPasscode: "123456"), databaseKey)
+        XCTAssertEqual(world.store.credential?.kind, .digits6)
+        XCTAssertEqual(world.accessChallenges, [world.store.reference])
+        XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: true))
+        XCTAssertEqual(try world.unlock.unlockV2(code: "123456"), databaseKey)
+    }
+
+    func testMigrationReplacesCredentialWithAnotherCode() throws {
+        let world = World()
+        world.store.credential = .init(code: "0000", kind: .digits4, protectionEnabled: true, managed: true)
+        let databaseKey = DatabaseKey.random()
+        world.installLegacy(databaseKey, passcode: "1234")
+        XCTAssertEqual(try world.launch(code: "1234"), databaseKey)
+        XCTAssertTrue(world.store.calls.contains("resetCredential"))
+        XCTAssertEqual(try world.unlock.unlockV2(code: "1234"), databaseKey)
+        XCTAssertEqual(world.store.credential?.protectionEnabled, true)
+    }
+
+    func testMigrationSetsPasscodeOnResetCredential() throws {
+        let world = World()
+        world.store.credential = .init(managed: true)
+        let databaseKey = DatabaseKey.random()
+        world.installLegacy(databaseKey, passcode: "secret")
+        XCTAssertEqual(try world.launch(code: "secret"), databaseKey)
+        XCTAssertEqual(world.store.credential?.kind, .alphanumeric)
+        XCTAssertFalse(world.store.calls.contains("resetCredential"))
+        XCTAssertEqual(world.accessChallenges, [world.store.reference])
+        XCTAssertEqual(try world.unlock.unlockV2(code: "secret"), databaseKey)
+    }
+
+    func testMigrationWithoutPasscodeResetsProtectedCredential() throws {
+        let world = World()
+        world.store.credential = .init(code: "0000", kind: .digits4, protectionEnabled: true, managed: true)
+        let databaseKey = DatabaseKey.random()
+        world.installLegacy(databaseKey, passcode: nil)
+        XCTAssertEqual(try world.launch(code: nil), databaseKey)
+        XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
+        XCTAssertEqual(try world.unlock.unlockV2(code: nil), databaseKey)
+    }
+
+    func testResetLocalSecretsDeletesKeyFilesBeforeTheCredential() throws {
+        let world = World()
+        world.installLegacy(.random(), passcode: "1234")
+        _ = try world.launch(code: "1234")
+        world.storage.files[world.plaintextURL] = Data(count: 48)
+        var credentialDuringRemoval: String?
+        try world.unlock.resetLocalSecrets(removingData: {
+            credentialDuringRemoval = world.store.credential?.code
+            XCTAssertNil(world.storage.files[world.v2URL])
+            XCTAssertNil(world.storage.files[world.legacyURL])
+        })
+        XCTAssertEqual(credentialDuringRemoval, "1234")
+        XCTAssertNil(world.storage.files[world.plaintextURL])
+        XCTAssertEqual(world.store.credential?.protectionEnabled, false)
+        XCTAssertEqual(try world.unlock.state(), .fresh)
+        _ = try world.unlock.createFresh()
+        XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
+    }
+
+    func testFailedDataRemovalKeepsTheCredential() throws {
+        let world = World()
+        world.installLegacy(.random(), passcode: "1234")
+        _ = try world.launch(code: "1234")
+        XCTAssertThrowsError(try world.unlock.resetLocalSecrets(removingData: { throw Crash() }))
+        XCTAssertEqual(world.store.credential?.code, "1234")
+    }
+
+    func testSealAfterResetKeepsTheRunningKey() throws {
+        let world = World()
+        let databaseKey = DatabaseKey.random()
+        world.installLegacy(databaseKey, passcode: "1234")
+        _ = try world.launch(code: "1234")
+        XCTAssertThrowsError(try world.unlock.sealAfterReset(databaseKey)) {
+            XCTAssertEqual($0 as? LaunchUnlockError, .keyFileExists)
+        }
+        try world.unlock.resetLocalSecrets(removingData: {})
+        try world.unlock.sealAfterReset(databaseKey)
+        XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
+        XCTAssertEqual(try world.unlock.unlockV2(code: nil), databaseKey)
+        XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
+        XCTAssertEqual(world.accessChallenges.last, .some(nil))
     }
 }

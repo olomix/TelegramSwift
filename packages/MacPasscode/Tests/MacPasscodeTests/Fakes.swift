@@ -58,6 +58,9 @@ final class FakeCredentialStore: LaunchCredentialStore {
         var code: String?
         var kind: PasscodeKind?
         var protectionEnabled = false
+        /// Set by `migrateLegacy` and resets, as PasscodeCore's
+        /// `managedPasscode`; a managed credential is never migrated again.
+        var managed = false
     }
 
     var credential: Credential?
@@ -93,12 +96,25 @@ final class FakeCredentialStore: LaunchCredentialStore {
     func migrateLegacy(code: String, kind: PasscodeKind) throws -> PasscodeCredentialReference? {
         try self.enter("migrateLegacy")
         var credential = self.credential ?? Credential()
-        if credential.code == nil {
+        if !credential.managed {
             credential.code = kind.normalize(code)
             credential.kind = kind
+            credential.managed = true
         }
         self.credential = credential
         return self.reference
+    }
+
+    func setInitialPasscode(code: String, kind: PasscodeKind) throws -> PasscodeCredentialReference {
+        try self.enter("setInitialPasscode")
+        var credential = self.credential ?? Credential()
+        guard credential.kind == nil else { throw PasscodeError.authenticationRequired }
+        credential.code = kind.normalize(code)
+        credential.kind = kind
+        credential.protectionEnabled = true
+        credential.managed = true
+        self.credential = credential
+        return self.reference!
     }
 
     func enableProtection(code: String) throws {
@@ -118,9 +134,10 @@ final class FakeCredentialStore: LaunchCredentialStore {
         return self.credential!.accessKey
     }
 
-    func resetCredential() throws {
+    func resetCredential(removingProtectedData: () throws -> Void) throws {
         try self.enter("resetCredential")
-        self.credential = Credential()
+        try removingProtectedData()
+        self.credential = Credential(managed: true)
     }
 
     private func check(_ code: String) throws {

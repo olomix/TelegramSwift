@@ -76,6 +76,10 @@ public struct DatabaseKeyFile {
         }
     }
 
+    public func remove() throws {
+        try self.storage.remove(self.url)
+    }
+
     public static func seal(_ databaseKey: DatabaseKey, with sealingKey: SymmetricKey) throws -> Data {
         let box = try AES.GCM.seal(databaseKey.bytes, using: sealingKey, authenticating: associatedData)
         guard let combined = box.combined else { throw DatabaseKeyFileError.invalidPayload }

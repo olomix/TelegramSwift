@@ -4,7 +4,7 @@ import Foundation
 
 /// Reads the database key stored by the old `AppEncryptionParameters`
 /// (`submodules/BuildConfig/Sources/BuildConfig.m`) without its side
-/// effects: it never creates, upgrades or deletes a file.
+/// effects: reading never creates, upgrades or deletes a file.
 ///
 /// `.tempkeyEncrypted` is AES-256-CBC without padding, keyed by
 /// SHA-512(UTF-8 passcode) (key = first 32 bytes, IV = last 16), over
@@ -65,6 +65,12 @@ public struct LegacyKeyReader {
             marker = Self.retiredMarker + randomBytes(Self.retiredLength - Self.retiredMarker.count)
         } while Self.decrypt(marker, passcode: Self.defaultPasscode) != nil
         try self.storage.writeAtomically(marker, to: self.encryptedURL)
+        try self.storage.remove(self.plaintextURL)
+    }
+
+    /// Deletes both files; only for a reset that drops the databases too.
+    public func remove() throws {
+        try self.storage.remove(self.encryptedURL)
         try self.storage.remove(self.plaintextURL)
     }
 
