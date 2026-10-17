@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import LocalAuthentication
 import PasscodeCore
 
 /// The credential operations launch needs, implemented over
@@ -16,6 +17,10 @@ public protocol LaunchCredentialStore {
     /// The key that seals `db-key.v2`: derived through a session verified
     /// with `code`, or through the unprotected session when `code` is nil.
     func databaseSealingKey(code: String?) throws -> SymmetricKey
+    func isBiometricsEnabled() throws -> Bool
+    /// As `databaseSealingKey(code:)`, through Touch ID; prompts with
+    /// `context` and blocks until the user answers.
+    func biometricDatabaseSealingKey(context: LAContext) throws -> SymmetricKey
     /// Runs `removingProtectedData`, then replaces the credential with a new
     /// unprotected one. Must not touch key files or databases itself.
     func resetCredential(removingProtectedData: () throws -> Void) throws
@@ -79,6 +84,23 @@ public struct LaunchUnlock {
     /// Opens `db-key.v2`; `code` is nil when protection is off.
     public func unlockV2(code: String?) throws -> DatabaseKey {
         let sealingKey = try self.store.databaseSealingKey(code: code)
+        guard let databaseKey = try self.databaseKeyFile.read(with: sealingKey) else {
+            throw LaunchUnlockError.keyFileMissing
+        }
+        return databaseKey
+    }
+
+    /// Whether the launch lock may offer Touch ID. Only `db-key.v2` behind a
+    /// passcode qualifies: the old key file needs the code to migrate.
+    public func offersBiometrics() throws -> Bool {
+        guard try self.state() == .v2(needsPasscode: true) else { return false }
+        return try self.store.isBiometricsEnabled()
+    }
+
+    /// Opens `db-key.v2` through Touch ID. A cancelled prompt throws
+    /// `PasscodeError.cancelled` and changes nothing.
+    public func unlockV2(biometrics context: LAContext) throws -> DatabaseKey {
+        let sealingKey = try self.store.biometricDatabaseSealingKey(context: context)
         guard let databaseKey = try self.databaseKeyFile.read(with: sealingKey) else {
             throw LaunchUnlockError.keyFileMissing
         }

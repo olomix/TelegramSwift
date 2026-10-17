@@ -15,12 +15,18 @@ import MacPasscode
 class ColdStartPasslockController: ModalViewController {
     private let valueDisposable = MetaDisposable()
     private let logoutDisposable = MetaDisposable()
+    private let touchIdDisposable = MetaDisposable()
 
     private let logoutImpl:() -> Signal<Never, NoError>
     private let checkNextValue: (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void
+    private let touchIdUnlock: (() -> Signal<Never, NoError>)?
+    private var touchIdCalled = false
     /// `checkNextValue` reports nil once the code opened local data.
-    init(checkNextValue: @escaping (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void, logoutImpl:@escaping()->Signal<Never, NoError>) {
+    /// `touchIdUnlock` opens it through Touch ID; nil hides Touch ID. A failed
+    /// or cancelled prompt leaves the code field as the fallback.
+    init(checkNextValue: @escaping (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void, touchIdUnlock: (() -> Signal<Never, NoError>)? = nil, logoutImpl:@escaping()->Signal<Never, NoError>) {
         self.checkNextValue = checkNextValue
+        self.touchIdUnlock = touchIdUnlock
         self.logoutImpl = logoutImpl
         super.init(frame: NSMakeRect(0, 0, 350, 350))
         self.bar = .init(height: 0)
@@ -83,12 +89,42 @@ class ColdStartPasslockController: ModalViewController {
             })
         }))
         
-        genericView.update(hasTouchId: false)
+        genericView.useTouchIdImpl = { [weak self] in
+            self?.callTouchId()
+        }
+
+        genericView.update(hasTouchId: touchIdUnlock != nil)
         readyOnce()
         
         
     }
     
+    // The launch window is usually key already when the lock appears.
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if window?.isKeyWindow == true {
+            callTouchIdOnce()
+        }
+    }
+
+    override func windowDidBecomeKey() {
+        super.windowDidBecomeKey()
+        callTouchIdOnce()
+    }
+
+    private func callTouchIdOnce() {
+        if NSApp.isActive, touchIdUnlock != nil, !touchIdCalled {
+            touchIdCalled = true
+            callTouchId()
+        }
+    }
+
+    private func callTouchId() {
+        if let touchIdUnlock {
+            touchIdDisposable.set(touchIdUnlock().start())
+        }
+    }
+
     override var closable: Bool {
         return false
     }
@@ -133,6 +169,7 @@ class ColdStartPasslockController: ModalViewController {
     deinit {
         logoutDisposable.dispose()
         valueDisposable.dispose()
+        touchIdDisposable.dispose()
         self.window?.removeAllHandlers(for: self)
     }
     

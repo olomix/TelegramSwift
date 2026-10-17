@@ -634,14 +634,31 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                 self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
             case let .failed(error):
                 self?.showLaunchError(error, accountManager: accountManager, credentials: credentials)
-            case .needsPasscode:
+            case let .needsPasscode(offersTouchId):
+                // Touch ID and a typed code may both succeed; launch once.
+                let launched = Atomic<Bool>(value: false)
+                let launch: (DatabaseKey) -> Void = { [weak self] databaseKey in
+                    if !launched.swap(true) {
+                        self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                    }
+                }
+                let touchIdUnlock: () -> Signal<Never, NoError> = {
+                    return localPasscode.unlockWithTouchId()
+                        |> deliverOnMainQueue
+                        |> afterNext { databaseKey in
+                            launch(databaseKey)
+                        }
+                        |> ignoreValues
+                        |> `catch` { _ in .complete() }
+                }
                 self?.showColdStartModal(accountManager: accountManager, modal: {
-                    return ColdStartPasslockController(checkNextValue: { [weak self] passcode, completion in
-                        localPasscode.unlock(code: passcode, accountManager: accountManager, completion: { result in
+                    return ColdStartPasslockController(checkNextValue: { passcode, completion in
+                        localPasscode.unlock(code: passcode, accountManager: accountManager, completion: { [weak self] result in
                             switch result {
                             case let .success(databaseKey):
                                 completion(nil)
-                                self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                                LocalPasscode.carryOverTouchId(code: passcode, accountManager: accountManager)
+                                launch(databaseKey)
                             case let .failure(error):
                                 let failure = PasscodeCheckFailure(error)
                                 completion(failure)
@@ -650,7 +667,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                                 }
                             }
                         })
-                    }, logoutImpl: { [weak self] in
+                    }, touchIdUnlock: offersTouchId ? touchIdUnlock : nil, logoutImpl: { [weak self] in
                         return Signal { subscriber in
                             localPasscode.logOutAndReset(accountManager: accountManager, completion: { result in
                                 subscriber.putCompletion()

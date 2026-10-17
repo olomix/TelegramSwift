@@ -627,13 +627,58 @@ UI-only Touch ID unchanged.
 - Modify: `Telegram-Mac/PasscodeLockController.swift`
 - Modify: `Telegram-Mac/ColdStartPasslockController.swift`
 
-- [ ] the existing `useTouchId` toggle calls `enableBiometrics` /
+- [x] the existing `useTouchId` toggle calls `enableBiometrics` /
       `disableBiometrics`; carry over users with `useTouchId = true`
       (enable at their next passcode unlock)
-- [ ] cold-start and runtime lock offer Touch ID first via
+- [x] cold-start and runtime lock offer Touch ID first via
       `authenticateBiometrics`, fall back to the code
-- [ ] tests for helper logic (toggle visibility, carry-over decision)
-- [ ] run all unit tests and the build check
+- [x] tests for helper logic (toggle visibility, carry-over decision)
+- [x] run all unit tests and the build check
+- [x] ⚠️ manual (skipped - not automatable): a real fingerprint. The user
+      must turn Touch ID on in settings, lock, and unlock with a finger at
+      the runtime lock and at launch; cancel must fall back to the code
+
+**Results** (2026-10-17). Task 4 (d) counted as passed (item creation
+works); the fingerprint step is still the user's (checkbox above).
+- MacPasscode (`TouchId.swift`): `TouchIdPolicy.showsToggle` (passcode on,
+  and a sensor or Touch ID already on, so it can be turned off with the
+  lid closed) and `offersUnlock` (passcode, Touch ID and sensor);
+  `TouchIdCarryOver` runs after a passcode unlock with the code.
+  `LaunchCredentialStore` gained `isBiometricsEnabled` and
+  `biometricDatabaseSealingKey(context:)`; `LaunchUnlock.offersBiometrics()`
+  is true only for `.v2(needsPasscode: true)` (a live legacy file needs
+  the code to migrate), and `unlockV2(biometrics:)` unseals `db-key.v2`
+  with a key derived from `authenticateBiometrics(…, .resource("telex.db"))`,
+  the same namespace and domain as a passcode unlock, right away.
+- Settings: the row reads `protectionSettings()` (`biometricsEnabled`),
+  refreshed on the store's `changes`, not `AdditionalSettings.useTouchId`.
+  Both `enableBiometrics` and `disableBiometrics` need a `.settings`
+  session verified with the code, so the toggle opens a "current
+  passcode" page (`PasscodeMode.touchId(enable:)`). If enabling throws
+  (cancelled prompt, `biometricsUnavailable`) the passcode stays as it
+  was, a short text says so, and the toggle stays off.
+- Carry-over: after a successful code at the launch lock or the runtime
+  lock, users with `useTouchId = true` get `verify(.settings)` +
+  `enableBiometrics` (one Touch ID prompt). The old setting is cleared
+  after one attempt whatever the result, and also when Touch ID is
+  already on or there is no passcode; it is kept when the sensor is
+  missing or the store cannot be read. Any explicit toggle clears it too.
+- Runtime lock: `authenticateBiometrics` with `.resource("telex.db")`
+  (PasscodeCore issues Touch ID sessions for resource scopes only), the
+  session is invalidated at once; the old `LAContext` policy check and its
+  device-password fallback are gone.
+- Launch lock: `.needsPasscode(offersTouchId:)`; Touch ID is tried when
+  the lock appears (or the window becomes key) and from its button. A
+  launch-once guard covers Touch ID and a typed code both succeeding;
+  closing the lock invalidates the `LAContext`, which cancels a pending
+  prompt. Prompts run on their own queue so a typed code is still checked.
+- New English-only texts: the enable prompt reason and "Touch ID was not
+  turned on".
+- Tests: MacPasscode 74 (new: policy table, carry-over success / failure /
+  skip / clear cases, Touch ID offered only for protected `v2`, same key
+  as the code, cancel leaves the code working); ApiCredentials 25;
+  PasscodeAccessChallenge 6. Debug build check passes. The new build was
+  not launched (the user's Telex owns the data folder).
 
 ### Task 8: Share extension unlock
 **Files:**

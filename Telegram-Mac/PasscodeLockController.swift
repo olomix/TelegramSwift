@@ -12,7 +12,6 @@ import TelegramCore
 
 import Postbox
 import SwiftSignalKit
-import LocalAuthentication
 
 private class TouchIdContainerView : View {
     fileprivate let button: TextButton = TextButton()
@@ -86,7 +85,7 @@ class PasscodeLockView : Control, NSTextFieldDelegate {
     fileprivate let logoutTextView:TextView = TextView()
     let value:ValuePromise<String> = ValuePromise(ignoreRepeated: false)
     var logoutImpl:() -> Void = {}
-    fileprivate var useTouchIdImpl:() -> Void = {}
+    var useTouchIdImpl:() -> Void = {}
     private let inputContainer: View = View()
     private var fieldState: SearchFieldState = .Focus
     
@@ -357,8 +356,8 @@ class PasscodeLockController: ModalViewController {
     private let valueDisposable = MetaDisposable()
     private let logoutDisposable = MetaDisposable()
     private let checkDisposable = MetaDisposable()
+    private let touchIdDisposable = MetaDisposable()
     private let _doneValue:Promise<Bool> = Promise(false)
-    private let laContext = LAContext()
     var doneValue:Signal<Bool, NoError> {
         return _doneValue.get()
     }
@@ -402,7 +401,9 @@ class PasscodeLockController: ModalViewController {
             return
         }
         isChecking = true
+        let accountManager = self.accountManager
         checkDisposable.set((LocalPasscode.verifyAppUnlock(passcode) |> deliverOnMainQueue).start(next: { [weak self] in
+            LocalPasscode.carryOverTouchId(code: passcode, accountManager: accountManager)
             self?._doneValue.set(.single(true))
             self?.close()
         }, error: { [weak self] failure in
@@ -422,23 +423,14 @@ class PasscodeLockController: ModalViewController {
         }
     }
     
-    override func windowDidResignKey() {
-        super.windowDidResignKey()
-        if !NSApp.isActive, useTouchId {
-        }
-    }
-    
-    func callTouchId(tryAnotherWay: Bool = false) {
-        laContext.evaluatePolicy(tryAnotherWay ? .deviceOwnerAuthentication : .applicationPolicy, localizedReason: strings().passcodeUnlockTouchIdReason) { [weak self] (success, evaluateError) in
-            if (success) {
-                Queue.mainQueue().async {
-                    self?._doneValue.set(.single(true))
-                    self?.close()
-                }
-            } else if let evaluateError, !tryAnotherWay {
-                self?.callTouchId(tryAnotherWay: true)
+    /// A failed or cancelled prompt leaves the code field as the fallback.
+    func callTouchId() {
+        touchIdDisposable.set((LocalPasscode.touchIdAppUnlock() |> deliverOnMainQueue).start(next: { [weak self] success in
+            if success {
+                self?._doneValue.set(.single(true))
+                self?.close()
             }
-        }
+        }))
     }
     
     override var cornerRadius: CGFloat {
@@ -538,6 +530,7 @@ class PasscodeLockController: ModalViewController {
         logoutDisposable.dispose()
         valueDisposable.dispose()
         checkDisposable.dispose()
+        touchIdDisposable.dispose()
         appearanceDisposable.dispose()
         self.window?.removeAllHandlers(for: self)
     }

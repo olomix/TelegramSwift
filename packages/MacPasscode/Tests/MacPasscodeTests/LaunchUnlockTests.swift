@@ -1,3 +1,4 @@
+import LocalAuthentication
 import PasscodeCore
 import XCTest
 @testable import MacPasscode
@@ -350,5 +351,57 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertEqual(try world.unlock.unlockV2(code: nil), databaseKey)
         XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
         XCTAssertEqual(world.accessChallenges.last, .some(nil))
+    }
+
+    func testBiometricsOfferedOnlyForProtectedV2() throws {
+        let world = World()
+        XCTAssertFalse(try world.unlock.offersBiometrics())
+        let databaseKey = DatabaseKey.random()
+        world.installLegacy(databaseKey, passcode: "1234")
+        XCTAssertFalse(try world.unlock.offersBiometrics())
+        _ = try world.launch(code: "1234")
+        XCTAssertFalse(try world.unlock.offersBiometrics())
+        world.store.credential?.biometricsEnabled = true
+        XCTAssertTrue(try world.unlock.offersBiometrics())
+        // A live legacy file needs the code to migrate, even with Touch ID on.
+        world.installLegacy(databaseKey, passcode: "1234")
+        XCTAssertFalse(try world.unlock.offersBiometrics())
+        try world.storage.remove(world.legacyURL)
+        world.store.credential?.protectionEnabled = false
+        XCTAssertFalse(try world.unlock.offersBiometrics())
+    }
+
+    func testBiometricUnlockOpensTheSameKey() throws {
+        let world = World()
+        let databaseKey = DatabaseKey.random()
+        world.installLegacy(databaseKey, passcode: "1234")
+        _ = try world.launch(code: "1234")
+        world.store.credential?.biometricsEnabled = true
+        let writes = world.storage.writes
+        XCTAssertEqual(try world.unlock.unlockV2(biometrics: LAContext()), databaseKey)
+        XCTAssertEqual(world.storage.writes, writes)
+    }
+
+    func testCancelledBiometricUnlockLeavesTheCodeWorking() throws {
+        let world = World()
+        let databaseKey = DatabaseKey.random()
+        world.installLegacy(databaseKey, passcode: "1234")
+        _ = try world.launch(code: "1234")
+        world.store.credential?.biometricsEnabled = true
+        world.store.biometricFailure = .cancelled
+        XCTAssertThrowsError(try world.unlock.unlockV2(biometrics: LAContext())) {
+            XCTAssertEqual($0 as? PasscodeError, .cancelled)
+        }
+        XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: true))
+        XCTAssertEqual(try world.unlock.unlockV2(code: "1234"), databaseKey)
+    }
+
+    func testBiometricUnlockWithoutBiometricsFails() throws {
+        let world = World()
+        world.installLegacy(DatabaseKey.random(), passcode: "1234")
+        _ = try world.launch(code: "1234")
+        XCTAssertThrowsError(try world.unlock.unlockV2(biometrics: LAContext())) {
+            XCTAssertEqual($0 as? PasscodeError, .biometricsUnavailable)
+        }
     }
 }

@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import LocalAuthentication
 import PasscodeCore
 @testable import MacPasscode
 
@@ -61,11 +62,14 @@ final class FakeCredentialStore: LaunchCredentialStore {
         /// Set by `migrateLegacy` and resets, as PasscodeCore's
         /// `managedPasscode`; a managed credential is never migrated again.
         var managed = false
+        var biometricsEnabled = false
     }
 
     var credential: Credential?
     var calls: [String] = []
     var failure: PasscodeError?
+    /// What the Touch ID prompt answers, e.g. `.cancelled`; nil = success.
+    var biometricFailure: PasscodeError?
     let crash: CrashPoint
 
     init(crash: CrashPoint = CrashPoint()) {
@@ -132,6 +136,20 @@ final class FakeCredentialStore: LaunchCredentialStore {
             if self.credential!.protectionEnabled { throw PasscodeError.authenticationRequired }
         }
         return self.credential!.accessKey
+    }
+
+    func isBiometricsEnabled() throws -> Bool {
+        if let failure { throw failure }
+        return self.credential?.biometricsEnabled ?? false
+    }
+
+    func biometricDatabaseSealingKey(context: LAContext) throws -> SymmetricKey {
+        try self.enter("biometricDatabaseSealingKey")
+        if let biometricFailure { throw biometricFailure }
+        guard let credential, credential.protectionEnabled, credential.biometricsEnabled else {
+            throw PasscodeError.biometricsUnavailable
+        }
+        return credential.accessKey
     }
 
     func resetCredential(removingProtectedData: () throws -> Void) throws {

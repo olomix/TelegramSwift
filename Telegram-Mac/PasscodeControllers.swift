@@ -18,6 +18,8 @@ enum PasscodeMode : Equatable {
     case install
     case change
     case disable
+    /// Touch ID settings need the current code.
+    case touchId(enable: Bool)
 }
 
 private struct PasscodeState : Equatable {
@@ -98,7 +100,7 @@ private func passcodeEntries(_ state: PasscodeState) -> [InputDataEntry] {
         
         
         
-    case .disable:
+    case .disable, .touchId:
         entries.append(.desc(sectionId: sectionId, index: index, text: .plain(strings().passcodeControllerHeaderCurrent), data: InputDataGeneralTextData(viewType: .textTopItem)))
         index += 1
         
@@ -138,6 +140,8 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
         title = strings().passcodeControllerChangeTitle
     case .disable:
         title = strings().passcodeControllerDisableTitle
+    case .touchId:
+        title = strings().passcodeUseTouchId
     }
     
     var shouldMakeNextResponderAfterTransition: InputDataIdentifier? = nil
@@ -243,6 +247,17 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
                     fail(failure, _id_input_current, f)
                 }, completed: {
                     f(.success(.navigationBackWithPushAnimation))
+                }))
+            case let .touchId(enable):
+                let current = state.data[_id_input_current]?.stringValue ?? ""
+
+                actionsDisposable.add((LocalPasscode.setTouchId(enable, current: current, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(next: { changed in
+                    if !changed {
+                        showModalText(for: mainWindow, text: LocalPasscode.touchIdNotEnabledText)
+                    }
+                    f(.success(.navigationBackWithPushAnimation))
+                }, error: { failure in
+                    fail(failure, _id_input_current, f)
                 }))
             }
             

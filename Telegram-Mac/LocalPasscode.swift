@@ -4,10 +4,12 @@
 //
 
 import Cocoa
+import LocalAuthentication
 import SwiftSignalKit
 import TelegramCore
 import TGUIKit
 import ApiCredentials
+import InAppSettings
 import PasscodeCore
 import PasscodeAccountManager
 import MacPasscode
@@ -27,7 +29,7 @@ final class LocalPasscode {
 
     enum LaunchStep {
         case unlocked(DatabaseKey)
-        case needsPasscode
+        case needsPasscode(offersTouchId: Bool)
         case failed(Error)
     }
 
@@ -114,7 +116,8 @@ final class LocalPasscode {
                     let markerCode = LocalPasscode.legacyMarkerCode(accountManager)
                     step = .unlocked(try unlock.unlockLegacy(code: nil, settingPasscode: markerCode))
                 case .v2(needsPasscode: true), .legacy(needsPasscode: true):
-                    step = .needsPasscode
+                    let biometricsEnabled = (try? unlock.offersBiometrics()) ?? false
+                    step = .needsPasscode(offersTouchId: TouchIdPolicy.offersUnlock(passcodeEnabled: true, biometricsEnabled: biometricsEnabled, deviceSupportsBiometrics: LocalPasscode.deviceSupportsBiometrics))
                 case .credentialLost:
                     step = .failed(LocalPasscodeError.credentialLost)
                 }
@@ -144,6 +147,26 @@ final class LocalPasscode {
             })
             Queue.mainQueue().async {
                 completion(result)
+            }
+        }
+    }
+
+    /// Opens local data with Touch ID at the launch lock. Disposing cancels
+    /// the prompt.
+    func unlockWithTouchId() -> Signal<DatabaseKey, Error> {
+        let context = LocalPasscode.biometricContext(reason: strings().passcodeUnlockTouchIdReason)
+        return Signal { subscriber in
+            LocalPasscode.biometricQueue.async {
+                do {
+                    subscriber.putNext(try self.launchUnlock(nil).unlockV2(biometrics: context))
+                    subscriber.putCompletion()
+                } catch {
+                    Logger.shared.log("LocalPasscode", "Touch ID launch unlock failed: \(error)")
+                    subscriber.putError(error)
+                }
+            }
+            return ActionDisposable {
+                context.invalidate()
             }
         }
     }
@@ -290,12 +313,11 @@ final class LocalPasscode {
         }
     }
 
-    private static func run(_ body: @escaping () throws -> Void) -> Signal<Void, PasscodeCheckFailure> {
+    private static func run<T>(_ body: @escaping () throws -> T) -> Signal<T, PasscodeCheckFailure> {
         return Signal { subscriber in
             LocalPasscode.queue.async {
                 do {
-                    try body()
-                    subscriber.putNext(Void())
+                    subscriber.putNext(try body())
                     subscriber.putCompletion()
                 } catch {
                     Logger.shared.log("LocalPasscode", "passcode operation failed: \(error)")
@@ -306,12 +328,129 @@ final class LocalPasscode {
         }
     }
 
+    // MARK: Touch ID
+
+    /// A Touch ID prompt blocks its thread until answered; keep it off
+    /// `queue` so a typed code is still checked meanwhile.
+    static let biometricQueue = Queue(name: "com.korthane.telex.passcode.biometric")
+
+    static var deviceSupportsBiometrics: Bool {
+        return LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+    }
+
+    private static func biometricContext(reason: String) -> LAContext {
+        let context = LAContext()
+        context.localizedReason = reason
+        return context
+    }
+
+    /// Whether lock screens try Touch ID before the code.
+    static func offersTouchIdUnlock() -> Bool {
+        guard let settings = try? PasscodeCredentialStore.shared.protectionSettings() else {
+            return false
+        }
+        return TouchIdPolicy.offersUnlock(passcodeEnabled: settings.enabled, biometricsEnabled: settings.biometricsEnabled, deviceSupportsBiometrics: self.deviceSupportsBiometrics)
+    }
+
+    /// The settings toggle: nil hides it, otherwise whether Touch ID is on.
+    static func touchIdToggleState() -> Signal<Bool?, NoError> {
+        let changes = Signal<Void, NoError>.single(Void()) |> then(PasscodeCredentialStore.shared.changes)
+        return changes |> deliverOn(Queue.concurrentDefaultQueue()) |> map { _ -> Bool? in
+            guard let settings = try? PasscodeCredentialStore.shared.protectionSettings(),
+                  TouchIdPolicy.showsToggle(passcodeEnabled: settings.enabled, biometricsEnabled: settings.biometricsEnabled, deviceSupportsBiometrics: self.deviceSupportsBiometrics) else {
+                return nil
+            }
+            return settings.biometricsEnabled
+        } |> distinctUntilChanged
+    }
+
+    /// Unlocks the running app with Touch ID: true on success, false when
+    /// the prompt was cancelled or failed. Disposing cancels the prompt.
+    static func touchIdAppUnlock() -> Signal<Bool, NoError> {
+        let context = self.biometricContext(reason: strings().passcodeUnlockTouchIdReason)
+        return Signal { subscriber in
+            self.biometricQueue.async {
+                do {
+                    // PasscodeCore gives Touch ID sessions for resource scopes only.
+                    try PasscodeCredentialStore.shared.authenticateBiometrics(context: context, scope: .resource(namespace: CoreLaunchCredentialStore.namespace)).invalidate()
+                    subscriber.putNext(true)
+                } catch {
+                    Logger.shared.log("LocalPasscode", "Touch ID unlock failed: \(error)")
+                    subscriber.putNext(false)
+                }
+                subscriber.putCompletion()
+            }
+            return ActionDisposable {
+                context.invalidate()
+            }
+        }
+    }
+
+    /// Turns Touch ID on or off with the current code. Emits false when it
+    /// could not be turned on (cancelled prompt, no sensor); the passcode is
+    /// unchanged then.
+    static func setTouchId(_ enabled: Bool, current: String, accountManager: AccountManager<TelegramAccountManagerTypes>) -> Signal<Bool, PasscodeCheckFailure> {
+        let context = self.biometricContext(reason: self.touchIdEnableReason)
+        return self.run {
+            let store = PasscodeCredentialStore.shared
+            let session = try store.verify(current, scope: .settings)
+            defer { session.invalidate() }
+            // An explicit choice replaces the pending carry-over.
+            self.clearLegacyTouchIdSetting(accountManager)
+            guard enabled else {
+                try store.disableBiometrics(session: session)
+                return true
+            }
+            do {
+                try store.enableBiometrics(session: session, context: context)
+                return true
+            } catch {
+                Logger.shared.log("LocalPasscode", "enabling Touch ID failed: \(error)")
+                return false
+            }
+        }
+    }
+
+    /// Moves the old UI-only Touch ID setting onto PasscodeCore after a
+    /// passcode unlock with `code`. Failures leave Touch ID off.
+    static func carryOverTouchId(code: String, accountManager: AccountManager<TelegramAccountManagerTypes>) {
+        let context = self.biometricContext(reason: self.touchIdEnableReason)
+        self.biometricQueue.async {
+            let store = PasscodeCredentialStore.shared
+            let outcome = TouchIdCarryOver(readLegacySetting: {
+                return synchronousTransaction(accountManager) { transaction in
+                    transaction.getSharedData(ApplicationSharedPreferencesKeys.additionalSettings)?.get(AdditionalSettings.self)?.useTouchId ?? false
+                }
+            }, clearLegacySetting: {
+                self.clearLegacyTouchIdSetting(accountManager)
+            }, protection: {
+                let settings = try store.protectionSettings()
+                return (settings.enabled, settings.biometricsEnabled)
+            }, deviceSupportsBiometrics: {
+                return self.deviceSupportsBiometrics
+            }, enableBiometrics: { code in
+                let session = try store.verify(code, scope: .settings)
+                defer { session.invalidate() }
+                try store.enableBiometrics(session: session, context: context)
+            }).run(code: code)
+            Logger.shared.log("LocalPasscode", "Touch ID carry-over: \(outcome)")
+        }
+    }
+
+    private static func clearLegacyTouchIdSetting(_ accountManager: AccountManager<TelegramAccountManagerTypes>) {
+        let _ = updateAdditionalSettingsInteractively(accountManager: accountManager, { $0.withUpdatedTouchId(false) }).startStandalone()
+    }
+
     // MARK: Texts
 
     // New strings are English only, like the other Telex-specific alerts.
     static func cooldownText(_ seconds: Int) -> String {
         return "Too many attempts. Try again in \(seconds) s."
     }
+
+    static let touchIdEnableReason = "turn on unlocking with Touch ID"
+
+    static let touchIdNotEnabledText = "Touch ID was not turned on. The passcode still works."
 
     static let unavailableText = "The passcode cannot be checked: its keychain item is missing or unreadable."
 

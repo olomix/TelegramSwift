@@ -142,12 +142,12 @@ final class SharedNotificationManager : NSObject, NSUserNotificationCenterDelega
                 closeGalleryViewer(false)
                 
                 var signals:[Signal<Bool, NoError>] = []
-                
+                let useTouchId = LocalPasscode.offersTouchIdUnlock()
                 
                 appDelegate?.enumerateAccountContexts({ context in
                     closeAllModals(window: context.window)
                     _ = context.sharedContext.getAudioPlayer()?.pause()
-                    let controller = PasscodeLockController(accountManager, useTouchId: settings.useTouchId, logoutImpl: {
+                    let controller = PasscodeLockController(accountManager, useTouchId: useTouchId, logoutImpl: {
                         return self.logout()
                     }, updateCurrectController: bindings.updateCurrectController)
                     

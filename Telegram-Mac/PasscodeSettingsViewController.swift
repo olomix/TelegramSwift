@@ -12,7 +12,6 @@ import TelegramCore
 import InAppSettings
 import SwiftSignalKit
 import Postbox
-import LocalAuthentication
 
 private enum PasscodeEntry : Comparable, Identifiable {
     case turnOn(sectionId:Int, viewType: GeneralViewType)
@@ -73,7 +72,8 @@ private func <(lhs:PasscodeEntry, rhs:PasscodeEntry) -> Bool {
 
 
 
-private func passcodeSettinsEntry(_ passcode: PostboxAccessChallengeData, passcodeSettings: PasscodeSettings, _ additional: AdditionalSettings) -> [PasscodeEntry] {
+/// `touchId` is nil when the Touch ID row is hidden.
+private func passcodeSettinsEntry(_ passcode: PostboxAccessChallengeData, passcodeSettings: PasscodeSettings, touchId: Bool?) -> [PasscodeEntry] {
     var entries:[PasscodeEntry] = []
     
     var sectionId:Int = 1
@@ -92,10 +92,9 @@ private func passcodeSettinsEntry(_ passcode: PostboxAccessChallengeData, passco
         entries.append(.section(sectionId: sectionId))
         sectionId += 1
         
-        let context = LAContext()
-        entries.append(.autoLock(sectionId: sectionId, time: passcodeSettings.timeout, viewType: context.canUseBiometric ? .firstItem : .singleItem))
-        if context.canUseBiometric {
-            entries.append(.turnTouchId(sectionId: sectionId, enabled: additional.useTouchId, viewType: .lastItem))
+        entries.append(.autoLock(sectionId: sectionId, time: passcodeSettings.timeout, viewType: touchId != nil ? .firstItem : .singleItem))
+        if let touchId {
+            entries.append(.turnTouchId(sectionId: sectionId, enabled: touchId, viewType: .lastItem))
         }
         
     }
@@ -241,10 +240,8 @@ class PasscodeSettingsViewController: TableViewController {
             self?.show(mode: .change)
         }, ifAway: { [weak self] in
             self?.showIfAwayOptions()
-        }, toggleTouchId: { enabled in
-            _ = updateAdditionalSettingsInteractively(accountManager: context.sharedContext.accountManager, { current -> AdditionalSettings in
-                return current.withUpdatedTouchId(enabled)
-            }).start()
+        }, toggleTouchId: { [weak self] enabled in
+            self?.show(mode: .touchId(enable: enabled))
         })
         
         let initialSize = self.atomicSize.modify({$0})
@@ -252,8 +249,8 @@ class PasscodeSettingsViewController: TableViewController {
        
         let previous:Atomic<[AppearanceWrapperEntry<PasscodeEntry>]> = Atomic(value: [])
         
-        genericView.merge(with: combineLatest(queue: prepareQueue, context.sharedContext.accountManager.accessChallengeData(), passcodeSettingsView(context.sharedContext.accountManager), appearanceSignal, additionalSettings(accountManager: context.sharedContext.accountManager)) |> map { passcode, passcodeSettings, appearance, additional in
-            let entries = passcodeSettinsEntry(passcode.data, passcodeSettings: passcodeSettings, additional).map{AppearanceWrapperEntry(entry: $0, appearance: appearance)}
+        genericView.merge(with: combineLatest(queue: prepareQueue, context.sharedContext.accountManager.accessChallengeData(), passcodeSettingsView(context.sharedContext.accountManager), appearanceSignal, LocalPasscode.touchIdToggleState()) |> map { passcode, passcodeSettings, appearance, touchId in
+            let entries = passcodeSettinsEntry(passcode.data, passcodeSettings: passcodeSettings, touchId: touchId).map{AppearanceWrapperEntry(entry: $0, appearance: appearance)}
             return prepareTransition(left: previous.swap(entries), right: entries, initialSize: initialSize, arguments: arguments)
         } |> deliverOnMainQueue)
         

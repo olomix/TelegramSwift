@@ -1,4 +1,5 @@
 import CryptoKit
+import LocalAuthentication
 import PasscodeCore
 
 /// `LaunchCredentialStore` over PasscodeCore's keychain-backed store.
@@ -42,6 +43,18 @@ public struct CoreLaunchCredentialStore: LaunchCredentialStore {
         } else {
             session = try self.store.unprotectedSession(namespace: Self.namespace)
         }
+        return try Self.sealingKey(session)
+    }
+
+    public func isBiometricsEnabled() throws -> Bool {
+        try self.store.protectionSettings().biometricsEnabled
+    }
+
+    public func biometricDatabaseSealingKey(context: LAContext) throws -> SymmetricKey {
+        try Self.sealingKey(self.store.authenticateBiometrics(context: context, scope: .resource(namespace: Self.namespace)))
+    }
+
+    private static func sealingKey(_ session: PasscodeSession) throws -> SymmetricKey {
         defer { session.invalidate() }
         return try session.withDerivedKey(namespace: Self.namespace, domain: Self.domain) { SymmetricKey(data: $0) }
     }
