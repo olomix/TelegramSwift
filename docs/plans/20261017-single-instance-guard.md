@@ -158,7 +158,7 @@
 - [x] when acquire throws: `NSLog` and continue
 - [x] ➕ review: retry the lock for 1 s (a relaunched copy can start before
       the exiting one closes the fd); after activating the other copy, send
-      it a reopen via `NSWorkspace.openApplication` so a closed window shows
+      it a reopen (pid-addressed distributed notification) so a closed window shows
 - [x] build the app with the build-check command — must succeed
 
 ### Task 3: Verify acceptance criteria
