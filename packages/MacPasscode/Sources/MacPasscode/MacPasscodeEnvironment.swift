@@ -1,3 +1,4 @@
+import Foundation
 import PasscodeCore
 
 /// Keychain groups and scope for PasscodeCore in Telex.
@@ -31,6 +32,20 @@ public struct MacPasscodeEnvironment: Equatable {
                               processRole: role,
                               biometricKeychainService: role == .mainApp ? Self.biometricKeychainService : nil,
                               keychainScope: self.keychainScope)
+    }
+
+    /// Configures PasscodeCore for `role` with the team prefix from
+    /// `bundle`'s Info.plist key `TGKeychainGroupPrefix`, then marks the
+    /// process available for key use. False when the prefix is missing or
+    /// PasscodeCore refuses the configuration.
+    public static func configureFromBundle(_ role: PasscodeConfiguration.ProcessRole, buildPrefix: String, bundle: Bundle = .main) -> Bool {
+        let teamPrefix = bundle.object(forInfoDictionaryKey: "TGKeychainGroupPrefix") as? String
+        guard let environment = MacPasscodeEnvironment(teamPrefix: teamPrefix, buildPrefix: buildPrefix),
+              (try? environment.configure(role)) != nil else {
+            return false
+        }
+        PasscodeSession.setApplicationAvailable(true)
+        return true
     }
 
     /// For `.appExtension` also makes `store` refuse to create a credential

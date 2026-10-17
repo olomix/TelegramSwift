@@ -142,23 +142,17 @@ private class PasscodeLockView : Control, NSTextFieldDelegate {
     }
 }
 
-/// How the lock reacts to a rejected passcode.
-enum SEPasslockFeedback {
-    case wrongCode
-    /// Shake and show `text`, e.g. the cooldown.
-    case message(String)
-}
-
 class SEPasslockController: ModalViewController {
 
     private let valueDisposable = MetaDisposable()
     private let cancelImpl:()->Void
-    private let checkNextValue: (String, @escaping (SEPasslockFeedback) -> Void) -> Void
+    private let checkNextValue: (String, @escaping (String?) -> Void) -> Void
     private var isChecking = false
 
-    /// `checkNextValue` calls back only for a rejected code; until then
-    /// further submissions are ignored.
-    init(checkNextValue: @escaping (String, @escaping (SEPasslockFeedback) -> Void) -> Void, cancelImpl:@escaping()->Void) {
+    /// `checkNextValue` calls back only for a rejected code, with a message
+    /// to show (e.g. the cooldown) or nil; until then further submissions
+    /// are ignored.
+    init(checkNextValue: @escaping (String, @escaping (String?) -> Void) -> Void, cancelImpl:@escaping()->Void) {
         self.cancelImpl = cancelImpl
         self.checkNextValue = checkNextValue
         super.init(frame: NSMakeRect(0, 0, 340, 310))
@@ -184,18 +178,13 @@ class SEPasslockController: ModalViewController {
             }
             self.isChecking = true
             self.genericView.showMessage(nil)
-            self.checkNextValue(value, { [weak self] feedback in
+            self.checkNextValue(value, { [weak self] message in
                 guard let `self` = self else {
                     return
                 }
                 self.isChecking = false
-                switch feedback {
-                case .wrongCode:
-                    self.genericView.inputContainer.shake()
-                case let .message(text):
-                    self.genericView.inputContainer.shake()
-                    self.genericView.showMessage(text)
-                }
+                self.genericView.inputContainer.shake()
+                self.genericView.showMessage(message)
             })
         }))
         

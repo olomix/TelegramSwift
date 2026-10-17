@@ -84,7 +84,7 @@ public struct LegacyKeyReader {
     }
 
     static func decrypt(_ data: Data, passcode: String) -> DatabaseKey? {
-        guard let decrypted = aesCBC(decrypt: true, data, passcode: passcode),
+        guard let decrypted = aesCBCDecrypt(data, passcode: passcode),
               decrypted.count >= 32 + 16 + 4 else { return nil }
         let keyAndSalt = Data(decrypted.prefix(48))
         let storedHash = decrypted[decrypted.startIndex + 48 ..< decrypted.startIndex + 52]
@@ -93,7 +93,7 @@ public struct LegacyKeyReader {
         return DatabaseKey(keyAndSalt)
     }
 
-    static func aesCBC(decrypt: Bool, _ data: Data, passcode: String) -> Data? {
+    static func aesCBCDecrypt(_ data: Data, passcode: String) -> Data? {
         let digest = Data(SHA512.hash(data: Data(passcode.utf8)))
         let key = digest.prefix(32)
         let iv = digest.suffix(16)
@@ -103,7 +103,7 @@ public struct LegacyKeyReader {
             data.withUnsafeBytes { input in
                 key.withUnsafeBytes { key in
                     iv.withUnsafeBytes { iv in
-                        CCCrypt(CCOperation(decrypt ? kCCDecrypt : kCCEncrypt), CCAlgorithm(kCCAlgorithmAES128), 0,
+                        CCCrypt(CCOperation(kCCDecrypt), CCAlgorithm(kCCAlgorithmAES128), 0,
                                 key.baseAddress, key.count, iv.baseAddress,
                                 input.baseAddress, input.count, out.baseAddress, out.count, &processed)
                     }

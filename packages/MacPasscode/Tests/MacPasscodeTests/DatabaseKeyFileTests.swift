@@ -116,4 +116,18 @@ final class LocalKeyFileStorageTests: XCTestCase {
         try storage.remove(url)
         XCTAssertNil(try storage.read(url))
     }
+
+    func testWriteLeavesNoTemporaryFiles() throws {
+        let url = self.directory.appendingPathComponent("file")
+        try LocalKeyFileStorage().writeAtomically(Data(count: 100), to: url)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: self.directory.path), ["file"])
+    }
+
+    func testFailedWriteKeepsTheOldFile() throws {
+        let url = self.directory.appendingPathComponent("file")
+        try LocalKeyFileStorage().writeAtomically(Data([1]), to: url)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: self.directory.path)
+        XCTAssertThrowsError(try LocalKeyFileStorage().writeAtomically(Data([2]), to: url))
+        XCTAssertEqual(try LocalKeyFileStorage().read(url), Data([1]))
+    }
 }

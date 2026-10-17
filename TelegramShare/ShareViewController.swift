@@ -45,7 +45,7 @@ class ShareViewController: NSViewController {
         // Checked before touching the group: opening an account manager there
         // would create folders before the app has moved the old data in.
         guard let credentials = ApiEnvironment.storedCredentials else {
-            showSetupRequired()
+            showNotice(L10n.shareExtensionSetupDescription)
             return
         }
 
@@ -54,7 +54,7 @@ class ShareViewController: NSViewController {
         }
         initializeAccountManagement()
 
-        let passcodeConfigured = ShareViewController.configurePasscode()
+        let passcodeConfigured = MacPasscodeEnvironment.configureFromBundle(.appExtension, buildPrefix: ApiEnvironment.prefix)
 
         let rootPath = containerUrl.path
         let accountManager = ShareViewController.openAccountManager(basePath: rootPath + "/accounts-metadata")
@@ -115,26 +115,8 @@ class ShareViewController: NSViewController {
     private static let finishUpdateText = "Open Telex once to finish the update, then share again."
     private static let unavailableText = "Telex cannot open local data from here: its keychain item is missing or unreadable. Open Telex to fix this."
 
-    private static func cooldownText(_ seconds: Int) -> String {
-        return "Too many attempts. Try again in \(seconds) s."
-    }
-
     /// Key derivation is slow on purpose; keep it off the main thread.
     private static let passcodeQueue = Queue(name: "com.korthane.telex.share.passcode")
-
-    private static func configurePasscode() -> Bool {
-        let teamPrefix = Bundle.main.object(forInfoDictionaryKey: "TGKeychainGroupPrefix") as? String
-        guard let environment = MacPasscodeEnvironment(teamPrefix: teamPrefix, buildPrefix: ApiEnvironment.prefix) else {
-            return false
-        }
-        do {
-            try environment.configure(.appExtension)
-        } catch {
-            return false
-        }
-        PasscodeSession.setApplicationAvailable(true)
-        return true
-    }
 
     private static func openAccountManager(basePath: String) -> AccountManager<TelegramAccountManagerTypes> {
         return AccountManager<TelegramAccountManagerTypes>(basePath: basePath, isTemporary: false, isReadOnly: true, useCaches: true, removeDatabaseOnError: true, accessChallenge: AccountManagerAccessChallenge(
@@ -171,9 +153,9 @@ class ShareViewController: NSViewController {
                         }
                         switch PasscodeCheckFailure(error) {
                         case .invalidCode:
-                            completion(.wrongCode)
+                            completion(nil)
                         case let .cooldown(seconds):
-                            completion(.message(ShareViewController.cooldownText(seconds)))
+                            completion(PasscodeCheckFailure.cooldownText(seconds: seconds))
                         case .unavailable:
                             Logger.shared.log("Share", "passcode check failed: \(error)")
                             self.showNotice(ShareViewController.unavailableText)
@@ -203,10 +185,6 @@ class ShareViewController: NSViewController {
         controller.view.frame = self.view.bounds
         self.view.addSubview(controller.view)
         self.notice = controller
-    }
-
-    private func showSetupRequired() {
-        showNotice(L10n.shareExtensionSetupDescription)
     }
 
     private func launchExtension(accountManager: AccountManager<TelegramAccountManagerTypes>, databaseKey: DatabaseKey, credentials: ApiCredentialsValues) {

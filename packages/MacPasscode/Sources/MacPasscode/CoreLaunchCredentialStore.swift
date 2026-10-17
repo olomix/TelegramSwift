@@ -36,6 +36,14 @@ public struct CoreLaunchCredentialStore: LaunchCredentialStore {
         try self.store.setProtectionEnabled(true, session: session)
     }
 
+    public func hasPasscode() throws -> Bool {
+        try self.store.protectionSettings().passcode != nil
+    }
+
+    public func isManaged() throws -> Bool {
+        try self.store.managedReference() != nil
+    }
+
     public func databaseSealingKey(code: String?) throws -> SymmetricKey {
         let session: PasscodeSession
         if let code {

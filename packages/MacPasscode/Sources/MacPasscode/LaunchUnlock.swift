@@ -12,6 +12,11 @@ public protocol LaunchCredentialStore: CredentialReader {
     func setInitialPasscode(code: String, kind: PasscodeKind) throws -> PasscodeCredentialReference
     /// Verifies `code` and turns protection on; idempotent.
     func enableProtection(code: String) throws
+    /// Whether the credential holds a passcode, protected or not yet.
+    func hasPasscode() throws -> Bool
+    /// Whether the credential was migrated or reset, as PasscodeCore's
+    /// `managedReference()`; the account manager stores `.none` only then.
+    func isManaged() throws -> Bool
     func isBiometricsEnabled() throws -> Bool
     /// As `databaseSealingKey(code:)`, through Touch ID; prompts with
     /// `context` and blocks until the user answers.
@@ -66,7 +71,9 @@ public struct LaunchUnlock {
         let v2 = try self.databaseKeyFile.contents()
         switch legacy {
         case let .present(needsPasscode):
-            return .legacy(needsPasscode: needsPasscode)
+            // An interrupted migration of an old marker's code leaves that code
+            // in the credential only; the key file never had it.
+            return .legacy(needsPasscode: try needsPasscode || self.store.hasPasscode())
         case .retired:
             guard v2 != nil else { return .credentialLost }
         case .missing:
@@ -78,43 +85,54 @@ public struct LaunchUnlock {
 
     /// Opens `db-key.v2`; `code` is nil when protection is off.
     public func unlockV2(code: String?) throws -> DatabaseKey {
-        let sealingKey = try self.store.databaseSealingKey(code: code)
-        guard let databaseKey = try self.databaseKeyFile.read(with: sealingKey) else {
-            throw LaunchUnlockError.keyFileMissing
-        }
-        return databaseKey
+        try self.openV2(with: self.store.databaseSealingKey(code: code))
     }
 
-    /// Whether the launch lock may offer Touch ID. Only `db-key.v2` behind a
-    /// passcode qualifies: the old key file needs the code to migrate.
-    public func offersBiometrics() throws -> Bool {
-        guard try self.state() == .v2(needsPasscode: true) else { return false }
-        return try self.store.isBiometricsEnabled()
+    /// Whether the launch lock may offer Touch ID for `.v2(needsPasscode:
+    /// true)`; the old key file needs the code to migrate.
+    public func isBiometricsEnabled() throws -> Bool {
+        try self.store.isBiometricsEnabled()
     }
 
     /// Opens `db-key.v2` through Touch ID. A cancelled prompt throws
     /// `PasscodeError.cancelled` and changes nothing.
     public func unlockV2(biometrics context: LAContext) throws -> DatabaseKey {
-        let sealingKey = try self.store.biometricDatabaseSealingKey(context: context)
+        try self.openV2(with: self.store.biometricDatabaseSealingKey(context: context))
+    }
+
+    private func openV2(with sealingKey: SymmetricKey) throws -> DatabaseKey {
         guard let databaseKey = try self.databaseKeyFile.read(with: sealingKey) else {
             throw LaunchUnlockError.keyFileMissing
         }
+        try self.finishInterruptedStore()
         return databaseKey
     }
 
-    /// Opens the old key file with `code` (nil = no passcode set), then
-    /// migrates it. A wrong code throws `.invalidCode` and changes nothing.
-    public func unlockLegacy(code: String?) throws -> DatabaseKey {
-        try self.unlockLegacy(code: code, settingPasscode: code)
+    /// A crash right after `db-key.v2` was written leaves no old key file;
+    /// an older build or extension would then create a new key there.
+    private func finishInterruptedStore() throws {
+        guard try self.legacyKeyReader.state() == .missing else { return }
+        if try !self.store.isProtectionEnabled() {
+            try self.storeAccessChallenge(nil)
+        }
+        try self.legacyKeyReader.retire()
     }
 
-    /// As `unlockLegacy(code:)`, but migrates with `passcode` instead: an old
-    /// account-manager marker could hold a code the key file never used.
-    public func unlockLegacy(code: String?, settingPasscode passcode: String?) throws -> DatabaseKey {
-        guard let databaseKey = try self.legacyKeyReader.read(passcode: code) else {
+    /// Opens the old key file with `code` (nil = no passcode set), then
+    /// migrates it with `settingPasscode`, or with `code` when that is nil:
+    /// an old account-manager marker could hold a code the key file never
+    /// used. A wrong code throws `.invalidCode` and changes nothing.
+    public func unlockLegacy(code: String?, settingPasscode: String? = nil) throws -> DatabaseKey {
+        if let databaseKey = try self.legacyKeyReader.read(passcode: code) {
+            try self.migrate(databaseKey, code: settingPasscode ?? code, replacingStaleCredential: true)
+            return databaseKey
+        }
+        // Resuming a marker migration: only the credential can check `code`.
+        guard let code, try self.store.hasPasscode(),
+              let databaseKey = try self.legacyKeyReader.read(passcode: nil) else {
             throw LaunchUnlockError.invalidCode
         }
-        try self.migrate(databaseKey, code: passcode)
+        try self.migrate(databaseKey, code: code, replacingStaleCredential: false)
         return databaseKey
     }
 
@@ -125,8 +143,8 @@ public struct LaunchUnlock {
             throw LaunchUnlockError.keyFileExists
         }
         // Leftover items of a deleted container would block the unprotected
-        // session; with no key files there is nothing they could open.
-        if try self.store.isProtectionEnabled() {
+        // session or `.none`; with no key files they open nothing.
+        if try self.store.hasPasscode() || !self.store.isManaged() {
             try self.store.resetCredential(removingProtectedData: {})
         }
         let databaseKey = DatabaseKey.random()
@@ -144,37 +162,43 @@ public struct LaunchUnlock {
         })
     }
 
-    /// Seals a key that is still in use under the credential a reset left,
-    /// so the running app's databases stay readable after the next launch.
-    /// Refuses to overwrite an existing `db-key.v2`.
-    public func sealAfterReset(_ databaseKey: DatabaseKey) throws {
-        guard try self.databaseKeyFile.contents() == nil else {
-            throw LaunchUnlockError.keyFileExists
-        }
+    /// Replaces the credential with a new unprotected one while the app
+    /// keeps running with `databaseKey`, and seals that key under it. Key
+    /// files are overwritten, never deleted, so a failure midway shows an
+    /// error at the next launch instead of a silent fresh start.
+    public func resetCredential(keeping databaseKey: DatabaseKey) throws {
+        try self.store.resetCredential(removingProtectedData: {})
         try self.storeUnprotected(databaseKey)
     }
 
     private func storeUnprotected(_ databaseKey: DatabaseKey) throws {
         try self.databaseKeyFile.write(databaseKey, with: try self.store.databaseSealingKey(code: nil))
+        try self.storeAccessChallenge(nil)
         // An older build or extension creates a new key file when none
         // exists; a later launch would then migrate that wrong key.
         try self.legacyKeyReader.retire()
-        try self.storeAccessChallenge(nil)
     }
 
-    private func migrate(_ databaseKey: DatabaseKey, code: String?) throws {
+    /// `replacingStaleCredential` is false when only the credential vouches
+    /// for `code`; resetting it then would accept any code.
+    private func migrate(_ databaseKey: DatabaseKey, code: String?, replacingStaleCredential: Bool) throws {
         var reference: PasscodeCredentialReference?
         if let code {
             do {
                 reference = try self.adoptLegacyPasscode(code)
-            } catch PasscodeError.invalidCode {
+            } catch PasscodeError.invalidCode where replacingStaleCredential {
                 // A credential left by an earlier install holds another code.
                 // The live legacy file still has the key, so dropping it is safe.
                 try self.store.resetCredential(removingProtectedData: {})
                 reference = try self.adoptLegacyPasscode(code)
             }
-        } else if try self.store.isProtectionEnabled() {
-            try self.store.resetCredential(removingProtectedData: {})
+        } else {
+            guard try !self.store.hasPasscode() else {
+                throw LaunchUnlockError.invalidCode
+            }
+            if try !self.store.isManaged() {
+                try self.store.resetCredential(removingProtectedData: {})
+            }
         }
         try self.databaseKeyFile.write(databaseKey, with: try self.store.databaseSealingKey(code: code))
         try self.storeAccessChallenge(reference)

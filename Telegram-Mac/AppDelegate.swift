@@ -298,6 +298,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     private var timer: SwiftSignalKit.Timer?
     
     private var localPasscode: LocalPasscode!
+    private var launchClaimed = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         CodeSyntax.initialize()
@@ -631,25 +632,38 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         localPasscode.prepareLaunch(accountManager: accountManager, completion: { [weak self] step in
             switch step {
             case let .unlocked(databaseKey):
-                self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                if self?.claimLaunch() == true {
+                    self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                }
             case let .failed(error):
-                self?.showLaunchError(error, accountManager: accountManager, credentials: credentials)
+                if self?.claimLaunch() == true {
+                    self?.showLaunchError(error, accountManager: accountManager, credentials: credentials)
+                }
             case let .needsPasscode(offersTouchId):
-                // Touch ID and a typed code may both succeed; launch once.
-                let launched = Atomic<Bool>(value: false)
-                let launch: (DatabaseKey) -> Void = { [weak self] databaseKey in
-                    if !launched.swap(true) {
-                        self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                let touchIdPrompt = MetaDisposable()
+                // Touch ID, a typed code and a reset race; the first one wins
+                // and a pending Touch ID prompt is cancelled.
+                let claim: () -> Bool = { [weak self] in
+                    guard let self, self.claimLaunch() else {
+                        return false
                     }
+                    touchIdPrompt.dispose()
+                    return true
                 }
                 let touchIdUnlock: () -> Signal<Never, NoError> = {
-                    return localPasscode.unlockWithTouchId()
-                        |> deliverOnMainQueue
-                        |> afterNext { databaseKey in
-                            launch(databaseKey)
-                        }
-                        |> ignoreValues
-                        |> `catch` { _ in .complete() }
+                    return Signal { subscriber in
+                        let prompt = (localPasscode.unlockWithTouchId() |> deliverOnMainQueue).start(next: { [weak self] databaseKey in
+                            if claim() {
+                                self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                            }
+                        }, error: { _ in
+                            subscriber.putCompletion()
+                        }, completed: {
+                            subscriber.putCompletion()
+                        })
+                        touchIdPrompt.set(prompt)
+                        return prompt
+                    }
                 }
                 self?.showColdStartModal(accountManager: accountManager, modal: {
                     return ColdStartPasslockController(checkNextValue: { passcode, completion in
@@ -657,18 +671,24 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                             switch result {
                             case let .success(databaseKey):
                                 completion(nil)
-                                LocalPasscode.carryOverTouchId(code: passcode, accountManager: accountManager)
-                                launch(databaseKey)
+                                if claim() {
+                                    LocalPasscode.carryOverTouchId(code: passcode, accountManager: accountManager)
+                                    self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                                }
                             case let .failure(error):
                                 let failure = PasscodeCheckFailure(error)
                                 completion(failure)
-                                if failure == .unavailable {
+                                if failure == .unavailable, claim() {
                                     self?.showLaunchError(error, accountManager: accountManager, credentials: credentials)
                                 }
                             }
                         })
                     }, touchIdUnlock: offersTouchId ? touchIdUnlock : nil, logoutImpl: { [weak self] in
                         return Signal { subscriber in
+                            guard claim() else {
+                                subscriber.putCompletion()
+                                return EmptyDisposable
+                            }
                             localPasscode.logOutAndReset(accountManager: accountManager, completion: { result in
                                 subscriber.putCompletion()
                                 self?.launchAfterReset(result, accountManager: accountManager, credentials: credentials)
@@ -681,8 +701,19 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         })
     }
 
+    /// Main queue only. True for the first caller: from then on local data
+    /// is being opened or reset, and every other launch path must stop.
+    private func claimLaunch() -> Bool {
+        if launchClaimed {
+            return false
+        }
+        launchClaimed = true
+        return true
+    }
+
     /// Local data cannot be opened. Resetting is the user's choice; quitting
-    /// keeps every file, so a later launch can try again.
+    /// keeps every file, so a later launch can try again. The caller must
+    /// hold the launch claim.
     private func showLaunchError(_ error: Error, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
         Logger.shared.log("LocalPasscode", "cannot open local data: \(error)")
         closeModal(ColdStartPasslockController.self)
@@ -702,6 +733,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         })
     }
 
+    /// The caller must hold the launch claim.
     private func launchAfterReset(_ result: Result<DatabaseKey, Error>, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
         switch result {
         case let .success(databaseKey):

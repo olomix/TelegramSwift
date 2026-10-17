@@ -3,27 +3,49 @@ import PasscodeCore
 import XCTest
 @testable import MacPasscode
 
-/// One data folder plus keychain, surviving simulated crashes.
+/// One data folder, keychain and account manager, surviving simulated
+/// crashes. The real-store variant runs PasscodeCore over in-memory items.
 private final class World {
     let directory = URL(fileURLWithPath: "/data")
     let crash = CrashPoint()
     let storage: InMemoryStorage
     let store: FakeCredentialStore
+    let launchStore: LaunchCredentialStore
     var accessChallenges: [PasscodeCredentialReference?] = []
+    /// A non-empty code an old build kept in the account manager itself.
+    var marker: String?
 
-    init() {
+    init(realStore: Bool = false) {
         self.storage = InMemoryStorage(crash: self.crash)
         self.store = FakeCredentialStore(crash: self.crash)
+        self.launchStore = realStore ? CrashingCredentialStore(CoreLaunchCredentialStore.inMemory(), crash: self.crash) : self.store
     }
 
     var unlock: LaunchUnlock {
         LaunchUnlock(databaseKeyFile: DatabaseKeyFile(directory: self.directory, storage: self.storage),
                      legacyKeyReader: LegacyKeyReader(directory: self.directory, storage: self.storage),
-                     store: self.store,
+                     store: self.launchStore,
                      storeAccessChallenge: { [unowned self] reference in
                          try self.crash.tick()
+                         // As the account manager: it keeps only what its
+                         // resolver would answer for the credential.
+                         let accepted = try self.launchStore.isManaged() && (reference != nil) == self.launchStore.hasPasscode()
+                         guard accepted else {
+                             if reference != nil { throw LocalAccessChallengeRejected() }
+                             return
+                         }
+                         self.marker = nil
                          self.accessChallenges.append(reference)
                      })
+    }
+
+    /// As `LocalPasscode.legacyMarkerCode`: the account manager replaces the
+    /// marker once the credential is managed.
+    var legacyMarkerCode: String? {
+        if (try? self.launchStore.isManaged()) == true {
+            self.marker = nil
+        }
+        return self.marker
     }
 
     var legacyURL: URL { self.unlock.legacyKeyReader.encryptedURL }
@@ -34,11 +56,14 @@ private final class World {
         self.storage.files[self.legacyURL] = LegacyFile.encrypt(databaseKey, passcode: passcode)
     }
 
-    /// What the app does at launch: decide, then unlock with `code`.
+    /// What `LocalPasscode` does at launch: decide, then unlock with `code`
+    /// if the lock asks for one.
     func launch(code: String?) throws -> DatabaseKey {
         let unlock = self.unlock
         switch try unlock.state() {
-        case .legacy:
+        case .legacy(needsPasscode: false):
+            return try unlock.unlockLegacy(code: nil, settingPasscode: self.legacyMarkerCode)
+        case .legacy(needsPasscode: true):
             return try unlock.unlockLegacy(code: code)
         case let .v2(needsPasscode):
             return try unlock.unlockV2(code: needsPasscode ? code : nil)
@@ -48,9 +73,43 @@ private final class World {
             throw LaunchUnlockError.keyFileMissing
         }
     }
+
+    /// Crashes `run` after each step in turn; `check` sees the world after
+    /// the crash. Returns the number of steps that crashed.
+    static func crashAtEachStep(realStore: Bool = false, setUp: (World) -> Void, run: (World) throws -> Void,
+                                check: (World, Int) throws -> Void) throws -> Int {
+        var step = 0
+        while true {
+            let world = World(realStore: realStore)
+            setUp(world)
+            world.crash.remaining = step
+            do {
+                try run(world)
+                return step
+            } catch is Crash {
+            }
+            try check(world, step)
+            step += 1
+        }
+    }
 }
 
+private struct LocalAccessChallengeRejected: Error {}
+
 final class LaunchUnlockTests: XCTestCase {
+    private static let key = DatabaseKey.random()
+
+    /// After an interrupted run, one more launch with `passcode` must
+    /// leave a finished migration that keeps the passcode.
+    private static func assertMigrated(_ world: World, passcode: String?, _ message: String) throws {
+        XCTAssertEqual(try world.launch(code: passcode), self.key, message)
+        XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: passcode != nil), message)
+        XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired, message)
+        XCTAssertEqual(try world.unlock.unlockV2(code: passcode), self.key, message)
+        XCTAssertEqual(try world.launchStore.isProtectionEnabled(), passcode != nil, message)
+        XCTAssertEqual(world.accessChallenges.last.map { $0 != nil }, passcode != nil, message)
+    }
+
     func testFreshInstall() throws {
         let world = World()
         XCTAssertEqual(try world.unlock.state(), .fresh)
@@ -154,6 +213,7 @@ final class LaunchUnlockTests: XCTestCase {
         world.installLegacy(databaseKey, passcode: nil)
         XCTAssertEqual(try world.unlock.unlockLegacy(code: nil), databaseKey)
         XCTAssertFalse(world.store.calls.contains("migrateLegacy"))
+        XCTAssertEqual(world.store.credential?.managed, true)
         XCTAssertEqual(world.accessChallenges, [nil])
         XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
         XCTAssertEqual(try world.unlock.unlockV2(code: nil), databaseKey)
@@ -243,46 +303,74 @@ final class LaunchUnlockTests: XCTestCase {
     }
 
     func testMigrationInterruptedAfterEachStepResumes() throws {
-        for passcode in ["1234", "pass word", nil] as [String?] {
-            var step = 0
-            while true {
-                let world = World()
-                let databaseKey = DatabaseKey.random()
-                world.installLegacy(databaseKey, passcode: passcode)
-                world.crash.remaining = step
-                do {
+        for realStore in [false, true] {
+            for passcode in (realStore ? ["1234", nil] : ["1234", "pass word", nil]) as [String?] {
+                let steps = try World.crashAtEachStep(realStore: realStore, setUp: { _ in }, run: { world in
+                    world.installLegacy(Self.key, passcode: passcode)
                     _ = try world.launch(code: passcode)
-                    break
-                } catch is Crash {
-                }
-                // The next launch, with the same code, finishes the job.
-                XCTAssertEqual(try world.launch(code: passcode), databaseKey, "step \(step)")
-                XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: passcode != nil), "step \(step)")
-                XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired, "step \(step)")
-                XCTAssertEqual(try world.unlock.unlockV2(code: passcode), databaseKey, "step \(step)")
-                XCTAssertEqual(world.store.credential?.protectionEnabled, passcode != nil, "step \(step)")
-                XCTAssertEqual(world.accessChallenges.last ?? nil, world.store.reference, "step \(step)")
-                step += 1
+                }, check: { world, step in
+                    // The next launch, with the same code, finishes the job.
+                    try Self.assertMigrated(world, passcode: passcode, "real \(realStore) step \(step)")
+                })
+                XCTAssertGreaterThanOrEqual(steps, passcode == nil ? 4 : 6, "\(String(describing: passcode))")
             }
-            XCTAssertGreaterThanOrEqual(step, passcode == nil ? 4 : 6, "\(String(describing: passcode))")
         }
     }
 
-    func testFreshInstallInterruptedResumes() throws {
-        var step = 0
-        while true {
-            let world = World()
-            world.crash.remaining = step
-            do {
+    func testMigrationOverStaleCredentialInterruptedAfterEachStepResumes() throws {
+        let steps = try World.crashAtEachStep(setUp: { world in
+            world.store.credential = .init(code: "0000", kind: .digits4, protectionEnabled: true, managed: true)
+            world.installLegacy(Self.key, passcode: "1234")
+        }, run: { world in
+            _ = try world.launch(code: "1234")
+        }, check: { world, step in
+            try Self.assertMigrated(world, passcode: "1234", "step \(step)")
+        })
+        XCTAssertGreaterThanOrEqual(steps, 8)
+    }
+
+    func testMarkerMigrationInterruptedAfterEachStepKeepsThePasscode() throws {
+        for realStore in [false, true] {
+            let steps = try World.crashAtEachStep(realStore: realStore, setUp: { world in
+                world.installLegacy(Self.key, passcode: nil)
+                world.marker = "123456"
+            }, run: { world in
                 _ = try world.launch(code: nil)
-                break
-            } catch is Crash {
-            }
+            }, check: { world, step in
+                // Once the marker is gone the lock asks; the user types it.
+                try Self.assertMigrated(world, passcode: "123456", "real \(realStore) step \(step)")
+            })
+            XCTAssertGreaterThanOrEqual(steps, 6)
+        }
+    }
+
+    func testInterruptedMarkerMigrationRejectsAnotherCode() throws {
+        let world = World()
+        world.installLegacy(Self.key, passcode: nil)
+        world.marker = "123456"
+        // Dies right after the account manager recorded the credential.
+        world.crash.remaining = 5
+        XCTAssertThrowsError(try world.launch(code: nil)) { XCTAssertTrue($0 is Crash) }
+        XCTAssertNil(world.legacyMarkerCode)
+        XCTAssertEqual(try world.unlock.state(), .legacy(needsPasscode: true))
+        XCTAssertThrowsError(try world.launch(code: "000000")) {
+            XCTAssertEqual($0 as? PasscodeError, .invalidCode)
+        }
+        XCTAssertThrowsError(try world.launch(code: nil))
+        XCTAssertFalse(world.store.calls.contains("resetCredential"))
+        try Self.assertMigrated(world, passcode: "123456", "")
+    }
+
+    func testFreshInstallInterruptedResumes() throws {
+        let steps = try World.crashAtEachStep(setUp: { _ in }, run: { world in
+            _ = try world.launch(code: nil)
+        }, check: { world, step in
             let databaseKey = try world.launch(code: nil)
             XCTAssertEqual(try world.launch(code: nil), databaseKey, "step \(step)")
-            step += 1
-        }
-        XCTAssertGreaterThanOrEqual(step, 3)
+            XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired, "step \(step)")
+            XCTAssertEqual(world.accessChallenges.last, .some(nil), "step \(step)")
+        })
+        XCTAssertGreaterThanOrEqual(steps, 4)
     }
 
     func testLegacyMarkerCodeBecomesThePasscode() throws {
@@ -319,14 +407,25 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertEqual(try world.unlock.unlockV2(code: "secret"), databaseKey)
     }
 
-    func testMigrationWithoutPasscodeResetsProtectedCredential() throws {
+    func testLeftoverPasscodeIsAskedForOverPasscodelessLegacyFile() throws {
         let world = World()
         world.store.credential = .init(code: "0000", kind: .digits4, protectionEnabled: true, managed: true)
-        let databaseKey = DatabaseKey.random()
-        world.installLegacy(databaseKey, passcode: nil)
-        XCTAssertEqual(try world.launch(code: nil), databaseKey)
-        XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
-        XCTAssertEqual(try world.unlock.unlockV2(code: nil), databaseKey)
+        world.installLegacy(Self.key, passcode: nil)
+        XCTAssertEqual(try world.unlock.state(), .legacy(needsPasscode: true))
+        XCTAssertThrowsError(try world.launch(code: nil))
+        XCTAssertThrowsError(try world.launch(code: "1111"))
+        XCTAssertEqual(world.store.credential?.code, "0000")
+        try Self.assertMigrated(world, passcode: "0000", "")
+    }
+
+    func testMigrationWithoutPasscodeManagesTheCredential() throws {
+        // An unmanaged record would keep `.none` out of the account manager.
+        let world = World()
+        world.store.credential = .init()
+        world.installLegacy(Self.key, passcode: nil)
+        XCTAssertEqual(try world.launch(code: nil), Self.key)
+        XCTAssertEqual(world.store.credential?.managed, true)
+        XCTAssertEqual(world.accessChallenges, [nil])
     }
 
     func testResetLocalSecretsDeletesKeyFilesBeforeTheCredential() throws {
@@ -356,38 +455,43 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertEqual(world.store.credential?.code, "1234")
     }
 
-    func testSealAfterResetKeepsTheRunningKey() throws {
+    func testResetKeepingDatabaseKeyKeepsTheRunningKey() throws {
         let world = World()
-        let databaseKey = DatabaseKey.random()
-        world.installLegacy(databaseKey, passcode: "1234")
+        world.installLegacy(Self.key, passcode: "1234")
         _ = try world.launch(code: "1234")
-        XCTAssertThrowsError(try world.unlock.sealAfterReset(databaseKey)) {
-            XCTAssertEqual($0 as? LaunchUnlockError, .keyFileExists)
-        }
-        try world.unlock.resetLocalSecrets(removingData: {})
-        try world.unlock.sealAfterReset(databaseKey)
+        try world.unlock.resetCredential(keeping: Self.key)
+        XCTAssertEqual(world.store.credential?.code, nil)
         XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
-        XCTAssertEqual(try world.unlock.unlockV2(code: nil), databaseKey)
+        XCTAssertEqual(try world.unlock.unlockV2(code: nil), Self.key)
         XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
         XCTAssertEqual(world.accessChallenges.last, .some(nil))
     }
 
-    func testBiometricsOfferedOnlyForProtectedV2() throws {
+    func testResetKeepingDatabaseKeyInterruptedNeverStartsFresh() throws {
+        let steps = try World.crashAtEachStep(setUp: { world in
+            world.installLegacy(Self.key, passcode: "1234")
+            _ = try? world.launch(code: "1234")
+        }, run: { world in
+            try world.unlock.resetCredential(keeping: Self.key)
+        }, check: { world, step in
+            XCTAssertNotNil(world.storage.files[world.v2URL], "step \(step)")
+            XCTAssertNotEqual(try world.unlock.state(), .fresh, "step \(step)")
+            XCTAssertThrowsError(try world.unlock.createFresh(), "step \(step)")
+            // Either the key still opens, or the launch fails visibly.
+            if let databaseKey = try? world.launch(code: "1234") {
+                XCTAssertEqual(databaseKey, Self.key, "step \(step)")
+            }
+        })
+        XCTAssertGreaterThanOrEqual(steps, 3)
+    }
+
+    func testBiometricsSettingIsReadFromTheStore() throws {
         let world = World()
-        XCTAssertFalse(try world.unlock.offersBiometrics())
-        let databaseKey = DatabaseKey.random()
-        world.installLegacy(databaseKey, passcode: "1234")
-        XCTAssertFalse(try world.unlock.offersBiometrics())
+        world.installLegacy(Self.key, passcode: "1234")
         _ = try world.launch(code: "1234")
-        XCTAssertFalse(try world.unlock.offersBiometrics())
+        XCTAssertFalse(try world.unlock.isBiometricsEnabled())
         world.store.credential?.biometricsEnabled = true
-        XCTAssertTrue(try world.unlock.offersBiometrics())
-        // A live legacy file needs the code to migrate, even with Touch ID on.
-        world.installLegacy(databaseKey, passcode: "1234")
-        XCTAssertFalse(try world.unlock.offersBiometrics())
-        try world.storage.remove(world.legacyURL)
-        world.store.credential?.protectionEnabled = false
-        XCTAssertFalse(try world.unlock.offersBiometrics())
+        XCTAssertTrue(try world.unlock.isBiometricsEnabled())
     }
 
     func testBiometricUnlockOpensTheSameKey() throws {

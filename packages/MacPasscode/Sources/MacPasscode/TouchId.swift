@@ -17,7 +17,7 @@ public enum TouchIdPolicy {
 /// Moves the old UI-only `useTouchId` setting onto PasscodeCore. Enabling
 /// needs a session verified with the code, so it runs after a passcode
 /// unlock.
-public struct TouchIdCarryOver {
+public enum TouchIdCarryOver {
     public enum Outcome: Equatable {
         /// Nothing to do now; the old setting is kept for a later unlock.
         case skipped
@@ -28,44 +28,31 @@ public struct TouchIdCarryOver {
         case failed
     }
 
-    private let readLegacySetting: () -> Bool
-    private let clearLegacySetting: () -> Void
-    private let protection: () throws -> (passcodeEnabled: Bool, biometricsEnabled: Bool)
-    private let deviceSupportsBiometrics: () -> Bool
-    private let enableBiometrics: (String) throws -> Void
-
-    /// `enableBiometrics` verifies the code and enables Touch ID; it may
-    /// show the Touch ID prompt.
-    public init(readLegacySetting: @escaping () -> Bool,
-                clearLegacySetting: @escaping () -> Void,
-                protection: @escaping () throws -> (passcodeEnabled: Bool, biometricsEnabled: Bool),
-                deviceSupportsBiometrics: @escaping () -> Bool,
-                enableBiometrics: @escaping (String) throws -> Void) {
-        self.readLegacySetting = readLegacySetting
-        self.clearLegacySetting = clearLegacySetting
-        self.protection = protection
-        self.deviceSupportsBiometrics = deviceSupportsBiometrics
-        self.enableBiometrics = enableBiometrics
-    }
-
-    /// Runs with the code that just unlocked. Never throws.
+    /// Runs with the `code` that just unlocked. Never throws.
+    /// `enableBiometrics` verifies the code and enables Touch ID; it may show
+    /// the Touch ID prompt.
     @discardableResult
-    public func run(code: String) -> Outcome {
-        guard self.readLegacySetting(), let protection = try? self.protection() else {
+    public static func run(code: String,
+                           readLegacySetting: () -> Bool,
+                           clearLegacySetting: () -> Void,
+                           protection: () throws -> (passcodeEnabled: Bool, biometricsEnabled: Bool),
+                           deviceSupportsBiometrics: () -> Bool,
+                           enableBiometrics: (String) throws -> Void) -> Outcome {
+        guard readLegacySetting(), let protection = try? protection() else {
             return .skipped
         }
         if protection.biometricsEnabled || !protection.passcodeEnabled {
-            self.clearLegacySetting()
+            clearLegacySetting()
             return .settingCleared
         }
         // The sensor may only be away for now (lid closed); try next time.
-        guard self.deviceSupportsBiometrics() else {
+        guard deviceSupportsBiometrics() else {
             return .skipped
         }
         // One attempt: a cancelled prompt counts as the user's answer.
-        defer { self.clearLegacySetting() }
+        defer { clearLegacySetting() }
         do {
-            try self.enableBiometrics(code)
+            try enableBiometrics(code)
             return .enabled
         } catch {
             return .failed

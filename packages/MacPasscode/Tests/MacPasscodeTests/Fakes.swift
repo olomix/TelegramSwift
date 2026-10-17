@@ -1,7 +1,8 @@
+import CommonCrypto
 import CryptoKit
 import Foundation
 import LocalAuthentication
-import PasscodeCore
+@testable import PasscodeCore
 @testable import MacPasscode
 
 struct Crash: Error {}
@@ -129,6 +130,16 @@ final class FakeCredentialStore: LaunchCredentialStore {
         self.credential?.protectionEnabled = true
     }
 
+    func hasPasscode() throws -> Bool {
+        if let failure { throw failure }
+        return self.credential?.kind != nil
+    }
+
+    func isManaged() throws -> Bool {
+        if let failure { throw failure }
+        return self.credential?.managed ?? false
+    }
+
     func databaseSealingKey(code: String?) throws -> SymmetricKey {
         try self.enter("databaseSealingKey")
         if let sealingKeyFailure { throw sealingKeyFailure }
@@ -176,7 +187,102 @@ enum LegacyFile {
         var hash = LegacyKeyReader.murmurHash32(databaseKey.bytes).littleEndian
         var plaintext = databaseKey.bytes + Data(bytes: &hash, count: 4)
         plaintext += Data(count: (16 - plaintext.count % 16) % 16)
-        return LegacyKeyReader.aesCBC(decrypt: false, plaintext, passcode: passcode ?? LegacyKeyReader.defaultPasscode)!
+        return self.aesCBCEncrypt(plaintext, passcode: passcode ?? LegacyKeyReader.defaultPasscode)
+    }
+
+    private static func aesCBCEncrypt(_ data: Data, passcode: String) -> Data {
+        let digest = Data(SHA512.hash(data: Data(passcode.utf8)))
+        let key = digest.prefix(32)
+        let iv = digest.suffix(16)
+        var output = Data(count: data.count)
+        var processed = 0
+        let status = output.withUnsafeMutableBytes { out in
+            data.withUnsafeBytes { input in
+                key.withUnsafeBytes { key in
+                    iv.withUnsafeBytes { iv in
+                        CCCrypt(CCOperation(kCCEncrypt), CCAlgorithm(kCCAlgorithmAES128), 0,
+                                key.baseAddress, key.count, iv.baseAddress,
+                                input.baseAddress, input.count, out.baseAddress, out.count, &processed)
+                    }
+                }
+            }
+        }
+        precondition(status == kCCSuccess && processed == data.count)
+        return output
+    }
+}
+
+/// PasscodeCore's keychain items, kept in memory.
+final class InMemoryPasscodeStorage: PasscodeStorage {
+    var items: [String: Data] = [:]
+
+    func read(_ account: String, context: LAContext?) throws -> Data? {
+        self.items[account]
+    }
+
+    func write(_ data: Data, account: String, biometric: Bool) throws {
+        self.items[account] = data
+    }
+
+    func remove(_ account: String) throws {
+        self.items[account] = nil
+    }
+}
+
+extension CoreLaunchCredentialStore {
+    /// The real PasscodeCore store over in-memory items, with the fewest
+    /// key derivation rounds PasscodeCore accepts.
+    static func inMemory() -> CoreLaunchCredentialStore {
+        PasscodeSession.setApplicationAvailable(true)
+        return CoreLaunchCredentialStore(store: PasscodeCredentialStore(storage: InMemoryPasscodeStorage(),
+                                                                        iterations: { PasscodeCrypto.minimumIterations }))
+    }
+}
+
+/// Throws `Crash` before each state-changing call to `base`.
+final class CrashingCredentialStore: LaunchCredentialStore {
+    private let base: LaunchCredentialStore
+    private let crash: CrashPoint
+
+    init(_ base: LaunchCredentialStore, crash: CrashPoint) {
+        self.base = base
+        self.crash = crash
+    }
+
+    func hasStoredCredential() throws -> Bool { try self.base.hasStoredCredential() }
+    func isProtectionEnabled() throws -> Bool { try self.base.isProtectionEnabled() }
+    func hasPasscode() throws -> Bool { try self.base.hasPasscode() }
+    func isManaged() throws -> Bool { try self.base.isManaged() }
+    func isBiometricsEnabled() throws -> Bool { try self.base.isBiometricsEnabled() }
+
+    func migrateLegacy(code: String, kind: PasscodeKind) throws -> PasscodeCredentialReference? {
+        try self.crash.tick()
+        return try self.base.migrateLegacy(code: code, kind: kind)
+    }
+
+    func setInitialPasscode(code: String, kind: PasscodeKind) throws -> PasscodeCredentialReference {
+        try self.crash.tick()
+        return try self.base.setInitialPasscode(code: code, kind: kind)
+    }
+
+    func enableProtection(code: String) throws {
+        try self.crash.tick()
+        try self.base.enableProtection(code: code)
+    }
+
+    func databaseSealingKey(code: String?) throws -> SymmetricKey {
+        try self.crash.tick()
+        return try self.base.databaseSealingKey(code: code)
+    }
+
+    func biometricDatabaseSealingKey(context: LAContext) throws -> SymmetricKey {
+        try self.crash.tick()
+        return try self.base.biometricDatabaseSealingKey(context: context)
+    }
+
+    func resetCredential(removingProtectedData: () throws -> Void) throws {
+        try self.crash.tick()
+        try self.base.resetCredential(removingProtectedData: removingProtectedData)
     }
 }
 

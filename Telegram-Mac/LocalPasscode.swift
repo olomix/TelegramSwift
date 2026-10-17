@@ -42,17 +42,7 @@ final class LocalPasscode {
     /// Configures PasscodeCore for the main app. False when the build lacks
     /// a valid keychain group prefix.
     static func configureEnvironment() -> Bool {
-        let teamPrefix = Bundle.main.object(forInfoDictionaryKey: "TGKeychainGroupPrefix") as? String
-        guard let environment = MacPasscodeEnvironment(teamPrefix: teamPrefix, buildPrefix: ApiEnvironment.prefix) else {
-            return false
-        }
-        do {
-            try environment.configure(.mainApp)
-        } catch {
-            return false
-        }
-        PasscodeSession.setApplicationAvailable(true)
-        return true
+        return MacPasscodeEnvironment.configureFromBundle(.mainApp, buildPrefix: ApiEnvironment.prefix)
     }
 
     func openAccountManager() -> AccountManager<TelegramAccountManagerTypes> {
@@ -115,9 +105,12 @@ final class LocalPasscode {
                 case .legacy(needsPasscode: false):
                     let markerCode = LocalPasscode.legacyMarkerCode(accountManager)
                     step = .unlocked(try unlock.unlockLegacy(code: nil, settingPasscode: markerCode))
-                case .v2(needsPasscode: true), .legacy(needsPasscode: true):
-                    let biometricsEnabled = (try? unlock.offersBiometrics()) ?? false
+                case .v2(needsPasscode: true):
+                    let biometricsEnabled = (try? unlock.isBiometricsEnabled()) ?? false
                     step = .needsPasscode(offersTouchId: TouchIdPolicy.offersUnlock(passcodeEnabled: true, biometricsEnabled: biometricsEnabled, deviceSupportsBiometrics: LocalPasscode.deviceSupportsBiometrics))
+                case .legacy(needsPasscode: true):
+                    // The old key file needs the code itself to migrate.
+                    step = .needsPasscode(offersTouchId: false)
                 case .credentialLost:
                     step = .failed(LocalPasscodeError.credentialLost)
                 }
@@ -177,13 +170,15 @@ final class LocalPasscode {
     func logOutAndReset(accountManager: AccountManager<TelegramAccountManagerTypes>, completion: @escaping (Result<DatabaseKey, Error>) -> Void) {
         LocalPasscode.queue.async {
             let result = Result<DatabaseKey, Error>(catching: {
+                try self.resetLocalSecrets(removingAccountDatabases: true)
+                // Only now: a failed reset must leave the accounts signed in,
+                // as the alert's Quit promises.
                 LocalPasscode.synchronousTransaction(accountManager) { transaction in
                     for record in transaction.getRecords() {
                         transaction.updateRecord(record.id, { _ in nil })
                     }
                     transaction.removeAuth()
                 }
-                try self.resetLocalSecrets(removingAccountDatabases: true)
                 return try self.launchUnlock(accountManager).createFresh()
             })
             Queue.mainQueue().async {
@@ -194,19 +189,39 @@ final class LocalPasscode {
 
     /// Drops the passcode and the credential after a logout while the app
     /// keeps running with `databaseKey`, which is sealed again so the next
-    /// launch can still open the databases.
+    /// launch can still open the databases. Completes only once that worked;
+    /// otherwise the user retries or quits.
     func resetKeepingDatabaseKey(_ databaseKey: DatabaseKey, accountManager: AccountManager<TelegramAccountManagerTypes>) -> Signal<Never, NoError> {
         return Signal { subscriber in
-            LocalPasscode.queue.async {
-                do {
-                    try self.resetLocalSecrets(removingAccountDatabases: false)
-                    try self.launchUnlock(accountManager).sealAfterReset(databaseKey)
-                } catch {
-                    Logger.shared.log("LocalPasscode", "reset after logout failed: \(error)")
-                }
+            self.resetKeepingDatabaseKey(databaseKey, accountManager: accountManager, completion: {
                 subscriber.putCompletion()
-            }
+            })
             return EmptyDisposable
+        }
+    }
+
+    private func resetKeepingDatabaseKey(_ databaseKey: DatabaseKey, accountManager: AccountManager<TelegramAccountManagerTypes>, completion: @escaping () -> Void) {
+        LocalPasscode.queue.async {
+            do {
+                try self.launchUnlock(accountManager).resetCredential(keeping: databaseKey)
+                completion()
+            } catch {
+                Logger.shared.log("LocalPasscode", "reset after logout failed: \(error)")
+                Queue.mainQueue().async {
+                    // Going on would write new data under a key no file holds.
+                    let alert = NSAlert()
+                    alert.alertStyle = .critical
+                    alert.messageText = "Cannot save the local data key"
+                    alert.informativeText = LocalPasscode.describe(error) + "\n\nTry again, or quit; the next launch then offers what to do."
+                    alert.addButton(withTitle: "Try Again")
+                    alert.addButton(withTitle: "Quit")
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        self.resetKeepingDatabaseKey(databaseKey, accountManager: accountManager, completion: completion)
+                    } else {
+                        NSApp.terminate(nil)
+                    }
+                }
+            }
         }
     }
 
@@ -313,9 +328,9 @@ final class LocalPasscode {
         }
     }
 
-    private static func run<T>(_ body: @escaping () throws -> T) -> Signal<T, PasscodeCheckFailure> {
+    private static func run<T>(on queue: Queue = LocalPasscode.queue, _ body: @escaping () throws -> T) -> Signal<T, PasscodeCheckFailure> {
         return Signal { subscriber in
-            LocalPasscode.queue.async {
+            queue.async {
                 do {
                     subscriber.putNext(try body())
                     subscriber.putCompletion()
@@ -389,9 +404,10 @@ final class LocalPasscode {
     /// Turns Touch ID on or off with the current code. Emits false when it
     /// could not be turned on (cancelled prompt, no sensor); the passcode is
     /// unchanged then.
+    /// Disposing cancels the Touch ID prompt.
     static func setTouchId(_ enabled: Bool, current: String, accountManager: AccountManager<TelegramAccountManagerTypes>) -> Signal<Bool, PasscodeCheckFailure> {
         let context = self.biometricContext(reason: self.touchIdEnableReason)
-        return self.run {
+        let toggle = self.run(on: self.biometricQueue) { () -> Bool in
             let store = PasscodeCredentialStore.shared
             let session = try store.verify(current, scope: .settings)
             defer { session.invalidate() }
@@ -409,6 +425,13 @@ final class LocalPasscode {
                 return false
             }
         }
+        return Signal { subscriber in
+            let disposable = toggle.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
+            return ActionDisposable {
+                context.invalidate()
+                disposable.dispose()
+            }
+        }
     }
 
     /// Moves the old UI-only Touch ID setting onto PasscodeCore after a
@@ -417,7 +440,7 @@ final class LocalPasscode {
         let context = self.biometricContext(reason: self.touchIdEnableReason)
         self.biometricQueue.async {
             let store = PasscodeCredentialStore.shared
-            let outcome = TouchIdCarryOver(readLegacySetting: {
+            let outcome = TouchIdCarryOver.run(code: code, readLegacySetting: {
                 return synchronousTransaction(accountManager) { transaction in
                     transaction.getSharedData(ApplicationSharedPreferencesKeys.additionalSettings)?.get(AdditionalSettings.self)?.useTouchId ?? false
                 }
@@ -432,7 +455,7 @@ final class LocalPasscode {
                 let session = try store.verify(code, scope: .settings)
                 defer { session.invalidate() }
                 try store.enableBiometrics(session: session, context: context)
-            }).run(code: code)
+            })
             Logger.shared.log("LocalPasscode", "Touch ID carry-over: \(outcome)")
         }
     }
@@ -444,10 +467,6 @@ final class LocalPasscode {
     // MARK: Texts
 
     // New strings are English only, like the other Telex-specific alerts.
-    static func cooldownText(_ seconds: Int) -> String {
-        return "Too many attempts. Try again in \(seconds) s."
-    }
-
     static let touchIdEnableReason = "turn on unlocking with Touch ID"
 
     static let touchIdNotEnabledText = "Touch ID was not turned on. The passcode still works."
@@ -459,7 +478,7 @@ final class LocalPasscode {
         case .invalidCode:
             return strings().passcodeControllerErrorCurrent
         case let .cooldown(seconds):
-            return self.cooldownText(seconds)
+            return PasscodeCheckFailure.cooldownText(seconds: seconds)
         case .unavailable:
             return self.unavailableText
         }

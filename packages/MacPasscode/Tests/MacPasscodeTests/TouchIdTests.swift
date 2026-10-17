@@ -31,30 +31,31 @@ private final class CarryOverWorld {
     var enableFailure: PasscodeError?
     var enabledWith: [String] = []
 
-    var carryOver: TouchIdCarryOver {
-        TouchIdCarryOver(readLegacySetting: { self.legacySetting },
-                         clearLegacySetting: { self.legacySetting = false },
-                         protection: {
-                             if let failure = self.protectionFailure { throw failure }
-                             return (self.passcodeEnabled, self.biometricsEnabled)
-                         },
-                         deviceSupportsBiometrics: { self.deviceSupportsBiometrics },
-                         enableBiometrics: { code in
-                             self.enabledWith.append(code)
-                             if let failure = self.enableFailure { throw failure }
-                             self.biometricsEnabled = true
-                         })
+    func carryOver(code: String) -> TouchIdCarryOver.Outcome {
+        TouchIdCarryOver.run(code: code,
+                             readLegacySetting: { self.legacySetting },
+                             clearLegacySetting: { self.legacySetting = false },
+                             protection: {
+                                 if let failure = self.protectionFailure { throw failure }
+                                 return (self.passcodeEnabled, self.biometricsEnabled)
+                             },
+                             deviceSupportsBiometrics: { self.deviceSupportsBiometrics },
+                             enableBiometrics: { code in
+                                 self.enabledWith.append(code)
+                                 if let failure = self.enableFailure { throw failure }
+                                 self.biometricsEnabled = true
+                             })
     }
 }
 
 final class TouchIdCarryOverTests: XCTestCase {
     func testEnablesWithTheUnlockCode() {
         let world = CarryOverWorld()
-        XCTAssertEqual(world.carryOver.run(code: "1234"), .enabled)
+        XCTAssertEqual(world.carryOver(code: "1234"), .enabled)
         XCTAssertEqual(world.enabledWith, ["1234"])
         XCTAssertTrue(world.biometricsEnabled)
         XCTAssertFalse(world.legacySetting)
-        XCTAssertEqual(world.carryOver.run(code: "1234"), .skipped)
+        XCTAssertEqual(world.carryOver(code: "1234"), .skipped)
         XCTAssertEqual(world.enabledWith.count, 1)
     }
 
@@ -62,10 +63,10 @@ final class TouchIdCarryOverTests: XCTestCase {
         for failure in [PasscodeError.cancelled, .biometricsUnavailable, .keychain(-25308)] {
             let world = CarryOverWorld()
             world.enableFailure = failure
-            XCTAssertEqual(world.carryOver.run(code: "1234"), .failed)
+            XCTAssertEqual(world.carryOver(code: "1234"), .failed)
             XCTAssertFalse(world.biometricsEnabled)
             XCTAssertFalse(world.legacySetting)
-            XCTAssertEqual(world.carryOver.run(code: "1234"), .skipped)
+            XCTAssertEqual(world.carryOver(code: "1234"), .skipped)
             XCTAssertEqual(world.enabledWith.count, 1)
         }
     }
@@ -73,14 +74,14 @@ final class TouchIdCarryOverTests: XCTestCase {
     func testNothingWithoutTheOldSetting() {
         let world = CarryOverWorld()
         world.legacySetting = false
-        XCTAssertEqual(world.carryOver.run(code: "1234"), .skipped)
+        XCTAssertEqual(world.carryOver(code: "1234"), .skipped)
         XCTAssertTrue(world.enabledWith.isEmpty)
     }
 
     func testAlreadyEnabledOnlyClearsTheSetting() {
         let world = CarryOverWorld()
         world.biometricsEnabled = true
-        XCTAssertEqual(world.carryOver.run(code: "1234"), .settingCleared)
+        XCTAssertEqual(world.carryOver(code: "1234"), .settingCleared)
         XCTAssertTrue(world.enabledWith.isEmpty)
         XCTAssertFalse(world.legacySetting)
     }
@@ -88,7 +89,7 @@ final class TouchIdCarryOverTests: XCTestCase {
     func testNoPasscodeClearsTheSetting() {
         let world = CarryOverWorld()
         world.passcodeEnabled = false
-        XCTAssertEqual(world.carryOver.run(code: "1234"), .settingCleared)
+        XCTAssertEqual(world.carryOver(code: "1234"), .settingCleared)
         XCTAssertTrue(world.enabledWith.isEmpty)
         XCTAssertFalse(world.legacySetting)
     }
@@ -96,16 +97,16 @@ final class TouchIdCarryOverTests: XCTestCase {
     func testMissingSensorKeepsTheSettingForLater() {
         let world = CarryOverWorld()
         world.deviceSupportsBiometrics = false
-        XCTAssertEqual(world.carryOver.run(code: "1234"), .skipped)
+        XCTAssertEqual(world.carryOver(code: "1234"), .skipped)
         XCTAssertTrue(world.legacySetting)
         world.deviceSupportsBiometrics = true
-        XCTAssertEqual(world.carryOver.run(code: "1234"), .enabled)
+        XCTAssertEqual(world.carryOver(code: "1234"), .enabled)
     }
 
     func testUnreadableStoreKeepsTheSetting() {
         let world = CarryOverWorld()
         world.protectionFailure = .keychain(-25300)
-        XCTAssertEqual(world.carryOver.run(code: "1234"), .skipped)
+        XCTAssertEqual(world.carryOver(code: "1234"), .skipped)
         XCTAssertTrue(world.legacySetting)
         XCTAssertTrue(world.enabledWith.isEmpty)
     }

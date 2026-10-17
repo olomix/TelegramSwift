@@ -1,4 +1,4 @@
-import PasscodeCore
+@testable import PasscodeCore
 import XCTest
 @testable import MacPasscode
 
@@ -28,6 +28,34 @@ final class MacPasscodeEnvironmentTests: XCTestCase {
                                              keychainScope: "com.korthane.telex.debug"))
         XCTAssertNil(environment.configuration(for: .appExtension).biometricKeychainService)
     }
+
+    func testConfigureMainApp() throws {
+        let environment = try XCTUnwrap(MacPasscodeEnvironment(teamPrefix: "2FKX9S8MFA.", buildPrefix: "debug"))
+        let passcodeEnvironment = PasscodeEnvironment()
+        let store = PasscodeCredentialStore(storage: InMemoryPasscodeStorage())
+        try environment.configure(.mainApp, environment: passcodeEnvironment, store: store)
+        XCTAssertTrue(passcodeEnvironment.isMainApp)
+        XCTAssertEqual(try passcodeEnvironment.sharedAccessGroup(), "2FKX9S8MFA.com.korthane.telex.shared")
+        XCTAssertEqual(try passcodeEnvironment.privateAccessGroup(), "2FKX9S8MFA.com.korthane.telex.private")
+        XCTAssertEqual(try passcodeEnvironment.biometricKeychainService(), "telex.biometric")
+        // The app may create the first credential.
+        XCTAssertFalse(try store.protectionSettings().enabled)
+    }
+
+    func testConfigureExtension() throws {
+        let environment = try XCTUnwrap(MacPasscodeEnvironment(teamPrefix: "2FKX9S8MFA.", buildPrefix: "debug"))
+        let passcodeEnvironment = PasscodeEnvironment()
+        let store = PasscodeCredentialStore(storage: InMemoryPasscodeStorage())
+        try environment.configure(.appExtension, environment: passcodeEnvironment, store: store)
+        XCTAssertFalse(passcodeEnvironment.isMainApp)
+        XCTAssertEqual(try passcodeEnvironment.sharedAccessGroup(), "2FKX9S8MFA.com.korthane.telex.shared")
+        XCTAssertThrowsError(try passcodeEnvironment.privateAccessGroup())
+        XCTAssertThrowsError(try passcodeEnvironment.biometricKeychainService())
+        // The extension must never create a credential.
+        XCTAssertThrowsError(try store.unprotectedSession(namespace: CoreLaunchCredentialStore.namespace)) {
+            XCTAssertEqual($0 as? PasscodeError, .unavailable)
+        }
+    }
 }
 
 final class PasscodeCheckFailureTests: XCTestCase {
@@ -39,5 +67,9 @@ final class PasscodeCheckFailureTests: XCTestCase {
         XCTAssertEqual(PasscodeCheckFailure(PasscodeError.keychain(-25300)), .unavailable)
         XCTAssertEqual(PasscodeCheckFailure(PasscodeError.authenticationRequired), .unavailable)
         XCTAssertEqual(PasscodeCheckFailure(DatabaseKeyFileError.authenticationFailed), .unavailable)
+    }
+
+    func testCooldownText() {
+        XCTAssertEqual(PasscodeCheckFailure.cooldownText(seconds: 42), "Too many attempts. Try again in 42 s.")
     }
 }
