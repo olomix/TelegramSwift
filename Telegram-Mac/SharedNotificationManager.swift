@@ -14,7 +14,6 @@ import BuildConfig
 import TGUIKit
 import ObjcUtils
 import InAppSettings
-import PasscodeAccessChallenge
 
 func getNotificationMessageId(userInfo:[AnyHashable: Any], for prefix: String) -> MessageId? {
     if let msgId = userInfo["\(prefix).message.id"] as? Int32, let msgNamespace = userInfo["\(prefix).message.namespace"] as? Int32, let namespace = userInfo["\(prefix).peer.namespace"] as? Int32, let id = userInfo["\(prefix).peer.id"] as? Int64 {
@@ -109,14 +108,16 @@ final class SharedNotificationManager : NSObject, NSUserNotificationCenterDelega
     
     var activeAccounts: (primary: Account?, accounts: [(AccountRecordId, Account)]) = (primary: nil, accounts: [])
     let bindings: SharedNotificationBindings
-    private let appEncryption: AppEncryptionParameters
+    private let resetLocalPasscode: () -> Signal<Never, NoError>
     
     private var lockers:[PasscodeLockController] = []
     
-    init(activeAccounts: Signal<(primary: Account?, accounts: [(AccountRecordId, Account)]), NoError>, appEncryption: AppEncryptionParameters, accountManager: AccountManager<TelegramAccountManagerTypes>, bindings: SharedNotificationBindings) {
+    /// `resetLocalPasscode` drops the passcode once every account is logged
+    /// out, keeping the running app's database key.
+    init(activeAccounts: Signal<(primary: Account?, accounts: [(AccountRecordId, Account)]), NoError>, resetLocalPasscode: @escaping () -> Signal<Never, NoError>, accountManager: AccountManager<TelegramAccountManagerTypes>, bindings: SharedNotificationBindings) {
         self.accountManager = accountManager
         self.bindings = bindings
-        self.appEncryption = appEncryption
+        self.resetLocalPasscode = resetLocalPasscode
         
         
         super.init()
@@ -234,11 +235,8 @@ final class SharedNotificationManager : NSObject, NSUserNotificationCenterDelega
     }
     
     func logout() -> Signal<Never, NoError> {
-        let accountManager = self.accountManager
-        let signal = combineLatest(self.activeAccounts.accounts.map { logoutFromAccount(id: $0.0, accountManager: self.accountManager, alreadyLoggedOutRemotely: false) }) |> deliverOnMainQueue
-        appEncryption.remove()
-        let removePasscode = accountManager.transaction { $0.storeAccessChallengeData(.none) }  |> deliverOnMainQueue
-        return combineLatest(removePasscode, signal) |> ignoreValues
+        let logouts = combineLatest(self.activeAccounts.accounts.map { logoutFromAccount(id: $0.0, accountManager: self.accountManager, alreadyLoggedOutRemotely: false) }) |> ignoreValues
+        return (logouts |> then(self.resetLocalPasscode())) |> deliverOnMainQueue
     }
     
     

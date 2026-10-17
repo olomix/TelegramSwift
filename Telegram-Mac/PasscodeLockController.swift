@@ -13,7 +13,6 @@ import TelegramCore
 import Postbox
 import SwiftSignalKit
 import LocalAuthentication
-import BuildConfig
 
 private class TouchIdContainerView : View {
     fileprivate let button: TextButton = TextButton()
@@ -357,6 +356,7 @@ class PasscodeLockController: ModalViewController {
     private let disposable:MetaDisposable = MetaDisposable()
     private let valueDisposable = MetaDisposable()
     private let logoutDisposable = MetaDisposable()
+    private let checkDisposable = MetaDisposable()
     private let _doneValue:Promise<Bool> = Promise(false)
     private let laContext = LAContext()
     var doneValue:Signal<Bool, NoError> {
@@ -395,16 +395,20 @@ class PasscodeLockController: ModalViewController {
         return self.view as! PasscodeLockView
     }
     
+    private var isChecking = false
+
     private func checkNextValue(_ passcode: String) {
-        let appEncryption = AppEncryptionParameters(path: accountManager.basePath.nsstring.deletingLastPathComponent)
-        appEncryption.applyPasscode(passcode)
-        if appEncryption.decrypt() != nil {
-            self._doneValue.set(.single(true))
-            self.close()
-            
-        } else {
-            genericView.input.shake()
+        guard !isChecking else {
+            return
         }
+        isChecking = true
+        checkDisposable.set((LocalPasscode.verifyAppUnlock(passcode) |> deliverOnMainQueue).start(next: { [weak self] in
+            self?._doneValue.set(.single(true))
+            self?.close()
+        }, error: { [weak self] failure in
+            self?.isChecking = false
+            self?.genericView.show(failure)
+        }))
     }
     
     private var touchIdCalled = false
@@ -533,6 +537,7 @@ class PasscodeLockController: ModalViewController {
         disposable.dispose()
         logoutDisposable.dispose()
         valueDisposable.dispose()
+        checkDisposable.dispose()
         appearanceDisposable.dispose()
         self.window?.removeAllHandlers(for: self)
     }

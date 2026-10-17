@@ -29,7 +29,7 @@ import MetalEngine
 import TelegramMedia
 import RLottie
 import KeyboardKey
-import PasscodeAccessChallenge
+import MacPasscode
 import FoundationUtils
 
 #if BETA || DEBUG
@@ -297,7 +297,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     private var executeUrlAfterLogin: String? = nil
     private var timer: SwiftSignalKit.Timer?
     
-    private(set) var appEncryption: AppEncryptionParameters!
+    private var localPasscode: LocalPasscode!
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         CodeSyntax.initialize()
@@ -599,58 +599,98 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         System.updateScaleFactor(window.backingScaleFactor)
         window.minSize = NSMakeSize(380, 500)
         
-        let appEncryption = AppEncryptionParameters(path: rootPath)
-
-        let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true, accessChallenge: .passthrough)
+        guard LocalPasscode.configureEnvironment() else {
+            // Only a build signed without the keychain group gets here, so the
+            // text is for developers and stays untranslated.
+            let alert = NSAlert()
+            alert.messageText = "Cannot set up the passcode keychain"
+            alert.informativeText = "TGKeychainGroupPrefix in Info.plist must expand to the team prefix, and the provisioning profile must allow the com.korthane.telex.shared and .private keychain groups."
+            alert.runModal()
+            NSApp.terminate(nil)
+            return
+        }
+        let localPasscode = LocalPasscode(rootPath: rootPath)
+        self.localPasscode = localPasscode
+        let accountManager = localPasscode.openAccountManager()
 
         if let credentials = ApiEnvironment.storedCredentials {
-            unlockAndLaunch(accountManager: accountManager, appEncryption: appEncryption, credentials: credentials)
+            unlockAndLaunch(accountManager: accountManager, credentials: credentials)
             checkApiCredentialsInBackground(credentials, accountManager: accountManager)
         } else {
             showColdStartModal(accountManager: accountManager, modal: {
                 return ApiCredentialsBlockingModal(accountManager: accountManager, onSaved: { [weak self] credentials in
-                    self?.unlockAndLaunch(accountManager: accountManager, appEncryption: appEncryption, credentials: credentials)
+                    self?.unlockAndLaunch(accountManager: accountManager, credentials: credentials)
                 })
             })
         }
     }
 
     /// Opens the database directly, or asks for the local passcode first.
-    private func unlockAndLaunch(accountManager: AccountManager<TelegramAccountManagerTypes>, appEncryption: AppEncryptionParameters, credentials: ApiCredentialsValues) {
-        let rootPath = containerUrl!
-
-        if let deviceSpecificEncryptionParameters = appEncryption.decrypt() {
-            let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
-            self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
-        } else {
-            
-            
-            self.showColdStartModal(accountManager: accountManager, modal: {
-                return ColdStartPasslockController(checkNextValue: { passcode in
-                    appEncryption.applyPasscode(passcode)
-                    if let params = appEncryption.decrypt() {
-                        let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: params.key)!, salt: ValueBoxEncryptionParameters.Salt(data: params.salt)!)
-                        self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
-                        return true
-                    } else {
-                        return false
-                    }
-                }, logoutImpl: {
-                    return Signal { subscriber in
-                        try? FileManager.default.removeItem(atPath: rootPath)
-                        subscriber.putCompletion()
-                        DispatchQueue.main.async {
-                            let appEncryption = AppEncryptionParameters(path: rootPath)
-                            let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: self.containerUrl + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true, accessChallenge: .passthrough)
-                            if let params = appEncryption.decrypt() {
-                                let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: params.key)!, salt: ValueBoxEncryptionParameters.Salt(data: params.salt)!)
-                                self.launchApp(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
+    private func unlockAndLaunch(accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
+        let localPasscode = self.localPasscode!
+        localPasscode.prepareLaunch(accountManager: accountManager, completion: { [weak self] step in
+            switch step {
+            case let .unlocked(databaseKey):
+                self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+            case let .failed(error):
+                self?.showLaunchError(error, accountManager: accountManager, credentials: credentials)
+            case .needsPasscode:
+                self?.showColdStartModal(accountManager: accountManager, modal: {
+                    return ColdStartPasslockController(checkNextValue: { [weak self] passcode, completion in
+                        localPasscode.unlock(code: passcode, accountManager: accountManager, completion: { result in
+                            switch result {
+                            case let .success(databaseKey):
+                                completion(nil)
+                                self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                            case let .failure(error):
+                                let failure = PasscodeCheckFailure(error)
+                                completion(failure)
+                                if failure == .unavailable {
+                                    self?.showLaunchError(error, accountManager: accountManager, credentials: credentials)
+                                }
                             }
+                        })
+                    }, logoutImpl: { [weak self] in
+                        return Signal { subscriber in
+                            localPasscode.logOutAndReset(accountManager: accountManager, completion: { result in
+                                subscriber.putCompletion()
+                                self?.launchAfterReset(result, accountManager: accountManager, credentials: credentials)
+                            })
+                            return EmptyDisposable
                         }
-                        return EmptyDisposable
-                    } |> runOn(prepareQueue)
+                    })
                 })
-            })
+            }
+        })
+    }
+
+    /// Local data cannot be opened. Resetting is the user's choice; quitting
+    /// keeps every file, so a later launch can try again.
+    private func showLaunchError(_ error: Error, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
+        Logger.shared.log("LocalPasscode", "cannot open local data: \(error)")
+        closeModal(ColdStartPasslockController.self)
+        // Telex-specific text, untranslated like the other Telex alerts.
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "Cannot open local data"
+        alert.informativeText = LocalPasscode.describe(error) + "\n\nLog Out and Reset signs every account out on this Mac and deletes its local data. Chats load again from the server; secret chats are lost. Quit keeps the data so you can try again later."
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Log Out and Reset")
+        guard alert.runModal() == .alertSecondButtonReturn else {
+            NSApp.terminate(nil)
+            return
+        }
+        localPasscode.logOutAndReset(accountManager: accountManager, completion: { [weak self] result in
+            self?.launchAfterReset(result, accountManager: accountManager, credentials: credentials)
+        })
+    }
+
+    private func launchAfterReset(_ result: Result<DatabaseKey, Error>, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
+        switch result {
+        case let .success(databaseKey):
+            launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+        case let .failure(error):
+            showLaunchError(error, accountManager: accountManager, credentials: credentials)
         }
     }
 
@@ -739,13 +779,14 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     
     private var terminated = false
     
-    private func launchApp(accountManager: AccountManager<TelegramAccountManagerTypes>, encryptionParameters: ValueBoxEncryptionParameters, appEncryption: AppEncryptionParameters, credentials: ApiCredentialsValues) {
+    private func launchApp(accountManager: AccountManager<TelegramAccountManagerTypes>, databaseKey: DatabaseKey, credentials: ApiCredentialsValues) {
         
         FontCacheKey.initializeCache()
         
         clearUserDefaultsObject(forKeyPrefix: "dice_")
         
-        self.appEncryption = appEncryption
+        let encryptionParameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: databaseKey.key)!, salt: ValueBoxEncryptionParameters.Salt(data: databaseKey.salt)!)
+        let localPasscode = self.localPasscode!
         
         let rootPath = containerUrl!
         let window = self.window!
@@ -793,18 +834,6 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
             }) |> deliverOnMainQueue
             
             _ = data.start(next: { passcode, themeSettings, localization in
-                switch passcode {
-                case let .numericalPassword(value), let .plaintextPassword(value):
-                    if !value.isEmpty {
-                        appEncryption.change(value)
-                        _ = accountManager.transaction {
-                            $0.storeAccessChallengeData(.plaintextPassword(value: ""))
-                        }.start()
-                    }
-                default:
-                    break
-                }
-                
                 if let localization = localization {
                     applyUILocalization(localization, window: self.window)
                     UNUserNotifications.current?.registerCategories()
@@ -945,7 +974,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                 
                 let networkArguments = makeNetworkInitializationArguments(credentials)
                 
-                let sharedContext = SharedAccountContext(accountManager: accountManager, networkArguments: networkArguments, rootPath: rootPath, encryptionParameters: encryptionParameters, appEncryption: appEncryption, displayUpgradeProgress: displayUpgrade)
+                let sharedContext = SharedAccountContext(accountManager: accountManager, networkArguments: networkArguments, rootPath: rootPath, encryptionParameters: encryptionParameters, displayUpgradeProgress: displayUpgrade)
                 
                 self.hangKeybind(sharedContext)
                 
@@ -1044,7 +1073,9 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
 
                 })
                 
-                let sharedNotificationManager = SharedNotificationManager(activeAccounts: sharedContext.activeAccounts |> map { ($0.0, $0.1.map { ($0.0, $0.1) }) }, appEncryption: appEncryption, accountManager: accountManager, bindings: notificationsBindings)
+                let sharedNotificationManager = SharedNotificationManager(activeAccounts: sharedContext.activeAccounts |> map { ($0.0, $0.1.map { ($0.0, $0.1) }) }, resetLocalPasscode: {
+                    return localPasscode.resetKeepingDatabaseKey(databaseKey, accountManager: accountManager)
+                }, accountManager: accountManager, bindings: notificationsBindings)
                 let sharedWakeupManager = SharedWakeupManager(sharedContext: sharedContext, inForeground: self.presentAccountStatus.get())
                 let sharedApplicationContext = SharedApplicationContext(sharedContext: sharedContext, notificationManager: sharedNotificationManager, sharedWakeupManager: sharedWakeupManager)
                 

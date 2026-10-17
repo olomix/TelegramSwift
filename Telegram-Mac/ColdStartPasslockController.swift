@@ -9,6 +9,7 @@
 import Cocoa
 import TGUIKit
 import SwiftSignalKit
+import MacPasscode
 
 
 class ColdStartPasslockController: ModalViewController {
@@ -16,8 +17,9 @@ class ColdStartPasslockController: ModalViewController {
     private let logoutDisposable = MetaDisposable()
 
     private let logoutImpl:() -> Signal<Never, NoError>
-    private let checkNextValue: (String)->Bool
-    init(checkNextValue:@escaping(String)->Bool, logoutImpl:@escaping()->Signal<Never, NoError>) {
+    private let checkNextValue: (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void
+    /// `checkNextValue` reports nil once the code opened local data.
+    init(checkNextValue: @escaping (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void, logoutImpl:@escaping()->Signal<Never, NoError>) {
         self.checkNextValue = checkNextValue
         self.logoutImpl = logoutImpl
         super.init(frame: NSMakeRect(0, 0, 350, 350))
@@ -64,17 +66,21 @@ class ColdStartPasslockController: ModalViewController {
             })
         }
         
+        // Also true while a check runs: deriving the key takes a moment.
         var locked = false
         
         valueDisposable.set((genericView.value.get() |> deliverOnMainQueue).start(next: { [weak self] value in
             guard let `self` = self, !locked else {
                 return
             }
-            if !self.checkNextValue(value) {
-                self.genericView.input.shake()
-            } else {
-                locked = true
-            }
+            locked = true
+            self.checkNextValue(value, { [weak self] failure in
+                guard let failure else {
+                    return
+                }
+                locked = false
+                self?.genericView.show(failure)
+            })
         }))
         
         genericView.update(hasTouchId: false)

@@ -67,6 +67,8 @@
 	<string>${SOURCE}</string>
 	<key>TGAppGroup</key>
 	<string>$(TeamIdentifierPrefix)com.korthane.telex</string>
+	<key>TGKeychainGroupPrefix</key>
+	<string>$(AppIdentifierPrefix)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>SFCompactRounded-Semibold.otf</string>

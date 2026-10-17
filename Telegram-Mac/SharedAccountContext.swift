@@ -110,17 +110,6 @@ class SharedAccountContext {
     private let managedAccountDisposables = DisposableDict<AccountRecordId>()
     
     
-    private let appEncryption: Atomic<AppEncryptionParameters>
-    
-    var appEncryptionValue: AppEncryptionParameters {
-        return appEncryption.with { $0 }
-    }
-    
-    func updateAppEncryption(_ f: (AppEncryptionParameters)->AppEncryptionParameters) {
-        _ = self.appEncryption.modify(f)
-    }
-    
-    
     private var activeAccountsValue: (primary: Account?, accounts: [(AccountRecordId, Account, Int32)], currentAuth: UnauthorizedAccount?)?
     private let activeAccountsPromise = Promise<(primary: Account?, accounts: [(AccountRecordId, Account, Int32)], currentAuth: UnauthorizedAccount?)>()
     var activeAccounts: Signal<(primary: Account?, accounts: [(AccountRecordId, Account, Int32)], currentAuth: UnauthorizedAccount?), NoError> {
@@ -240,10 +229,9 @@ class SharedAccountContext {
     
 
     
-    init(accountManager: AccountManager<TelegramAccountManagerTypes>, networkArguments: NetworkInitializationArguments, rootPath: String, encryptionParameters: ValueBoxEncryptionParameters, appEncryption: AppEncryptionParameters, displayUpgradeProgress: @escaping(Float?) -> Void) {
+    init(accountManager: AccountManager<TelegramAccountManagerTypes>, networkArguments: NetworkInitializationArguments, rootPath: String, encryptionParameters: ValueBoxEncryptionParameters, displayUpgradeProgress: @escaping(Float?) -> Void) {
         self.accountManager = accountManager
         self.displayUpgradeProgress = displayUpgradeProgress
-        self.appEncryption = Atomic(value: appEncryption)
         #if !SHARE
         self.devicesContext = DevicesContext(accountManager)
         self.accountManager.mediaBox.fetchCachedResourceRepresentation = { (resource, representation) -> Signal<CachedMediaResourceRepresentationResult, NoError> in

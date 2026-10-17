@@ -10,9 +10,8 @@ import Cocoa
 import TGUIKit
 import Postbox
 import TelegramCore
-import BuildConfig
 import SwiftSignalKit
-import PasscodeAccessChallenge
+import MacPasscode
 
 
 enum PasscodeMode : Equatable {
@@ -143,6 +142,13 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
     
     var shouldMakeNextResponderAfterTransition: InputDataIdentifier? = nil
 
+    let fail: (PasscodeCheckFailure, InputDataIdentifier, (InputDataValidation) -> Void) -> Void = { failure, field, f in
+        updateState {
+            $0.withUpdatedError(InputDataValueError(description: LocalPasscode.failureText(failure), target: .data), for: field)
+        }
+        f(.fail(.fields([field : .shake])))
+    }
+
     let actionsDisposable = DisposableSet()
     
     return InputDataController(dataSignal: dataSignal |> map { InputDataSignalValue(entries: $0) }, title: title, validateData: { data in
@@ -179,35 +185,26 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
                 if !fields.isEmpty {
                     f(.fail(.fields(fields)))
                 } else {
-                    actionsDisposable.add((sharedContext.accountManager.transaction { transaction in
-                        transaction.storeAccessChallengeData(.plaintextPassword(value: ""))
-                    } |> deliverOnMainQueue).start(completed: {
-                        sharedContext.appEncryptionValue.change(passcode)
+                    actionsDisposable.add((LocalPasscode.setPasscode(passcode, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
+                        fail(failure, _id_input_new_passcode, f)
+                    }, completed: {
                         f(.success(.navigationBackWithPushAnimation))
                     }))
                 }
                 
             case .change:
                 let current = state.data[_id_input_current]?.stringValue ?? ""
-            
-                let appEncryption = AppEncryptionParameters(path: sharedContext.accountManager.basePath.nsstring.deletingLastPathComponent)
-                appEncryption.applyPasscode(current)
                 
                 let passcode = state.data[_id_input_new_passcode]?.stringValue ?? ""
                 let confirm = state.data[_id_input_re_new_passcode]?.stringValue ?? ""
                 
                 var fields:[InputDataIdentifier : InputDataValidationFailAction] = [:]
                 
-                 if appEncryption.decrypt() == nil {
+                if current.isEmpty {
                     fields[_id_input_current] = .shake
                     if shouldMakeNextResponderAfterTransition == nil {
                         shouldMakeNextResponderAfterTransition = _id_input_current
                     }
-                    updateState {
-                        $0.withUpdatedError(InputDataValueError(description: strings().passcodeControllerErrorCurrent, target: .data), for: _id_input_current)
-                    }
-                    f(.fail(.fields(fields)))
-                    return
                 }
                 
                 if !passcode.isEmpty, !confirm.isEmpty, passcode != confirm {
@@ -233,36 +230,20 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
                 if !fields.isEmpty {
                     f(.fail(.fields(fields)))
                 } else {
-                    
-                    
-                    actionsDisposable.add((sharedContext.accountManager.transaction { transaction in
-                        transaction.storeAccessChallengeData(.plaintextPassword(value: ""))
-                    } |> deliverOnMainQueue).start(completed: {
-                        sharedContext.appEncryptionValue.change(passcode)
+                    actionsDisposable.add((LocalPasscode.changePasscode(current: current, to: passcode, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
+                        fail(failure, _id_input_current, f)
+                    }, completed: {
                         f(.success(.navigationBackWithPushAnimation))
                     }))
                 }
             case .disable:
                 let current = state.data[_id_input_current]?.stringValue ?? ""
                 
-                let appEncryption = AppEncryptionParameters(path: sharedContext.accountManager.basePath.nsstring.deletingLastPathComponent)
-                appEncryption.applyPasscode(current)
-                
-                if appEncryption.decrypt() == nil {
-                    updateState {
-                        $0.withUpdatedError(InputDataValueError(description: strings().passcodeControllerErrorCurrent, target: .data), for: _id_input_current)
-                    }
-                    f(.fail(.fields([_id_input_current : .shake])))
-                    
-                } else {
-                    actionsDisposable.add((sharedContext.accountManager.transaction { transaction in
-                        transaction.storeAccessChallengeData(.none)
-                    } |> deliverOnMainQueue).start(completed: {
-                        sharedContext.appEncryptionValue.remove()
-                        f(.success(.navigationBackWithPushAnimation))
-                    }))
-                }
-                
+                actionsDisposable.add((LocalPasscode.disablePasscode(current: current, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
+                    fail(failure, _id_input_current, f)
+                }, completed: {
+                    f(.success(.navigationBackWithPushAnimation))
+                }))
             }
             
             updateState {

@@ -518,26 +518,105 @@ One task so no intermediate build mixes the schemes.
 - Modify: `Telegram-Mac/SharedAccountContext.swift`
 - Modify: `Telegram-Mac/SharedNotificationManager.swift`
 
-- [ ] configure `PasscodeEnvironment` (scope, biometric service, private
+- [x] configure `PasscodeEnvironment` (scope, biometric service, private
       group closure) and `setApplicationAvailable(true)` at launch; open
       the account manager with `setupAccountManager` and the reset closure
-- [ ] launch flow from Technical Details via `LaunchUnlock`, including
+      (own `AccountManagerAccessChallenge` with the same prepare / reset /
+      cleanup, see results)
+- [x] launch flow from Technical Details via `LaunchUnlock`, including
       migration and the "credential lost → Log out and reset" screen
-- [ ] handle stored legacy markers: empty → no-op; non-empty → migrate
+- [x] handle stored legacy markers: empty → no-op; non-empty → migrate
       with the plan's kind mapping before the core can guess
-- [ ] cold-start and runtime lock: `verify` (`.resource` / `.appUnlock`),
+- [x] cold-start and runtime lock: `verify` (`.resource` / `.appUnlock`),
       cooldown seconds, shake on wrong code
-- [ ] settings set / change / disable through `PasscodeCredentialStore`
+- [x] settings set / change / disable through `PasscodeCredentialStore`
       (`setPasscode`, `setPasscodeWithSettingsSession`, `disablePasscode`)
       and `setAccessChallengeData`; `hasPasscode` from
       `protectionSettings()`; drop the marker cleanup at `:790-805`
-- [ ] both logout paths (`SharedNotificationManager.logout()`, cold-start
+- [x] both logout paths (`SharedNotificationManager.logout()`, cold-start
       `logoutImpl`) call the reset closure; no second `.passthrough`
       account manager
-- [ ] replace every remaining `AppEncryptionParameters` use in the app
+- [x] replace every remaining `AppEncryptionParameters` use in the app
       with `LegacyKeyReader` or PasscodeCore
-- [ ] tests for any new MacPasscode helper this task needs; run all unit
+- [x] tests for any new MacPasscode helper this task needs; run all unit
       tests and the build check
+
+**Results** (2026-10-17).
+- Glue in `Telegram-Mac/LocalPasscode.swift` (new, app target only);
+  `MacPasscode` is now linked to the app. Keychain values come from
+  `MacPasscodeEnvironment`: shared group `<prefix>com.korthane.telex.shared`
+  (passed as `appGroupIdentifier`), private group
+  `<prefix>com.korthane.telex.private` (replaces the
+  `$(AppIdentifierPrefix)com.korthane.telex` entry in both app
+  entitlements, see the Task 4 finding), scope
+  `com.korthane.telex.<ApiEnvironment.prefix>`, biometric service
+  `telex.biometric`. The prefix is read from the new Info.plist key
+  `TGKeychainGroupPrefix` = `$(AppIdentifierPrefix)`; the built app shows
+  `2FKX9S8MFA.`. A build without it stops with a developer alert, like
+  the app group check.
+- **Account manager: not `setupAccountManager`.** Its resolver would
+  migrate the Mac's markers itself (`.plaintextPassword("")` →
+  `migrateLegacy("")`, a non-empty code with a guessed kind) before any
+  app code runs. The app builds the same `AccountManagerAccessChallenge`
+  (shared-group check, `configureLock`, reset on a fresh installation,
+  `resumeCleanup`) with the core's resolver minus the legacy-marker
+  migration. A non-empty marker (pre-`AppEncryptionParameters` builds)
+  becomes the passcode through `LaunchUnlock.unlockLegacy(code: nil,
+  settingPasscode:)` when the key file has no passcode, with the plan's
+  kind mapping; an empty marker is left alone and is overwritten by
+  `.secured` at the end of migration.
+- `CoreLaunchCredentialStore` implements `LaunchCredentialStore`.
+  `setProtectionEnabled` requires a `.settings` session, so
+  `enableProtection` verifies with `.settings`, not `.managePasscode` as
+  Solution Overview says.
+- Launch (`AppDelegate.unlockAndLaunch` → `LocalPasscode.prepareLaunch`,
+  on a background queue after the account manager finished `prepare`):
+  fresh → `createFresh`; no passcode → unlock directly; passcode →
+  `ColdStartPasslockController` (async check, wrong code shakes, cooldown
+  shows the seconds); credential lost, store or unseal errors → an alert
+  with "Quit" (default, keeps every file) and "Log Out and Reset".
+- Resets: `LaunchUnlock.resetLocalSecrets` deletes `db-key.v2`,
+  `.tempkeyEncrypted`, `.tempkey`, then (fresh install, cold-start logout,
+  error alert) the `account-*` folders, then replaces the credential.
+  Cold-start logout and the alert also remove the account records from
+  the open account manager instead of opening a second one. The runtime
+  logout (accounts open, already logged out by `logoutFromAccount`) keeps
+  the databases: reset, then `sealAfterReset` seals the running key again
+  under the new unprotected credential.
+- **Fresh installs and post-reset seals write a retired
+  `.tempkeyEncrypted`** (`createFresh` / `sealAfterReset` call
+  `retire()`). Otherwise an older build, or the not yet updated Share
+  extension, would see no key file, create one with a random key, and the
+  next launch would migrate that wrong key over `db-key.v2`. Task 10's
+  "no legacy file" check becomes "a retired legacy file".
+- Migration also recovers from a credential left by an earlier install:
+  a stale passcode (`invalidCode` after `migrateLegacy`) → reset, retry;
+  a reset credential (managed, no passcode) → `setPasscode(…, session:
+  nil)`; a protected credential while the key file has no passcode →
+  reset first. All three only while the legacy file is live and holds the
+  key.
+- Settings: install requires an existing credential (a new one would not
+  open `db-key.v2`), then `setPasscode(…, session: nil)` with the mapped
+  kind; change = `verify(.managePasscode)` + `setPasscode(…, session:)`;
+  disable = `verify(.managePasscode)` + `disablePasscode`; each then
+  `setAccessChallengeData`. `setPasscodeWithSettingsSession` is not
+  needed until Touch ID (Task 7). `PasscodeSettingsViewController` is
+  unchanged: it already treats `.secured` like the old markers.
+- New English-only strings (cooldown, keychain errors, the alert), like
+  the other Telex-specific alerts.
+- ⚠️ Expected until Task 8: TelegramShare still uses
+  `AppEncryptionParameters`, so after the app migrates (legacy file
+  retired) the extension shows its lock and no code opens it. It never
+  writes: the retired file stops its key generation.
+- Tests: MacPasscode 60 (new: marker code, stale / reset / protected
+  leftover credentials, reset order and failure, `sealAfterReset`,
+  retired marker on fresh install, environment values, failure mapping);
+  ApiCredentials 25; PasscodeAccessChallenge 6. Debug build check passes;
+  signed Telex.app has `…telex.shared` + `…telex.private`, the appex only
+  `…telex.shared`; `codesign --verify --deep --strict` passes. The new
+  build was not launched: the user's Telex is running and owns the data
+  folder (single-instance guard), and data safety rules out a test run
+  against it.
 
 ### Task 7: Touch ID on PasscodeCore
 Only if Task 4 (d) passed; otherwise mark ⚠️ and keep the existing
@@ -586,7 +665,8 @@ UI-only Touch ID unchanged.
 - [ ] run all unit tests and the build check
 
 ### Task 10: Verify acceptance criteria
-- [ ] fresh install: launch works, `db-key.v2` exists, no legacy file
+- [ ] fresh install: launch works, `db-key.v2` exists, the legacy file is
+      a retired marker (Task 6)
 - [ ] legacy install with and without a passcode (fixture built by the
       old code path in a test): first unlock migrates, protection is on
       when a code was set, the legacy file is poisoned
