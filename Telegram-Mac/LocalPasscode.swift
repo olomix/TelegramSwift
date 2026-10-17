@@ -29,7 +29,8 @@ final class LocalPasscode {
 
     enum LaunchStep {
         case unlocked(DatabaseKey)
-        case needsPasscode(offersTouchId: Bool)
+        /// `offersForgetPasscode`: see `LaunchUnlock.canForgetPasscode()`.
+        case needsPasscode(offersTouchId: Bool, offersForgetPasscode: Bool)
         case failed(Error)
     }
 
@@ -107,10 +108,10 @@ final class LocalPasscode {
                     step = .unlocked(try unlock.unlockLegacy(code: nil, settingPasscode: markerCode))
                 case .v2(needsPasscode: true):
                     let biometricsEnabled = (try? unlock.isBiometricsEnabled()) ?? false
-                    step = .needsPasscode(offersTouchId: TouchIdPolicy.offersUnlock(passcodeEnabled: true, biometricsEnabled: biometricsEnabled, deviceSupportsBiometrics: LocalPasscode.deviceSupportsBiometrics))
+                    step = .needsPasscode(offersTouchId: TouchIdPolicy.offersUnlock(passcodeEnabled: true, biometricsEnabled: biometricsEnabled, deviceSupportsBiometrics: LocalPasscode.deviceSupportsBiometrics), offersForgetPasscode: false)
                 case .legacy(needsPasscode: true):
                     // The old key file needs the code itself to migrate.
-                    step = .needsPasscode(offersTouchId: false)
+                    step = .needsPasscode(offersTouchId: false, offersForgetPasscode: try unlock.canForgetPasscode())
                 case .credentialLost:
                     step = .failed(LocalPasscodeError.credentialLost)
                 }
@@ -160,6 +161,19 @@ final class LocalPasscode {
             }
             return ActionDisposable {
                 context.invalidate()
+            }
+        }
+    }
+
+    /// Drops a passcode that guards no encrypted key and opens local data
+    /// without one; the user can set a new passcode in Settings.
+    func forgetPasscode(accountManager: AccountManager<TelegramAccountManagerTypes>, completion: @escaping (Result<DatabaseKey, Error>) -> Void) {
+        LocalPasscode.queue.async {
+            let result = Result<DatabaseKey, Error>(catching: {
+                try self.launchUnlock(accountManager).forgetPasscode()
+            })
+            Queue.mainQueue().async {
+                completion(result)
             }
         }
     }

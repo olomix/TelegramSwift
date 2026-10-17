@@ -20,13 +20,17 @@ class ColdStartPasslockController: ModalViewController {
     private let logoutImpl:() -> Signal<Never, NoError>
     private let checkNextValue: (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void
     private let touchIdUnlock: (() -> Signal<Never, NoError>)?
+    private let forgetPasscodeImpl: (() -> Signal<Never, NoError>)?
     private var touchIdCalled = false
     /// `checkNextValue` reports nil once the code opened local data.
     /// `touchIdUnlock` opens it through Touch ID; nil hides Touch ID. A failed
     /// or cancelled prompt leaves the code field as the fallback.
-    init(checkNextValue: @escaping (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void, touchIdUnlock: (() -> Signal<Never, NoError>)? = nil, logoutImpl:@escaping()->Signal<Never, NoError>) {
+    /// `forgetPasscodeImpl` drops the passcode and keeps the data; nil when
+    /// the passcode guards the data, so only Log Out is offered.
+    init(checkNextValue: @escaping (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void, touchIdUnlock: (() -> Signal<Never, NoError>)? = nil, forgetPasscodeImpl: (() -> Signal<Never, NoError>)? = nil, logoutImpl:@escaping()->Signal<Never, NoError>) {
         self.checkNextValue = checkNextValue
         self.touchIdUnlock = touchIdUnlock
+        self.forgetPasscodeImpl = forgetPasscodeImpl
         self.logoutImpl = logoutImpl
         super.init(frame: NSMakeRect(0, 0, 350, 350))
         self.bar = .init(height: 0)
@@ -59,16 +63,13 @@ class ColdStartPasslockController: ModalViewController {
         
         
         genericView.logoutImpl = { [weak self] in
-            guard let window = self?.window else { return }
-            
+            guard let self, let window = self.window else { return }
+            if let forgetPasscodeImpl = self.forgetPasscodeImpl {
+                self.offerForgetPasscode(forgetPasscodeImpl, window: window)
+                return
+            }
             verifyAlert_button(for: window, information: strings().accountConfirmLogoutText, successHandler: { [weak self] _ in
-                guard let `self` = self else { return }
-                
-                _ = showModalProgress(signal: self.logoutImpl(), for: window).start(completed: { [weak self] in
-                    delay(0.2, closure: { [weak self] in
-                        self?.close()
-                    })
-                })
+                self?.run(self?.logoutImpl, window: window)
             })
         }
         
@@ -99,6 +100,33 @@ class ColdStartPasslockController: ModalViewController {
         
     }
     
+    private func run(_ action: (() -> Signal<Never, NoError>)?, window: Window) {
+        guard let action else { return }
+        _ = showModalProgress(signal: action(), for: window).start(completed: { [weak self] in
+            delay(0.2, closure: { [weak self] in
+                self?.close()
+            })
+        })
+    }
+
+    // Telex-specific text, untranslated like the other Telex alerts.
+    private func offerForgetPasscode(_ forgetPasscode: @escaping () -> Signal<Never, NoError>, window: Window) {
+        let alert = NSAlert()
+        alert.messageText = "Forgot your passcode?"
+        alert.informativeText = "Local data on this Mac is not encrypted with this passcode. Remove Passcode opens it without one; set a new passcode in Settings afterwards. Log Out and Reset deletes the local data instead."
+        alert.addButton(withTitle: "Remove Passcode")
+        alert.addButton(withTitle: "Log Out and Reset")
+        alert.addButton(withTitle: strings().alertCancel)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            self.run(forgetPasscode, window: window)
+        case .alertSecondButtonReturn:
+            self.run(self.logoutImpl, window: window)
+        default:
+            break
+        }
+    }
+
     // The launch window is usually key already when the lock appears.
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)

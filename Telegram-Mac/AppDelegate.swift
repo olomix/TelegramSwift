@@ -639,7 +639,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                 if self?.claimLaunch() == true {
                     self?.showLaunchError(error, accountManager: accountManager, credentials: credentials)
                 }
-            case let .needsPasscode(offersTouchId):
+            case let .needsPasscode(offersTouchId, offersForgetPasscode):
                 let touchIdPrompt = MetaDisposable()
                 // Touch ID, a typed code and a reset race; the first one wins
                 // and a pending Touch ID prompt is cancelled.
@@ -683,7 +683,19 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                                 }
                             }
                         })
-                    }, touchIdUnlock: offersTouchId ? touchIdUnlock : nil, logoutImpl: { [weak self] in
+                    }, touchIdUnlock: offersTouchId ? touchIdUnlock : nil, forgetPasscodeImpl: !offersForgetPasscode ? nil : { [weak self] in
+                        return Signal { subscriber in
+                            guard claim() else {
+                                subscriber.putCompletion()
+                                return EmptyDisposable
+                            }
+                            localPasscode.forgetPasscode(accountManager: accountManager, completion: { result in
+                                subscriber.putCompletion()
+                                self?.launchAfterReset(result, deletedData: false, accountManager: accountManager, credentials: credentials)
+                            })
+                            return EmptyDisposable
+                        }
+                    }, logoutImpl: { [weak self] in
                         return Signal { subscriber in
                             guard claim() else {
                                 subscriber.putCompletion()
@@ -691,7 +703,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                             }
                             localPasscode.logOutAndReset(accountManager: accountManager, completion: { result in
                                 subscriber.putCompletion()
-                                self?.launchAfterReset(result, accountManager: accountManager, credentials: credentials)
+                                self?.launchAfterReset(result, deletedData: true, accountManager: accountManager, credentials: credentials)
                             })
                             return EmptyDisposable
                         }
@@ -712,16 +724,18 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     }
 
     /// Local data cannot be opened. Resetting is the user's choice; quitting
-    /// keeps every file, so a later launch can try again. The caller must
-    /// hold the launch claim.
-    private func showLaunchError(_ error: Error, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
+    /// keeps every file not deleted yet (`afterReset`), so a later launch can
+    /// try again. The caller must hold the launch claim.
+    private func showLaunchError(_ error: Error, afterReset: Bool = false, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
         Logger.shared.log("LocalPasscode", "cannot open local data: \(error)")
         closeModal(ColdStartPasslockController.self)
         // Telex-specific text, untranslated like the other Telex alerts.
         let alert = NSAlert()
         alert.alertStyle = .critical
         alert.messageText = "Cannot open local data"
-        alert.informativeText = LocalPasscode.describe(error) + "\n\nLog Out and Reset signs every account out on this Mac and deletes its local data. Chats load again from the server; secret chats are lost. Quit keeps the data so you can try again later."
+        // A failed reset may already have deleted the key files.
+        let quitText = afterReset ? "The reset did not finish, so some local data may already be gone." : "Quit keeps the data so you can try again later."
+        alert.informativeText = LocalPasscode.describe(error) + "\n\nLog Out and Reset signs every account out on this Mac and deletes its local data. Chats load again from the server; secret chats are lost. " + quitText
         alert.addButton(withTitle: "Quit")
         alert.addButton(withTitle: "Log Out and Reset")
         guard alert.runModal() == .alertSecondButtonReturn else {
@@ -729,17 +743,18 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
             return
         }
         localPasscode.logOutAndReset(accountManager: accountManager, completion: { [weak self] result in
-            self?.launchAfterReset(result, accountManager: accountManager, credentials: credentials)
+            self?.launchAfterReset(result, deletedData: true, accountManager: accountManager, credentials: credentials)
         })
     }
 
+    /// `deletedData`: the reset may have deleted local data before failing.
     /// The caller must hold the launch claim.
-    private func launchAfterReset(_ result: Result<DatabaseKey, Error>, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
+    private func launchAfterReset(_ result: Result<DatabaseKey, Error>, deletedData: Bool, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
         switch result {
         case let .success(databaseKey):
             launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
         case let .failure(error):
-            showLaunchError(error, accountManager: accountManager, credentials: credentials)
+            showLaunchError(error, afterReset: deletedData, accountManager: accountManager, credentials: credentials)
         }
     }
 

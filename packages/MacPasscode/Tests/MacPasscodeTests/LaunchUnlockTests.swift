@@ -56,6 +56,15 @@ private final class World {
         self.storage.files[self.legacyURL] = LegacyFile.encrypt(databaseKey, passcode: passcode)
     }
 
+    /// A protected credential, as an earlier install or marker migration
+    /// leaves it.
+    func installCredential(passcode: String) {
+        let kind = PasscodeKindMapping.kind(for: passcode)
+        _ = try! self.launchStore.migrateLegacy(code: passcode, kind: kind)
+            ?? self.launchStore.setInitialPasscode(code: passcode, kind: kind)
+        try! self.launchStore.enableProtection(code: passcode)
+    }
+
     /// What `LocalPasscode` does at launch: decide, then unlock with `code`
     /// if the lock asks for one.
     func launch(code: String?) throws -> DatabaseKey {
@@ -416,6 +425,67 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertThrowsError(try world.launch(code: "1111"))
         XCTAssertEqual(world.store.credential?.code, "0000")
         try Self.assertMigrated(world, passcode: "0000", "")
+    }
+
+    func testForgetPasscodeKeepsDataTheLegacyFileOpensWithoutOne() throws {
+        for realStore in [false, true] {
+            let world = World(realStore: realStore)
+            world.installCredential(passcode: "0000")
+            world.installLegacy(Self.key, passcode: nil)
+            XCTAssertEqual(try world.unlock.state(), .legacy(needsPasscode: true))
+            XCTAssertTrue(try world.unlock.canForgetPasscode(), "real \(realStore)")
+            XCTAssertEqual(try world.unlock.forgetPasscode(), Self.key, "real \(realStore)")
+            XCTAssertFalse(try world.launchStore.hasPasscode(), "real \(realStore)")
+            XCTAssertFalse(try world.unlock.canForgetPasscode(), "real \(realStore)")
+            try Self.assertMigrated(world, passcode: nil, "real \(realStore)")
+        }
+    }
+
+    func testForgetPasscodeIsRefusedWhereThePasscodeGuardsTheKey() throws {
+        for realStore in [false, true] {
+            let name = "real \(realStore)"
+            // The old key file is encrypted under the passcode.
+            let encrypted = World(realStore: realStore)
+            encrypted.installCredential(passcode: "1234")
+            encrypted.installLegacy(Self.key, passcode: "1234")
+            XCTAssertFalse(try encrypted.unlock.canForgetPasscode(), name)
+            XCTAssertThrowsError(try encrypted.unlock.forgetPasscode(), name) {
+                XCTAssertEqual($0 as? LaunchUnlockError, .invalidCode, name)
+            }
+            XCTAssertTrue(try encrypted.launchStore.hasPasscode(), name)
+            XCTAssertEqual(try encrypted.unlock.legacyKeyReader.state(), .present(needsPasscode: true), name)
+
+            // db-key.v2 is sealed under the passcode.
+            let migrated = World(realStore: realStore)
+            migrated.installLegacy(Self.key, passcode: "1234")
+            _ = try migrated.launch(code: "1234")
+            XCTAssertFalse(try migrated.unlock.canForgetPasscode(), name)
+            XCTAssertThrowsError(try migrated.unlock.forgetPasscode(), name)
+            XCTAssertEqual(try migrated.unlock.state(), .v2(needsPasscode: true), name)
+
+            // Nothing asks for a passcode.
+            let open = World(realStore: realStore)
+            open.installLegacy(Self.key, passcode: nil)
+            XCTAssertFalse(try open.unlock.canForgetPasscode(), name)
+        }
+    }
+
+    func testForgetPasscodeInterruptedAfterEachStepResumes() throws {
+        for realStore in [false, true] {
+            let steps = try World.crashAtEachStep(realStore: realStore, setUp: { world in
+                world.installCredential(passcode: "0000")
+                world.installLegacy(Self.key, passcode: nil)
+            }, run: { world in
+                _ = try world.unlock.forgetPasscode()
+            }, check: { world, step in
+                // Either the lock still offers it, or the launch needs no code.
+                if try world.unlock.canForgetPasscode() {
+                    XCTAssertEqual(try world.unlock.forgetPasscode(), Self.key)
+                }
+                try Self.assertMigrated(world, passcode: nil, "real \(realStore) step \(step)")
+            })
+            XCTAssertGreaterThanOrEqual(steps, 4, "real \(realStore)")
+        }
     }
 
     func testMigrationWithoutPasscodeManagesTheCredential() throws {

@@ -136,6 +136,33 @@ public struct LaunchUnlock {
         return databaseKey
     }
 
+    /// Whether the lock may offer `forgetPasscode()`: the live old key file
+    /// opens without a passcode, so only the credential asks for one.
+    public func canForgetPasscode() throws -> Bool {
+        try self.passcodelessLegacyKey() != nil && self.store.hasPasscode()
+    }
+
+    /// Drops the credential's passcode and migrates the old key file without
+    /// one, keeping the data. Throws `.invalidCode` unless the old key file
+    /// is live and opens without a passcode.
+    public func forgetPasscode() throws -> DatabaseKey {
+        guard let databaseKey = try self.passcodelessLegacyKey() else {
+            throw LaunchUnlockError.invalidCode
+        }
+        if try self.store.hasPasscode() {
+            try self.store.resetCredential(removingProtectedData: {})
+        }
+        try self.migrate(databaseKey, code: nil, replacingStaleCredential: false)
+        return databaseKey
+    }
+
+    private func passcodelessLegacyKey() throws -> DatabaseKey? {
+        guard try self.legacyKeyReader.state() == .present(needsPasscode: false) else {
+            return nil
+        }
+        return try self.legacyKeyReader.read(passcode: nil)
+    }
+
     /// Creates and stores a new database key; refuses when any key file
     /// exists.
     public func createFresh() throws -> DatabaseKey {
