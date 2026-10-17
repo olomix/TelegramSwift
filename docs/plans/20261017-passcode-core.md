@@ -781,14 +781,55 @@ works); the fingerprint step is still the user's (checkbox above).
 - Tests: MacPasscode 88, ApiCredentials 25. Debug build check passes.
 
 ### Task 10: Verify acceptance criteria
-- [ ] fresh install: launch works, `db-key.v2` exists, the legacy file is
-      a retired marker (Task 6)
-- [ ] legacy install with and without a passcode (fixture built by the
+- [x] fresh install: launch works, `db-key.v2` exists, the legacy file is
+      a retired marker (Task 6) (unit test and real-keychain harness, not
+      the app; see results)
+- [x] legacy install with and without a passcode (fixture built by the
       old code path in a test): first unlock migrates, protection is on
       when a code was set, the legacy file is poisoned
-- [ ] all unit tests and the build check pass
-- [ ] launch the Debug build once from the terminal and quit it (do not
-      kill processes you did not start)
+- [x] all unit tests and the build check pass
+- [x] launch the Debug build once from the terminal and quit it (do not
+      kill processes you did not start) (skipped - launching would
+      migrate the user's real data; left for the user after backup)
+
+**Results** (2026-10-17).
+- Unit tests: MacPasscode 89 (new
+  `testMigratesFilesWrittenByOldCode`: all five old-code fixtures, with
+  and without a passcode, go through `LaunchUnlock`: a wrong code changes
+  nothing, the first unlock returns the old key, protection matches the
+  passcode, the legacy file is retired, `db-key.v2` opens with the same
+  key; the fixture type is now shared as `LegacyFixture`); ApiCredentials
+  25; FoundationUtils 30. `testFreshInstall` covers the fresh case.
+- Real keychain: a scratchpad harness (`MacPasscodeEnvironment`,
+  `CoreLaunchCredentialStore`, `LaunchUnlock` on disk), signed like the
+  Debug app (bundle ID `com.korthane.telex`, the built Telex.app's
+  entitlements incl. `…telex.private`, development profile), in a
+  temporary folder, one process per scope `com.korthane.telex.spike.accept-*`.
+  All 23 checks pass: fresh → `createFresh`, `db-key.v2` exists, legacy
+  file retired, relaunch is `v2(needsPasscode: false)` with the same key;
+  old-code file without passcode → migrates, protection off; old-code file
+  with `1234` → `0000` refused and nothing written, then migrates,
+  protection on, `.secured` stored, relaunch needs the code and opens the
+  same key. Cleanup: `resetCredential` per scope, all `.spike.accept-`
+  items deleted, none left in the data protection or login keychain;
+  temporary folder removed.
+- Debug build check passes. Release build (`-configuration Release`, no
+  provisioning flags needed) passes: Telex.app and TelegramShare.appex are
+  signed `Developer ID Application: Korthane LLC (2FKX9S8MFA)`, hardened
+  runtime, sandboxed, profiles `Telex Developer ID`
+  (`be513007-…`) and `Telex Share Developer ID` (`df46f97f-…`), both
+  `ProvisionsAllDevices`; `keychain-access-groups` = `…telex.shared` +
+  `…telex.private` (app), `…telex.shared` (appex); `codesign --verify
+  --deep --strict` passes; `spctl` rejects it as unnotarized, as expected.
+- ⚠️ Both Release bundles carry `com.apple.security.get-task-allow` =
+  true: `CODE_SIGN_INJECT_BASE_ENTITLEMENTS` resolves to YES for Release
+  (Xcode default; only an archive export strips it). Notarization rejects
+  that entitlement, so a notarized release needs
+  `CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO` for Release or an
+  archive/export. Not changed here (signing settings are out of scope).
+- Not launched: no switch moves the data root (`ApiEnvironment.dataRootURL`
+  is always the app group container), so any launch would migrate the
+  user's real `debug/` data. Left for Post-Completion after a backup.
 
 ### Task 11: [Final] Update documentation
 - [ ] INSTALL.md: passcode in PasscodeCore / login keychain; data depends

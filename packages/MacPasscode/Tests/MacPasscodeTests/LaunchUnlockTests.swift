@@ -178,6 +178,25 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertEqual(try world.unlock.unlockV2(code: code), databaseKey)
     }
 
+    func testMigratesFilesWrittenByOldCode() throws {
+        for fixture in LegacyFixture.all {
+            let world = World()
+            world.storage.files[world.legacyURL] = Data(hex: fixture.file)
+            let hasPasscode = fixture.passcode != nil
+            XCTAssertEqual(try world.unlock.state(), .legacy(needsPasscode: hasPasscode))
+            if hasPasscode {
+                XCTAssertThrowsError(try world.unlock.unlockLegacy(code: "0000"))
+                XCTAssertNil(world.store.credential)
+            }
+
+            XCTAssertEqual(try world.launch(code: fixture.passcode), fixture.databaseKey)
+            XCTAssertEqual(world.store.credential?.protectionEnabled, hasPasscode)
+            XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
+            XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: hasPasscode))
+            XCTAssertEqual(try world.unlock.unlockV2(code: fixture.passcode), fixture.databaseKey)
+        }
+    }
+
     func testWrongLegacyCodeChangesNothing() throws {
         let world = World()
         world.installLegacy(.random(), passcode: "1234")
