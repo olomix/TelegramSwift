@@ -23,7 +23,7 @@ private final class World {
 
     var unlock: LaunchUnlock {
         LaunchUnlock(databaseKeyFile: DatabaseKeyFile(directory: self.directory, storage: self.storage),
-                     legacyKeyReader: LegacyKeyReader(directory: self.directory, storage: self.storage),
+                     legacyKeyFile: LegacyKeyFile(directory: self.directory, storage: self.storage),
                      store: self.launchStore,
                      storeAccessChallenge: { [unowned self] reference in
                          try self.crash.tick()
@@ -48,8 +48,8 @@ private final class World {
         return self.marker
     }
 
-    var legacyURL: URL { self.unlock.legacyKeyReader.encryptedURL }
-    var plaintextURL: URL { self.unlock.legacyKeyReader.plaintextURL }
+    var legacyURL: URL { self.unlock.legacyKeyFile.encryptedURL }
+    var plaintextURL: URL { self.unlock.legacyKeyFile.plaintextURL }
     var v2URL: URL { self.unlock.databaseKeyFile.url }
 
     func installLegacy(_ databaseKey: DatabaseKey, passcode: String?) {
@@ -113,7 +113,7 @@ final class LaunchUnlockTests: XCTestCase {
     private static func assertMigrated(_ world: World, passcode: String?, _ message: String) throws {
         XCTAssertEqual(try world.launch(code: passcode), self.key, message)
         XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: passcode != nil), message)
-        XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired, message)
+        XCTAssertEqual(try world.unlock.legacyKeyFile.state(), .retired, message)
         XCTAssertEqual(try world.unlock.unlockV2(code: passcode), self.key, message)
         XCTAssertEqual(try world.launchStore.isProtectionEnabled(), passcode != nil, message)
         XCTAssertEqual(world.accessChallenges.last.map { $0 != nil }, passcode != nil, message)
@@ -126,7 +126,7 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
         XCTAssertEqual(try world.unlock.unlockV2(code: nil), databaseKey)
         // A retired marker, so an older build never creates a key here.
-        XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
+        XCTAssertEqual(try world.unlock.legacyKeyFile.state(), .retired)
         XCTAssertEqual(world.accessChallenges, [nil])
     }
 
@@ -210,7 +210,7 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertEqual(world.store.credential?.kind, .digits4)
         XCTAssertEqual(world.store.credential?.protectionEnabled, true)
         XCTAssertEqual(world.accessChallenges, [world.store.reference])
-        XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
+        XCTAssertEqual(try world.unlock.legacyKeyFile.state(), .retired)
         XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: true))
         XCTAssertEqual(try world.unlock.unlockV2(code: "1234"), databaseKey)
         XCTAssertThrowsError(try world.unlock.unlockV2(code: nil))
@@ -260,7 +260,7 @@ final class LaunchUnlockTests: XCTestCase {
 
             XCTAssertEqual(try world.launch(code: fixture.passcode), fixture.databaseKey)
             XCTAssertEqual(world.store.credential?.protectionEnabled, hasPasscode)
-            XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
+            XCTAssertEqual(try world.unlock.legacyKeyFile.state(), .retired)
             XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: hasPasscode))
             XCTAssertEqual(try world.unlock.unlockV2(code: fixture.passcode), fixture.databaseKey)
         }
@@ -376,7 +376,7 @@ final class LaunchUnlockTests: XCTestCase {
         }, check: { world, step in
             let databaseKey = try world.launch(code: nil)
             XCTAssertEqual(try world.launch(code: nil), databaseKey, "step \(step)")
-            XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired, "step \(step)")
+            XCTAssertEqual(try world.unlock.legacyKeyFile.state(), .retired, "step \(step)")
             XCTAssertEqual(world.accessChallenges.last, .some(nil), "step \(step)")
         })
         XCTAssertGreaterThanOrEqual(steps, 4)
@@ -453,7 +453,7 @@ final class LaunchUnlockTests: XCTestCase {
                 XCTAssertEqual($0 as? LaunchUnlockError, .invalidCode, name)
             }
             XCTAssertTrue(try encrypted.launchStore.hasPasscode(), name)
-            XCTAssertEqual(try encrypted.unlock.legacyKeyReader.state(), .present(needsPasscode: true), name)
+            XCTAssertEqual(try encrypted.unlock.legacyKeyFile.state(), .present(needsPasscode: true), name)
 
             // db-key.v2 is sealed under the passcode.
             let migrated = World(realStore: realStore)
@@ -533,7 +533,7 @@ final class LaunchUnlockTests: XCTestCase {
         XCTAssertEqual(world.store.credential?.code, nil)
         XCTAssertEqual(try world.unlock.state(), .v2(needsPasscode: false))
         XCTAssertEqual(try world.unlock.unlockV2(code: nil), Self.key)
-        XCTAssertEqual(try world.unlock.legacyKeyReader.state(), .retired)
+        XCTAssertEqual(try world.unlock.legacyKeyFile.state(), .retired)
         XCTAssertEqual(world.accessChallenges.last, .some(nil))
     }
 

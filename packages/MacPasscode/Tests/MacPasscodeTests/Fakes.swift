@@ -182,12 +182,12 @@ final class FakeCredentialStore: LaunchCredentialStore {
 enum LegacyFile {
     /// The old `reencrypt`: key + salt + murmur hash, zero padded, then
     /// AES-CBC under SHA-512(passcode). Checked byte for byte against
-    /// files written by `BuildConfig.m` in `LegacyKeyReaderTests`.
+    /// files written by `BuildConfig.m` in `LegacyKeyFileTests`.
     static func encrypt(_ databaseKey: DatabaseKey, passcode: String?) -> Data {
-        var hash = LegacyKeyReader.murmurHash32(databaseKey.bytes).littleEndian
+        var hash = LegacyKeyFile.murmurHash32(databaseKey.bytes).littleEndian
         var plaintext = databaseKey.bytes + Data(bytes: &hash, count: 4)
         plaintext += Data(count: (16 - plaintext.count % 16) % 16)
-        return self.aesCBCEncrypt(plaintext, passcode: passcode ?? LegacyKeyReader.defaultPasscode)
+        return self.aesCBCEncrypt(plaintext, passcode: passcode ?? LegacyKeyFile.defaultPasscode)
     }
 
     private static func aesCBCEncrypt(_ data: Data, passcode: String) -> Data {

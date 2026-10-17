@@ -36,12 +36,12 @@ struct LegacyFixture {
     ]
 }
 
-final class LegacyKeyReaderTests: XCTestCase {
+final class LegacyKeyFileTests: XCTestCase {
     let directory = URL(fileURLWithPath: "/data")
 
-    private func reader(_ fixture: LegacyFixture?) -> (LegacyKeyReader, InMemoryStorage) {
+    private func reader(_ fixture: LegacyFixture?) -> (LegacyKeyFile, InMemoryStorage) {
         let storage = InMemoryStorage()
-        let reader = LegacyKeyReader(directory: self.directory, storage: storage)
+        let reader = LegacyKeyFile(directory: self.directory, storage: storage)
         if let fixture {
             storage.files[reader.encryptedURL] = Data(hex: fixture.file)
         }
@@ -89,7 +89,7 @@ final class LegacyKeyReaderTests: XCTestCase {
 
     func testMissingFileCreatesNothingOnDisk() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let reader = LegacyKeyReader(directory: directory)
+        let reader = LegacyKeyFile(directory: directory)
         XCTAssertEqual(try reader.state(), .missing)
         XCTAssertNil(try reader.read(passcode: nil))
         XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
@@ -135,7 +135,7 @@ final class LegacyKeyReaderTests: XCTestCase {
             XCTAssertEqual(try reader.state(), .retired)
             XCTAssertNil(try reader.read(passcode: nil))
             XCTAssertNil(try reader.read(passcode: fixture.passcode))
-            XCTAssertNil(LegacyKeyReader.decrypt(retired, passcode: LegacyKeyReader.defaultPasscode))
+            XCTAssertNil(LegacyKeyFile.decrypt(retired, passcode: LegacyKeyFile.defaultPasscode))
         }
     }
 

@@ -14,6 +14,7 @@ import SwiftSignalKit
 import TGUIKit
 import BuildConfig
 import ApiCredentials
+import MacPasscode
 
 #if !SHARE
 import PrivateCallScreen
@@ -769,4 +770,10 @@ class SharedAccountContext {
         batteryLevelTimer?.invalidate()
     }
     
+}
+
+extension ValueBoxEncryptionParameters {
+    init(databaseKey: DatabaseKey) {
+        self.init(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: databaseKey.key)!, salt: ValueBoxEncryptionParameters.Salt(data: databaseKey.salt)!)
+    }
 }

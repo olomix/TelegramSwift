@@ -14,7 +14,7 @@ final class ReadOnlyUnlockTests: XCTestCase {
 
     private var launchUnlock: LaunchUnlock {
         LaunchUnlock(databaseKeyFile: DatabaseKeyFile(directory: self.directory, storage: self.storage),
-                     legacyKeyReader: LegacyKeyReader(directory: self.directory, storage: self.storage),
+                     legacyKeyFile: LegacyKeyFile(directory: self.directory, storage: self.storage),
                      store: self.store,
                      storeAccessChallenge: { _ in })
     }
@@ -23,7 +23,7 @@ final class ReadOnlyUnlockTests: XCTestCase {
         ReadOnlyUnlock(directory: self.directory, credentials: self.store, storage: self.storage)
     }
 
-    private var legacyURL: URL { self.launchUnlock.legacyKeyReader.encryptedURL }
+    private var legacyURL: URL { self.launchUnlock.legacyKeyFile.encryptedURL }
     private var v2URL: URL { self.launchUnlock.databaseKeyFile.url }
 
     /// What the app leaves after migrating an old key file.
@@ -117,7 +117,7 @@ final class ReadOnlyUnlockTests: XCTestCase {
     }
 
     func testPlaintextLegacyKeyNeedsAppLaunch() throws {
-        self.storage.files[self.launchUnlock.legacyKeyReader.plaintextURL] = DatabaseKey.random().bytes
+        self.storage.files[self.launchUnlock.legacyKeyFile.plaintextURL] = DatabaseKey.random().bytes
         try self.assertNoChanges {
             XCTAssertEqual(try self.unlock.state(), .needsAppLaunch)
         }

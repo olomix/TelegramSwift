@@ -142,7 +142,7 @@ final class SharedNotificationManager : NSObject, NSUserNotificationCenterDelega
                 closeGalleryViewer(false)
                 
                 var signals:[Signal<Bool, NoError>] = []
-                let useTouchId = LocalPasscode.offersTouchIdUnlock()
+                let useTouchId = LocalPasscodeSettings.offersTouchIdUnlock()
                 
                 appDelegate?.enumerateAccountContexts({ context in
                     closeAllModals(window: context.window)

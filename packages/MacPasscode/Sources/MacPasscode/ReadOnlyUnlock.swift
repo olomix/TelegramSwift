@@ -32,19 +32,19 @@ public struct ReadOnlyUnlock {
     }
 
     private let databaseKeyFile: DatabaseKeyFile
-    private let legacyKeyReader: LegacyKeyReader
+    private let legacyKeyFile: LegacyKeyFile
     private let credentials: CredentialReader
 
     public init(directory: URL, credentials: CredentialReader, storage: KeyFileStorage = LocalKeyFileStorage()) {
         let readOnlyStorage = ReadOnlyKeyFileStorage(storage)
         self.databaseKeyFile = DatabaseKeyFile(directory: directory, storage: readOnlyStorage)
-        self.legacyKeyReader = LegacyKeyReader(directory: directory, storage: readOnlyStorage)
+        self.legacyKeyFile = LegacyKeyFile(directory: directory, storage: readOnlyStorage)
         self.credentials = credentials
     }
 
     /// Throws when a key file exists but cannot be read, or the store fails.
     public func state() throws -> State {
-        let legacy = try self.legacyKeyReader.state()
+        let legacy = try self.legacyKeyFile.state()
         let v2 = try self.databaseKeyFile.contents()
         switch legacy {
         case .present:

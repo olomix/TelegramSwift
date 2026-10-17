@@ -12,6 +12,7 @@ import TelegramCore
 
 import Postbox
 import SwiftSignalKit
+import MacPasscode
 
 private class TouchIdContainerView : View {
     fileprivate let button: TextButton = TextButton()
@@ -348,6 +349,21 @@ class PasscodeLockView : Control, NSTextFieldDelegate {
     }
 }
 
+extension PasscodeLockView {
+    /// Feedback for a failed check on a lock screen.
+    func show(_ failure: PasscodeCheckFailure) {
+        self.input.shake()
+        switch failure {
+        case .invalidCode:
+            break
+        case .cooldown, .unavailable:
+            if let window = self.window as? Window {
+                showModalText(for: window, text: failure.text)
+            }
+        }
+    }
+}
+
 class PasscodeLockController: ModalViewController {
     let accountManager: AccountManager<TelegramAccountManagerTypes>
     private let useTouchId: Bool
@@ -402,8 +418,8 @@ class PasscodeLockController: ModalViewController {
         }
         isChecking = true
         let accountManager = self.accountManager
-        checkDisposable.set((LocalPasscode.verifyAppUnlock(passcode) |> deliverOnMainQueue).start(next: { [weak self] in
-            LocalPasscode.carryOverTouchId(code: passcode, accountManager: accountManager)
+        checkDisposable.set((LocalPasscodeSettings.verifyAppUnlock(passcode) |> deliverOnMainQueue).start(next: { [weak self] in
+            LocalPasscodeSettings.carryOverTouchId(code: passcode, accountManager: accountManager)
             self?._doneValue.set(.single(true))
             self?.close()
         }, error: { [weak self] failure in
@@ -412,20 +428,16 @@ class PasscodeLockController: ModalViewController {
         }))
     }
     
-    private var touchIdCalled = false
+    private var touchIdAutoPrompt = TouchIdAutoPrompt()
     
     override func windowDidBecomeKey() {
         super.windowDidBecomeKey()
-
-        if NSApp.isActive, useTouchId, !touchIdCalled {
-            callTouchId()
-            touchIdCalled = true
-        }
+        touchIdAutoPrompt.promptIfNeeded(enabled: useTouchId, callTouchId)
     }
     
     /// A failed or cancelled prompt leaves the code field as the fallback.
     func callTouchId() {
-        touchIdDisposable.set((LocalPasscode.touchIdAppUnlock() |> deliverOnMainQueue).start(next: { [weak self] success in
+        touchIdDisposable.set((LocalPasscodeSettings.touchIdAppUnlock() |> deliverOnMainQueue).start(next: { [weak self] success in
             if success {
                 self?._doneValue.set(.single(true))
                 self?.close()

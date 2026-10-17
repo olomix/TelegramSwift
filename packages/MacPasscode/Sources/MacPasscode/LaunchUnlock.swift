@@ -48,18 +48,18 @@ public enum LaunchUnlockError: Error, Equatable {
 /// so an interrupted launch is finished by the next one.
 public struct LaunchUnlock {
     public let databaseKeyFile: DatabaseKeyFile
-    public let legacyKeyReader: LegacyKeyReader
+    public let legacyKeyFile: LegacyKeyFile
     private let store: LaunchCredentialStore
     private let storeAccessChallenge: (PasscodeCredentialReference?) throws -> Void
 
     /// `storeAccessChallenge` records the passcode state in the account
     /// manager (`.secured` for a reference, `.none` for nil).
     public init(databaseKeyFile: DatabaseKeyFile,
-                legacyKeyReader: LegacyKeyReader,
+                legacyKeyFile: LegacyKeyFile,
                 store: LaunchCredentialStore,
                 storeAccessChallenge: @escaping (PasscodeCredentialReference?) throws -> Void) {
         self.databaseKeyFile = databaseKeyFile
-        self.legacyKeyReader = legacyKeyReader
+        self.legacyKeyFile = legacyKeyFile
         self.store = store
         self.storeAccessChallenge = storeAccessChallenge
     }
@@ -67,7 +67,7 @@ public struct LaunchUnlock {
     /// Throws when a key file exists but cannot be read, or the store fails;
     /// neither is ever reported as `.fresh`.
     public func state() throws -> LaunchState {
-        let legacy = try self.legacyKeyReader.state()
+        let legacy = try self.legacyKeyFile.state()
         let v2 = try self.databaseKeyFile.contents()
         switch legacy {
         case let .present(needsPasscode):
@@ -111,25 +111,23 @@ public struct LaunchUnlock {
     /// A crash right after `db-key.v2` was written leaves no old key file;
     /// an older build or extension would then create a new key there.
     private func finishInterruptedStore() throws {
-        guard try self.legacyKeyReader.state() == .missing else { return }
+        guard try self.legacyKeyFile.state() == .missing else { return }
         if try !self.store.isProtectionEnabled() {
             try self.storeAccessChallenge(nil)
         }
-        try self.legacyKeyReader.retire()
+        try self.legacyKeyFile.retire()
     }
 
-    /// Opens the old key file with `code` (nil = no passcode set), then
-    /// migrates it with `settingPasscode`, or with `code` when that is nil:
-    /// an old account-manager marker could hold a code the key file never
-    /// used. A wrong code throws `.invalidCode` and changes nothing.
+    /// Opens the old key file with `code` (nil = none), migrates it with
+    /// `settingPasscode ?? code`: an old marker's code may differ from it.
     public func unlockLegacy(code: String?, settingPasscode: String? = nil) throws -> DatabaseKey {
-        if let databaseKey = try self.legacyKeyReader.read(passcode: code) {
+        if let databaseKey = try self.legacyKeyFile.read(passcode: code) {
             try self.migrate(databaseKey, code: settingPasscode ?? code, replacingStaleCredential: true)
             return databaseKey
         }
         // Resuming a marker migration: only the credential can check `code`.
         guard let code, try self.store.hasPasscode(),
-              let databaseKey = try self.legacyKeyReader.read(passcode: nil) else {
+              let databaseKey = try self.legacyKeyFile.read(passcode: nil) else {
             throw LaunchUnlockError.invalidCode
         }
         try self.migrate(databaseKey, code: code, replacingStaleCredential: false)
@@ -157,16 +155,16 @@ public struct LaunchUnlock {
     }
 
     private func passcodelessLegacyKey() throws -> DatabaseKey? {
-        guard try self.legacyKeyReader.state() == .present(needsPasscode: false) else {
+        guard try self.legacyKeyFile.state() == .present(needsPasscode: false) else {
             return nil
         }
-        return try self.legacyKeyReader.read(passcode: nil)
+        return try self.legacyKeyFile.read(passcode: nil)
     }
 
     /// Creates and stores a new database key; refuses when any key file
     /// exists.
     public func createFresh() throws -> DatabaseKey {
-        guard try self.legacyKeyReader.state() == .missing, try self.databaseKeyFile.contents() == nil else {
+        guard try self.legacyKeyFile.state() == .missing, try self.databaseKeyFile.contents() == nil else {
             throw LaunchUnlockError.keyFileExists
         }
         // Leftover items of a deleted container would block the unprotected
@@ -184,15 +182,13 @@ public struct LaunchUnlock {
     public func resetLocalSecrets(removingData: () throws -> Void) throws {
         try self.store.resetCredential(removingProtectedData: {
             try self.databaseKeyFile.remove()
-            try self.legacyKeyReader.remove()
+            try self.legacyKeyFile.remove()
             try removingData()
         })
     }
 
-    /// Replaces the credential with a new unprotected one while the app
-    /// keeps running with `databaseKey`, and seals that key under it. Key
-    /// files are overwritten, never deleted, so a failure midway shows an
-    /// error at the next launch instead of a silent fresh start.
+    /// Replaces the credential with an unprotected one sealing `databaseKey`.
+    /// Overwrites key files, never deletes, so a failure is no fresh start.
     public func resetCredential(keeping databaseKey: DatabaseKey) throws {
         try self.store.resetCredential(removingProtectedData: {})
         try self.storeUnprotected(databaseKey)
@@ -203,7 +199,7 @@ public struct LaunchUnlock {
         try self.storeAccessChallenge(nil)
         // An older build or extension creates a new key file when none
         // exists; a later launch would then migrate that wrong key.
-        try self.legacyKeyReader.retire()
+        try self.legacyKeyFile.retire()
     }
 
     /// `replacingStaleCredential` is false when only the credential vouches
@@ -229,7 +225,7 @@ public struct LaunchUnlock {
         }
         try self.databaseKeyFile.write(databaseKey, with: try self.store.databaseSealingKey(code: code))
         try self.storeAccessChallenge(reference)
-        try self.legacyKeyReader.retire()
+        try self.legacyKeyFile.retire()
     }
 
     private func adoptLegacyPasscode(_ code: String) throws -> PasscodeCredentialReference {

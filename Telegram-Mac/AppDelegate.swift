@@ -672,7 +672,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                             case let .success(databaseKey):
                                 completion(nil)
                                 if claim() {
-                                    LocalPasscode.carryOverTouchId(code: passcode, accountManager: accountManager)
+                                    LocalPasscodeSettings.carryOverTouchId(code: passcode, accountManager: accountManager)
                                     self?.launchApp(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
                                 }
                             case let .failure(error):
@@ -683,7 +683,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
                                 }
                             }
                         })
-                    }, touchIdUnlock: offersTouchId ? touchIdUnlock : nil, forgetPasscodeImpl: !offersForgetPasscode ? nil : { [weak self] in
+                    }, touchIdImpl: offersTouchId ? touchIdUnlock : nil, forgetPasscodeImpl: !offersForgetPasscode ? nil : { [weak self] in
                         return Signal { subscriber in
                             guard claim() else {
                                 subscriber.putCompletion()
@@ -849,7 +849,7 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         
         clearUserDefaultsObject(forKeyPrefix: "dice_")
         
-        let encryptionParameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: databaseKey.key)!, salt: ValueBoxEncryptionParameters.Salt(data: databaseKey.salt)!)
+        let encryptionParameters = ValueBoxEncryptionParameters(databaseKey: databaseKey)
         let localPasscode = self.localPasscode!
         
         let rootPath = containerUrl!

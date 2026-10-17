@@ -46,7 +46,9 @@ public struct DatabaseKeyFile {
     public static let fileName = "db-key.v2"
     static let version: UInt8 = 1
     static let associatedData = Data("telex.db-key.v2".utf8)
-    static let sealedLength = 1 + 12 + DatabaseKey.keyLength + DatabaseKey.saltLength + 16
+    static let nonceLength = 12
+    static let tagLength = 16
+    static let sealedLength = 1 + nonceLength + DatabaseKey.keyLength + DatabaseKey.saltLength + tagLength
 
     public let url: URL
     private let storage: KeyFileStorage

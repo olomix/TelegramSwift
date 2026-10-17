@@ -14,22 +14,18 @@ import MacPasscode
 
 class ColdStartPasslockController: ModalViewController {
     private let valueDisposable = MetaDisposable()
-    private let logoutDisposable = MetaDisposable()
     private let touchIdDisposable = MetaDisposable()
 
     private let logoutImpl:() -> Signal<Never, NoError>
     private let checkNextValue: (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void
-    private let touchIdUnlock: (() -> Signal<Never, NoError>)?
+    private let touchIdImpl: (() -> Signal<Never, NoError>)?
     private let forgetPasscodeImpl: (() -> Signal<Never, NoError>)?
-    private var touchIdCalled = false
-    /// `checkNextValue` reports nil once the code opened local data.
-    /// `touchIdUnlock` opens it through Touch ID; nil hides Touch ID. A failed
-    /// or cancelled prompt leaves the code field as the fallback.
-    /// `forgetPasscodeImpl` drops the passcode and keeps the data; nil when
-    /// the passcode guards the data, so only Log Out is offered.
-    init(checkNextValue: @escaping (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void, touchIdUnlock: (() -> Signal<Never, NoError>)? = nil, forgetPasscodeImpl: (() -> Signal<Never, NoError>)? = nil, logoutImpl:@escaping()->Signal<Never, NoError>) {
+    private var touchIdAutoPrompt = TouchIdAutoPrompt()
+    /// `checkNextValue` reports nil once the code opened local data. Nil
+    /// `touchIdImpl` hides Touch ID; nil `forgetPasscodeImpl` offers Log Out.
+    init(checkNextValue: @escaping (String, @escaping (PasscodeCheckFailure?) -> Void) -> Void, touchIdImpl: (() -> Signal<Never, NoError>)? = nil, forgetPasscodeImpl: (() -> Signal<Never, NoError>)? = nil, logoutImpl:@escaping()->Signal<Never, NoError>) {
         self.checkNextValue = checkNextValue
-        self.touchIdUnlock = touchIdUnlock
+        self.touchIdImpl = touchIdImpl
         self.forgetPasscodeImpl = forgetPasscodeImpl
         self.logoutImpl = logoutImpl
         super.init(frame: NSMakeRect(0, 0, 350, 350))
@@ -94,7 +90,7 @@ class ColdStartPasslockController: ModalViewController {
             self?.callTouchId()
         }
 
-        genericView.update(hasTouchId: touchIdUnlock != nil)
+        genericView.update(hasTouchId: touchIdImpl != nil)
         readyOnce()
         
         
@@ -141,15 +137,13 @@ class ColdStartPasslockController: ModalViewController {
     }
 
     private func callTouchIdOnce() {
-        if NSApp.isActive, touchIdUnlock != nil, !touchIdCalled {
-            touchIdCalled = true
-            callTouchId()
-        }
+        touchIdAutoPrompt.promptIfNeeded(enabled: touchIdImpl != nil, callTouchId)
     }
 
+    // A failed or cancelled prompt leaves the code field as the fallback.
     private func callTouchId() {
-        if let touchIdUnlock {
-            touchIdDisposable.set(touchIdUnlock().start())
+        if let touchIdImpl {
+            touchIdDisposable.set(touchIdImpl().start())
         }
     }
 
@@ -195,7 +189,6 @@ class ColdStartPasslockController: ModalViewController {
     }
     
     deinit {
-        logoutDisposable.dispose()
         valueDisposable.dispose()
         touchIdDisposable.dispose()
         self.window?.removeAllHandlers(for: self)

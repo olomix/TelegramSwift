@@ -3,7 +3,6 @@ import LocalAuthentication
 import PasscodeCore
 
 /// `LaunchCredentialStore` over PasscodeCore's keychain-backed store.
-@available(macOS 11.0, *)
 public struct CoreLaunchCredentialStore: LaunchCredentialStore {
     public static let namespace = "telex.db"
     static let domain = "db-key.v2"

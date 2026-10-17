@@ -249,7 +249,7 @@ class PasscodeSettingsViewController: TableViewController {
        
         let previous:Atomic<[AppearanceWrapperEntry<PasscodeEntry>]> = Atomic(value: [])
         
-        genericView.merge(with: combineLatest(queue: prepareQueue, context.sharedContext.accountManager.accessChallengeData(), passcodeSettingsView(context.sharedContext.accountManager), appearanceSignal, LocalPasscode.touchIdToggleState()) |> map { passcode, passcodeSettings, appearance, touchId in
+        genericView.merge(with: combineLatest(queue: prepareQueue, context.sharedContext.accountManager.accessChallengeData(), passcodeSettingsView(context.sharedContext.accountManager), appearanceSignal, LocalPasscodeSettings.touchIdToggleState()) |> map { passcode, passcodeSettings, appearance, touchId in
             let entries = passcodeSettinsEntry(passcode.data, passcodeSettings: passcodeSettings, touchId: touchId).map{AppearanceWrapperEntry(entry: $0, appearance: appearance)}
             return prepareTransition(left: previous.swap(entries), right: entries, initialSize: initialSize, arguments: arguments)
         } |> deliverOnMainQueue)

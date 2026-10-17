@@ -70,6 +70,6 @@ final class PasscodeCheckFailureTests: XCTestCase {
     }
 
     func testCooldownText() {
-        XCTAssertEqual(PasscodeCheckFailure.cooldownText(seconds: 42), "Too many attempts. Try again in 42 s.")
+        XCTAssertEqual(PasscodeTexts.cooldown(seconds: 42), "Too many attempts. Try again in 42 s.")
     }
 }

@@ -19,9 +19,4 @@ public enum PasscodeCheckFailure: Equatable {
             self = .unavailable
         }
     }
-
-    // English only, like the other Telex-specific texts.
-    public static func cooldownText(seconds: Int) -> String {
-        "Too many attempts. Try again in \(seconds) s."
-    }
 }

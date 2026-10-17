@@ -558,7 +558,7 @@ private func privacyAndSecurityControllerEntries(state: PrivacyAndSecurityContro
     entries.append(.section(sectionId: sectionId))
     sectionId += 1
     
-    let hasPasscode = LocalPasscode.hasPasscode(passcodeData)
+    let hasPasscode = LocalPasscodeSettings.hasPasscode(passcodeData)
     entries.append(.twoStepVerification(sectionId: sectionId, configuration: configuration, viewType: .firstItem))
     entries.append(.passcode(sectionId: sectionId, enabled: hasPasscode, viewType: .innerItem))
 

@@ -87,7 +87,7 @@ class ShareViewController: NSViewController {
         telegramUpdateTheme(updateTheme(with: themeSettings), window: nil, animated: false)
 
         guard passcodeConfigured else {
-            showNotice(ShareViewController.unavailableText)
+            showNotice(PasscodeTexts.shareUnavailable)
             return
         }
 
@@ -99,21 +99,17 @@ class ShareViewController: NSViewController {
             case .ready(needsPasscode: true):
                 showPasslock(unlock: unlock, accountManager: accountManager, credentials: credentials)
             case .needsAppLaunch:
-                showNotice(ShareViewController.finishUpdateText)
+                showNotice(PasscodeTexts.shareFinishUpdate)
             case .credentialLost:
-                showNotice(ShareViewController.unavailableText)
+                showNotice(PasscodeTexts.shareUnavailable)
             }
         } catch {
             Logger.shared.log("Share", "local data unlock failed: \(error)")
-            showNotice(ShareViewController.unavailableText)
+            showNotice(PasscodeTexts.shareUnavailable)
         }
     }
 
     // MARK: Passcode
-
-    // New strings are English only, like the app's Telex-specific texts.
-    private static let finishUpdateText = "Open Telex once to finish the update, then share again."
-    private static let unavailableText = "Telex cannot open local data from here: its keychain item is missing or unreadable. Open Telex to fix this."
 
     /// Key derivation is slow on purpose; keep it off the main thread.
     private static let passcodeQueue = Queue(name: "com.korthane.telex.share.passcode")
@@ -134,8 +130,6 @@ class ShareViewController: NSViewController {
     }
 
     private func showPasslock(unlock: ReadOnlyUnlock, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
-        let extensionContext = self.extensionContext!
-
         self.passlock = SEPasslockController(checkNextValue: { [weak self] passcode, completion in
             ShareViewController.passcodeQueue.async {
                 let result = Result { try unlock.unlock(code: passcode) }
@@ -148,24 +142,23 @@ class ShareViewController: NSViewController {
                         self.launchExtension(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
                     case let .failure(error):
                         if case ReadOnlyUnlockError.needsAppLaunch = error {
-                            self.showNotice(ShareViewController.finishUpdateText)
+                            self.showNotice(PasscodeTexts.shareFinishUpdate)
                             return
                         }
                         switch PasscodeCheckFailure(error) {
                         case .invalidCode:
                             completion(nil)
                         case let .cooldown(seconds):
-                            completion(PasscodeCheckFailure.cooldownText(seconds: seconds))
+                            completion(PasscodeTexts.cooldown(seconds: seconds))
                         case .unavailable:
                             Logger.shared.log("Share", "passcode check failed: \(error)")
-                            self.showNotice(ShareViewController.unavailableText)
+                            self.showNotice(PasscodeTexts.shareUnavailable)
                         }
                     }
                 }
             }
-        }, cancelImpl: {
-            let cancelError = NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError, userInfo: nil)
-            extensionContext.cancelRequest(withError: cancelError)
+        }, cancelImpl: { [weak self] in
+            self?.cancelRequest()
         })
 
         self.passlock!.view.frame = self.view.bounds
@@ -177,18 +170,21 @@ class ShareViewController: NSViewController {
             passlock.view.removeFromSuperview()
             self.passlock = nil
         }
-        let extensionContext = self.extensionContext!
-        let controller = SEUnauthorizedViewController(description: text, cancelImpl: {
-            let cancelError = NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError, userInfo: nil)
-            extensionContext.cancelRequest(withError: cancelError)
+        let controller = SEUnauthorizedViewController(description: text, cancelImpl: { [weak self] in
+            self?.cancelRequest()
         })
         controller.view.frame = self.view.bounds
         self.view.addSubview(controller.view)
         self.notice = controller
     }
 
+    private func cancelRequest() {
+        let cancelError = NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError, userInfo: nil)
+        self.extensionContext?.cancelRequest(withError: cancelError)
+    }
+
     private func launchExtension(accountManager: AccountManager<TelegramAccountManagerTypes>, databaseKey: DatabaseKey, credentials: ApiCredentialsValues) {
-        let encryptionParameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: databaseKey.key)!, salt: ValueBoxEncryptionParameters.Salt(data: databaseKey.salt)!)
+        let encryptionParameters = ValueBoxEncryptionParameters(databaseKey: databaseKey)
 
         let extensionContext = self.extensionContext!
 

@@ -148,7 +148,7 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
 
     let fail: (PasscodeCheckFailure, InputDataIdentifier, (InputDataValidation) -> Void) -> Void = { failure, field, f in
         updateState {
-            $0.withUpdatedError(InputDataValueError(description: LocalPasscode.failureText(failure), target: .data), for: field)
+            $0.withUpdatedError(InputDataValueError(description: failure.text, target: .data), for: field)
         }
         f(.fail(.fields([field : .shake])))
     }
@@ -189,7 +189,7 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
                 if !fields.isEmpty {
                     f(.fail(.fields(fields)))
                 } else {
-                    actionsDisposable.add((LocalPasscode.setPasscode(passcode, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
+                    actionsDisposable.add((LocalPasscodeSettings.setPasscode(passcode, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
                         fail(failure, _id_input_new_passcode, f)
                     }, completed: {
                         f(.success(.navigationBackWithPushAnimation))
@@ -234,7 +234,7 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
                 if !fields.isEmpty {
                     f(.fail(.fields(fields)))
                 } else {
-                    actionsDisposable.add((LocalPasscode.changePasscode(current: current, to: passcode, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
+                    actionsDisposable.add((LocalPasscodeSettings.changePasscode(current: current, to: passcode, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
                         fail(failure, _id_input_current, f)
                     }, completed: {
                         f(.success(.navigationBackWithPushAnimation))
@@ -243,7 +243,7 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
             case .disable:
                 let current = state.data[_id_input_current]?.stringValue ?? ""
                 
-                actionsDisposable.add((LocalPasscode.disablePasscode(current: current, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
+                actionsDisposable.add((LocalPasscodeSettings.disablePasscode(current: current, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(error: { failure in
                     fail(failure, _id_input_current, f)
                 }, completed: {
                     f(.success(.navigationBackWithPushAnimation))
@@ -251,9 +251,9 @@ func PasscodeController(sharedContext: SharedAccountContext, mode: PasscodeMode)
             case let .touchId(enable):
                 let current = state.data[_id_input_current]?.stringValue ?? ""
 
-                actionsDisposable.add((LocalPasscode.setTouchId(enable, current: current, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(next: { changed in
+                actionsDisposable.add((LocalPasscodeSettings.setTouchId(enable, current: current, accountManager: sharedContext.accountManager) |> deliverOnMainQueue).start(next: { changed in
                     if !changed {
-                        showModalText(for: mainWindow, text: LocalPasscode.touchIdNotEnabledText)
+                        showModalText(for: mainWindow, text: PasscodeTexts.touchIdNotEnabled)
                     }
                     f(.success(.navigationBackWithPushAnimation))
                 }, error: { failure in

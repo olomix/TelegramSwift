@@ -34,10 +34,8 @@ public struct MacPasscodeEnvironment: Equatable {
                               keychainScope: self.keychainScope)
     }
 
-    /// Configures PasscodeCore for `role` with the team prefix from
-    /// `bundle`'s Info.plist key `TGKeychainGroupPrefix`, then marks the
-    /// process available for key use. False when the prefix is missing or
-    /// PasscodeCore refuses the configuration.
+    /// Configures PasscodeCore with `bundle`'s `TGKeychainGroupPrefix` and
+    /// marks the process available. False on a missing prefix or refusal.
     public static func configureFromBundle(_ role: PasscodeConfiguration.ProcessRole, buildPrefix: String, bundle: Bundle = .main) -> Bool {
         let teamPrefix = bundle.object(forInfoDictionaryKey: "TGKeychainGroupPrefix") as? String
         guard let environment = MacPasscodeEnvironment(teamPrefix: teamPrefix, buildPrefix: buildPrefix),

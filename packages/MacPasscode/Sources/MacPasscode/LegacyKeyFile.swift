@@ -2,21 +2,22 @@ import CommonCrypto
 import CryptoKit
 import Foundation
 
-/// Reads the database key stored by the old `AppEncryptionParameters`
-/// (formerly in `submodules/BuildConfig`) without its side
-/// effects: reading never creates, upgrades or deletes a file.
+/// The database key file of the old `AppEncryptionParameters` (formerly in
+/// `submodules/BuildConfig`). Reading never creates, upgrades or deletes a
+/// file; only `retire()` and `remove()` change it.
 ///
 /// `.tempkeyEncrypted` is AES-256-CBC without padding, keyed by
 /// SHA-512(UTF-8 passcode) (key = first 32 bytes, IV = last 16), over
 /// key(32) + salt(16) + murmur3-32(key + salt, little endian) + zero
 /// padding. Without a passcode the old code used `defaultPasscode`. A
 /// 48-byte plaintext `.tempkey` overrides it, as the old init did.
-public struct LegacyKeyReader {
+public struct LegacyKeyFile {
     public static let defaultPasscode = "no-matter-key"
     public static let encryptedFileName = ".tempkeyEncrypted"
     public static let plaintextFileName = ".tempkey"
     static let retiredMarker = Data("telex.legacy-key.retired".utf8)
     static let retiredLength = 64
+    static let hashLength = 4
 
     public enum State: Equatable {
         case missing
@@ -56,9 +57,7 @@ public struct LegacyKeyReader {
     }
 
     /// Overwrites `.tempkeyEncrypted` with bytes no passcode opens, then
-    /// removes `.tempkey`. Not deleted: an older build would see a missing
-    /// file, create a new key and lose the database; this way it shows its
-    /// lock screen instead.
+    /// removes `.tempkey`; a deleted file makes older builds create a new key.
     public func retire() throws {
         var marker: Data
         repeat {
@@ -84,10 +83,12 @@ public struct LegacyKeyReader {
     }
 
     static func decrypt(_ data: Data, passcode: String) -> DatabaseKey? {
+        let keyAndSaltLength = DatabaseKey.keyLength + DatabaseKey.saltLength
         guard let decrypted = aesCBCDecrypt(data, passcode: passcode),
-              decrypted.count >= 32 + 16 + 4 else { return nil }
-        let keyAndSalt = Data(decrypted.prefix(48))
-        let storedHash = decrypted[decrypted.startIndex + 48 ..< decrypted.startIndex + 52]
+              decrypted.count >= keyAndSaltLength + hashLength else { return nil }
+        let keyAndSalt = Data(decrypted.prefix(keyAndSaltLength))
+        let hashStart = decrypted.startIndex + keyAndSaltLength
+        let storedHash = decrypted[hashStart ..< hashStart + hashLength]
             .reversed().reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
         guard storedHash == murmurHash32(keyAndSalt) else { return nil }
         return DatabaseKey(keyAndSalt)
