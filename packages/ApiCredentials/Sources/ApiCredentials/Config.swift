@@ -11,7 +11,7 @@ public final class ApiEnvironment {
     }
     
     public static var bundleId: String {
-        return "dev.alek.telegram"
+        return "com.korthane.telex"
     }
     public static var intentsBundleId: String {
         return teamId + "." + bundleId + ".FocusIntents"
@@ -22,7 +22,7 @@ public final class ApiEnvironment {
     
     
     
-    /// `<TeamID>.dev.alek.telegram`, shared by the app and the Share
+    /// `<TeamID>.com.korthane.telex`, shared by the app and the Share
     /// extension and separate from the official client's group.
     public static var appGroup: String {
         guard let value = Bundle.main.object(forInfoDictionaryKey: "TGAppGroup") as? String, AppGroup.isTeamPrefixed(value) else {

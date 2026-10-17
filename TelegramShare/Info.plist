@@ -58,6 +58,6 @@
 	<key>SOURCE</key>
 	<string>${SOURCE}</string>
 	<key>TGAppGroup</key>
-	<string>$(TeamIdentifierPrefix)dev.alek.telegram</string>
+	<string>$(TeamIdentifierPrefix)com.korthane.telex</string>
 </dict>
 </plist>

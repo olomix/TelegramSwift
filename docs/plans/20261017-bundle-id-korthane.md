@@ -107,13 +107,13 @@
 - Modify: `packages/ApiCredentials/Sources/ApiCredentials/Config.swift`
 - Modify: `packages/ApiCredentials/Tests/ApiCredentialsTests/AppGroupTests.swift`
 
-- [ ] replace the 6 `PRODUCT_BUNDLE_IDENTIFIER` values in project.pbxproj
-- [ ] replace the app group in both Info.plists and the 3 entitlements files
-- [ ] change `ApiEnvironment.bundleId` and the `appGroup` doc comment
-- [ ] update the ID strings in `AppGroupTests.swift` (same format cases,
+- [x] replace the 6 `PRODUCT_BUNDLE_IDENTIFIER` values in project.pbxproj
+- [x] replace the app group in both Info.plists and the 3 entitlements files
+- [x] change `ApiEnvironment.bundleId` and the `appGroup` doc comment
+- [x] update the ID strings in `AppGroupTests.swift` (same format cases,
       new ID; they test the format, not the ID itself)
-- [ ] run `cd packages/ApiCredentials && swift test` - must pass
-- [ ] run the build check; check the built Telex.app and
+- [x] run `cd packages/ApiCredentials && swift test` - must pass
+- [x] run the build check; check the built Telex.app and
       TelegramShare.appex carry the new bundle IDs and app group
 
 ### Task 2: Remove the legacy data move

@@ -8857,7 +8857,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				NEW_SETTING = "";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.alek.telegram.FocusIntents;
+				PRODUCT_BUNDLE_IDENTIFIER = com.korthane.telex.FocusIntents;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
@@ -8909,7 +8909,7 @@
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
 				NEW_SETTING = "";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.alek.telegram.FocusIntents;
+				PRODUCT_BUNDLE_IDENTIFIER = com.korthane.telex.FocusIntents;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -9024,7 +9024,7 @@
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = "-ObjC";
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.alek.telegram;
+				PRODUCT_BUNDLE_IDENTIFIER = com.korthane.telex;
 				PRODUCT_MODULE_NAME = Telegram;
 				PRODUCT_NAME = Telex;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -9076,7 +9076,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.alek.telegram.TelegramShare;
+				PRODUCT_BUNDLE_IDENTIFIER = com.korthane.telex.TelegramShare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = NO;
@@ -9126,7 +9126,7 @@
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_SWIFT_FLAGS = "$(inherited)";
 				"OTHER_SWIFT_FLAGS[arch=*]" = "";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.alek.telegram.TelegramShare;
+				PRODUCT_BUNDLE_IDENTIFIER = com.korthane.telex.TelegramShare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = NO;
@@ -9245,7 +9245,7 @@
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = "-ObjC";
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.alek.telegram;
+				PRODUCT_BUNDLE_IDENTIFIER = com.korthane.telex;
 				PRODUCT_MODULE_NAME = Telegram;
 				PRODUCT_NAME = Telex;
 				PROVISIONING_PROFILE_SPECIFIER = "";
