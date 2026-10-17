@@ -459,21 +459,51 @@ neither; scope `com.korthane.telex.spike`; legacy keychain UI disabled.
 ### Task 5: MacPasscode package
 **Files:**
 - Create: `packages/MacPasscode/Package.swift`
-- Create: `packages/MacPasscode/Sources/MacPasscode/{PasscodeKindMapping,DatabaseKeyFile,LegacyKeyReader,LaunchUnlock}.swift`
+- Create: `packages/MacPasscode/Sources/MacPasscode/{PasscodeKindMapping,DatabaseKeyFile,LegacyKeyReader,LaunchUnlock,KeyFileStorage}.swift`
 - Create: `packages/MacPasscode/Tests/MacPasscodeTests/*`
 
-- [ ] kind mapping with `normalize` and the ASCII-digit check
-- [ ] `DatabaseKeyFile` seal / unseal / atomic write / version check
-- [ ] `LegacyKeyReader`: read-only decrypt of `.tempkeyEncrypted`, never
-      creates a file; `poison()` overwrites it with undecryptable bytes
-- [ ] `LaunchUnlock` decision (v2, legacy, fresh, credential lost) and
+- [x] kind mapping with `normalize` and the ASCII-digit check
+- [x] `DatabaseKeyFile` seal / unseal / atomic write / version check
+- [x] `LegacyKeyReader`: read-only decrypt of `.tempkeyEncrypted`, never
+      creates a file; `poison()` (named `retire()`) overwrites it with undecryptable bytes
+- [x] `LaunchUnlock` decision (v2, legacy, fresh, credential lost) and
       the resumable migration steps, against injected fakes
-- [ ] tests: mapping (incl. non-ASCII digits); seal round trip, wrong
+- [x] tests: mapping (incl. non-ASCII digits); seal round trip, wrong
       key, truncated file, unknown version; legacy reader on a missing
       file creates nothing; migration interrupted after each step resumes
       correctly; protection is enabled after migrating a set passcode;
       wrong code changes nothing
-- [ ] run `swift test`
+- [x] run `swift test`
+
+**Results** (2026-10-17).
+- `LegacyKeyReader` is a pure-Swift port (CommonCrypto AES-256-CBC
+  without padding, CryptoKit SHA-512, murmur3-32 with the
+  `MurMurHash32.m` seed), so Task 9 can delete `AppEncryptionParameters`
+  outright. Checked against the ObjC code with a scratchpad harness that
+  links `submodules/BuildConfig`: 300 random cases (no passcode, digits,
+  Arabic-Indic, Devanagari, fullwidth, emoji, umlauts) written by
+  `AppEncryptionParameters` read back identically, wrong codes rejected,
+  retired files opened by neither the default key nor the old code.
+  Five files the old code wrote are committed as hex fixtures; the test
+  encrypt helper reproduces them byte for byte.
+- `.tempkey`-only installs stay supported: a 48-byte `.tempkey` is read
+  as an unprotected key and wins over `.tempkeyEncrypted`, as the old
+  init did; `retire()` removes it after poisoning.
+- `retire()` writes a 64-byte marker (`telex.legacy-key.retired` + random)
+  so the reader tells "migrated" from "has a passcode"; the old code
+  sees a file it cannot open and shows its lock screen.
+- A live legacy file always wins over `db-key.v2` in `state()`: a crash
+  before `retire()` re-runs the whole idempotent migration, which
+  rewrites `db-key.v2` with the same database key.
+- `LaunchCredentialStore` is the seam to PasscodeCore; Task 6 implements
+  it over `PasscodeCredentialStore` (`databaseSealingKey` = `verify(…,
+  .resource("telex.db"))` or `unprotectedSession` + `withDerivedKey`;
+  `resetCredential` must not delete files). `createFresh` resets a
+  leftover protected credential, since no key file exists to lose.
+- Tests: 49 (`swift test`), incl. crash after every step of migration
+  (with and without a passcode) and of a fresh install; a mutation that
+  retires before writing `db-key.v2` fails 38 of them.
+
 
 ### Task 6: Switch the main app to PasscodeCore (launch, lock screens, settings, logout)
 One task so no intermediate build mixes the schemes.
