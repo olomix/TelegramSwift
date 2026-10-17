@@ -135,15 +135,15 @@
 - [x] run the build check - must pass
 
 ### Task 3: Update INSTALL.md
-- [ ] new ID in the intro and the app group path
-- [ ] replace the "Older builds kept data in Application Support" note
+- [x] new ID in the intro and the app group path
+- [x] replace the "Older builds kept data in Application Support" note
       with: the bundle ID changed to `com.korthane.telex`, so log in again
       and delete the old folders (same list as Post-Completion)
-- [ ] reword the "Builds before the rename made `Telegram.app` with the
+- [x] reword the "Builds before the rename made `Telegram.app` with the
       same bundle ID" paragraph: old `Telegram.app` and old-ID `Telex.app`
       copies now have a different ID, so they only leave stale Share and
       Dock entries; delete them. New ID in the `pluginkit` command
-- [ ] update CLAUDE.md if needed (it names no bundle ID today)
+- [x] update CLAUDE.md if needed (it names no bundle ID today)
 
 ### Task 4: Verify acceptance criteria
 - [ ] `git grep dev.alek -- ':!submodules' ':!docs/plans/completed'`

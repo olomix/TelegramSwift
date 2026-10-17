@@ -1,7 +1,7 @@
 # How to Build Telegram for macOS
 
 This fork builds for Apple Silicon only, requires macOS 27 and Xcode 27,
-and builds `Telex.app`, which runs as `dev.alek.telegram`, separate from
+and builds `Telex.app`, which runs as `com.korthane.telex`, separate from
 the official Telegram app.
 
 ## One-time setup
@@ -118,24 +118,32 @@ yet, it asks you to open Telex first.
   `patches/<submodule>/` inside them and leaves build output there. Use
   `git -C submodules/<name> status` to see their working tree.
 - The app stores its data in the app group folder
-  `~/Library/Group Containers/<TeamID>.dev.alek.telegram/`. Debug builds use
+  `~/Library/Group Containers/<TeamID>.com.korthane.telex/`. Debug builds use
   its `debug/` subfolder and Release builds use `stable/`, so each needs its
   own login. The API credentials are in `api-credentials.json` at the top of
   that folder, shared by both.
 - Release builds now run in the App Sandbox; Debug builds do not.
-- Older builds kept data in
-  `~/Library/Application Support/dev.alek.telegram/`. Back up that folder
-  before you run this build the first time. Only a Debug build moves it into
-  the app group folder on first start (both `debug/` and `stable/`); it
-  replaces a folder there only when it holds no `account-*` folder, so a
-  login made with this build is kept. The sandbox keeps a Release build from
-  reading the old folder. If you use only Release, quit the app and move the
-  old `stable/` folder by hand; first delete or rename the `stable/` folder
-  in the app group folder if Release already created one:
-  ```
-  mv ~/Library/Application\ Support/dev.alek.telegram/stable \
-    ~/Library/Group\ Containers/<TeamID>.dev.alek.telegram/
-  ```
+- The bundle ID changed from `dev.alek.telegram` to `com.korthane.telex`.
+  The new ID gets a new, empty app group folder, so log in again. The old
+  data is never read; quit every old build and delete it (back up what you
+  still need):
+  - `~/Library/Group Containers/<TeamID>.dev.alek.telegram` (one per team
+    you built with)
+  - `~/Library/Application Support/dev.alek.telegram`
+  - `~/Library/Containers/dev.alek.telegram`, and the same with
+    `.TelegramShare` and `.FocusIntents` appended
+  - `~/Library/Caches/dev.alek.telegram`,
+    `~/Library/HTTPStorages/dev.alek.telegram`,
+    `~/Library/WebKit/dev.alek.telegram`
+  - `~/Library/Saved Application State/dev.alek.telegram.savedState`
+  - preferences: `defaults delete dev.alek.telegram`
+  - camera, microphone and location grants:
+    `tccutil reset All dev.alek.telegram`
+
+  macOS may refuse to delete Group Containers and Containers from the
+  terminal ("Operation not permitted"); delete them in Finder, or give the
+  terminal Full Disk Access. Spotlight items under the old ID stay until
+  macOS drops them.
 - Before you run a build with a new Telegram core the first time, back up
   the app group folder. The database upgrade on first start (SQLCipher
   4.19) can't be undone, so older builds can't open the data afterwards.
@@ -169,11 +177,13 @@ yet, it asks you to open Telex first.
   `bash scripts/render-app-icon.sh` (needs `brew install librsvg`) to
   render the PNGs in `Telegram-Mac/Assets.xcassets/AppIcon.appiconset/`
   and the Share extension's `Icon_TelegramLogin.imageset/`.
-- Builds before the rename made `Telegram.app` with the same bundle ID.
-  Delete old copies (`~/build/TelegramSwift/Build/Products/*/Telegram.app`,
-  `~/Library/Developer/Xcode/DerivedData/Telegram-Mac-*`), or the Share
-  menu and Dock may still use them. Check which Share extension is used
-  with `pluginkit -m -v -i dev.alek.telegram.TelegramShare`. A custom icon
+- Old copies built with the old bundle ID (`Telegram.app`, or `Telex.app`
+  built before the ID change) can't see the new data, but the Share menu
+  and Dock may still list them. Delete them
+  (`~/build/TelegramSwift/Build/Products/*/Telegram.app`, old `Telex.app`
+  copies, `~/Library/Developer/Xcode/DerivedData/Telegram-Mac-*`). Check
+  which Share extension is used with
+  `pluginkit -m -v -i com.korthane.telex.TelegramShare`. A custom icon
   picked in Settings → Appearance → App Icon replaces the new icon at
   launch; pick Default to see it, and run `killall Dock` if the Dock shows
   a cached icon.
