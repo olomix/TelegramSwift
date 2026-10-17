@@ -14,11 +14,11 @@ import ApiCredentials
 import SwiftSignalKit
 import ThemeSettings
 import OpenSSLEncryption
-import BuildConfig
 import Localization
 import TelegramSystem
 import RLottie
-import PasscodeAccessChallenge
+import PasscodeCore
+import MacPasscode
 
 class ShareViewController: NSViewController {
 
@@ -33,7 +33,7 @@ class ShareViewController: NSViewController {
     private let contextDisposable = MetaDisposable()
     
     private var passlock: SEPasslockController? = nil
-    private var setupRequired: SEUnauthorizedViewController? = nil
+    private var notice: SEUnauthorizedViewController? = nil
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -54,10 +54,10 @@ class ShareViewController: NSViewController {
         }
         initializeAccountManagement()
 
-        
-        
+        let passcodeConfigured = ShareViewController.configurePasscode()
+
         let rootPath = containerUrl.path
-        let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: containerUrl.path + "/accounts-metadata", isTemporary: false, isReadOnly: true, useCaches: true, removeDatabaseOnError: true, accessChallenge: .passthrough)
+        let accountManager = ShareViewController.openAccountManager(basePath: rootPath + "/accounts-metadata")
 
         let logger = Logger(rootPath: containerUrl.path, basePath: containerUrl.path + "/logs")
         logger.logToConsole = false
@@ -86,47 +86,132 @@ class ShareViewController: NSViewController {
         
         telegramUpdateTheme(updateTheme(with: themeSettings), window: nil, animated: false)
 
-        let appEncryption = AppEncryptionParameters(path: rootPath)
-        
-        if let deviceSpecificEncryptionParameters = appEncryption.decrypt() {
-            let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: deviceSpecificEncryptionParameters.key)!, salt: ValueBoxEncryptionParameters.Salt(data: deviceSpecificEncryptionParameters.salt)!)
-            launchExtension(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
-        } else {
-            let extensionContext = self.extensionContext!
-            
-            self.passlock = SEPasslockController(checkNextValue: { passcode in
-                appEncryption.applyPasscode(passcode)
-                if let params = appEncryption.decrypt() {
-                    let parameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: params.key)!, salt: ValueBoxEncryptionParameters.Salt(data: params.salt)!)
-                    self.launchExtension(accountManager: accountManager, encryptionParameters: parameters, appEncryption: appEncryption, credentials: credentials)
-                    return true
-                } else {
-                    return false
-                }
-            }, cancelImpl: {
-                let cancelError = NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError, userInfo: nil)
-                extensionContext.cancelRequest(withError: cancelError)
-            })
-            
-            self.passlock!.view.frame = self.view.bounds
-            self.view.addSubview(self.passlock!.view)
+        guard passcodeConfigured else {
+            showNotice(ShareViewController.unavailableText)
+            return
+        }
+
+        let unlock = ReadOnlyUnlock(directory: containerUrl, credentials: CoreLaunchCredentialStore())
+        do {
+            switch try unlock.state() {
+            case .ready(needsPasscode: false):
+                launchExtension(accountManager: accountManager, databaseKey: try unlock.unlock(code: nil), credentials: credentials)
+            case .ready(needsPasscode: true):
+                showPasslock(unlock: unlock, accountManager: accountManager, credentials: credentials)
+            case .needsAppLaunch:
+                showNotice(ShareViewController.finishUpdateText)
+            case .credentialLost:
+                showNotice(ShareViewController.unavailableText)
+            }
+        } catch {
+            Logger.shared.log("Share", "local data unlock failed: \(error)")
+            showNotice(ShareViewController.unavailableText)
         }
     }
 
-    private func showSetupRequired() {
+    // MARK: Passcode
+
+    // New strings are English only, like the app's Telex-specific texts.
+    private static let finishUpdateText = "Open Telex once to finish the update, then share again."
+    private static let unavailableText = "Telex cannot open local data from here: its keychain item is missing or unreadable. Open Telex to fix this."
+
+    private static func cooldownText(_ seconds: Int) -> String {
+        return "Too many attempts. Try again in \(seconds) s."
+    }
+
+    /// Key derivation is slow on purpose; keep it off the main thread.
+    private static let passcodeQueue = Queue(name: "com.korthane.telex.share.passcode")
+
+    private static func configurePasscode() -> Bool {
+        let teamPrefix = Bundle.main.object(forInfoDictionaryKey: "TGKeychainGroupPrefix") as? String
+        guard let environment = MacPasscodeEnvironment(teamPrefix: teamPrefix, buildPrefix: ApiEnvironment.prefix) else {
+            return false
+        }
+        do {
+            try environment.configure(.appExtension)
+        } catch {
+            return false
+        }
+        PasscodeSession.setApplicationAvailable(true)
+        return true
+    }
+
+    private static func openAccountManager(basePath: String) -> AccountManager<TelegramAccountManagerTypes> {
+        return AccountManager<TelegramAccountManagerTypes>(basePath: basePath, isTemporary: false, isReadOnly: true, useCaches: true, removeDatabaseOnError: true, accessChallenge: AccountManagerAccessChallenge(
+            prepare: { _ in
+                let _ = try PasscodeEnvironment.shared.sharedAccessGroup()
+                PasscodeCredentialStore.shared.configureLock(directory: basePath)
+            },
+            // The app owns the stored state; a differing answer here would
+            // make the account manager rewrite it.
+            resolve: { current, _ in
+                return current
+            },
+            finishInitialization: {}
+        ))
+    }
+
+    private func showPasslock(unlock: ReadOnlyUnlock, accountManager: AccountManager<TelegramAccountManagerTypes>, credentials: ApiCredentialsValues) {
         let extensionContext = self.extensionContext!
-        let controller = SEUnauthorizedViewController(description: L10n.shareExtensionSetupDescription, cancelImpl: {
+
+        self.passlock = SEPasslockController(checkNextValue: { [weak self] passcode, completion in
+            ShareViewController.passcodeQueue.async {
+                let result = Result { try unlock.unlock(code: passcode) }
+                Queue.mainQueue().async {
+                    guard let self else {
+                        return
+                    }
+                    switch result {
+                    case let .success(databaseKey):
+                        self.launchExtension(accountManager: accountManager, databaseKey: databaseKey, credentials: credentials)
+                    case let .failure(error):
+                        if case ReadOnlyUnlockError.needsAppLaunch = error {
+                            self.showNotice(ShareViewController.finishUpdateText)
+                            return
+                        }
+                        switch PasscodeCheckFailure(error) {
+                        case .invalidCode:
+                            completion(.wrongCode)
+                        case let .cooldown(seconds):
+                            completion(.message(ShareViewController.cooldownText(seconds)))
+                        case .unavailable:
+                            Logger.shared.log("Share", "passcode check failed: \(error)")
+                            self.showNotice(ShareViewController.unavailableText)
+                        }
+                    }
+                }
+            }
+        }, cancelImpl: {
+            let cancelError = NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError, userInfo: nil)
+            extensionContext.cancelRequest(withError: cancelError)
+        })
+
+        self.passlock!.view.frame = self.view.bounds
+        self.view.addSubview(self.passlock!.view)
+    }
+
+    private func showNotice(_ text: String) {
+        if let passlock = self.passlock {
+            passlock.view.removeFromSuperview()
+            self.passlock = nil
+        }
+        let extensionContext = self.extensionContext!
+        let controller = SEUnauthorizedViewController(description: text, cancelImpl: {
             let cancelError = NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError, userInfo: nil)
             extensionContext.cancelRequest(withError: cancelError)
         })
         controller.view.frame = self.view.bounds
         self.view.addSubview(controller.view)
-        self.setupRequired = controller
+        self.notice = controller
     }
 
-    private func launchExtension(accountManager: AccountManager<TelegramAccountManagerTypes>, encryptionParameters: ValueBoxEncryptionParameters, appEncryption: AppEncryptionParameters, credentials: ApiCredentialsValues) {
-        
-        
+    private func showSetupRequired() {
+        showNotice(L10n.shareExtensionSetupDescription)
+    }
+
+    private func launchExtension(accountManager: AccountManager<TelegramAccountManagerTypes>, databaseKey: DatabaseKey, credentials: ApiCredentialsValues) {
+        let encryptionParameters = ValueBoxEncryptionParameters(forceEncryptionIfNoSet: true, key: ValueBoxEncryptionParameters.Key(data: databaseKey.key)!, salt: ValueBoxEncryptionParameters.Salt(data: databaseKey.salt)!)
+
         let extensionContext = self.extensionContext!
 
         let containerUrl = ApiEnvironment.containerURL!

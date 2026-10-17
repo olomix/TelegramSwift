@@ -5,18 +5,13 @@ import PasscodeCore
 
 /// The credential operations launch needs, implemented over
 /// `PasscodeCredentialStore` by the app and by fakes in tests.
-public protocol LaunchCredentialStore {
-    func hasStoredCredential() throws -> Bool
-    func isProtectionEnabled() throws -> Bool
+public protocol LaunchCredentialStore: CredentialReader {
     /// Idempotent: returns the existing reference once a code is migrated.
     func migrateLegacy(code: String, kind: PasscodeKind) throws -> PasscodeCredentialReference?
     /// Sets a passcode on a credential that has none; protection turns on.
     func setInitialPasscode(code: String, kind: PasscodeKind) throws -> PasscodeCredentialReference
     /// Verifies `code` and turns protection on; idempotent.
     func enableProtection(code: String) throws
-    /// The key that seals `db-key.v2`: derived through a session verified
-    /// with `code`, or through the unprotected session when `code` is nil.
-    func databaseSealingKey(code: String?) throws -> SymmetricKey
     func isBiometricsEnabled() throws -> Bool
     /// As `databaseSealingKey(code:)`, through Touch ID; prompts with
     /// `context` and blocks until the user answers.

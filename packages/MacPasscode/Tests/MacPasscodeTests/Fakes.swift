@@ -70,6 +70,8 @@ final class FakeCredentialStore: LaunchCredentialStore {
     var failure: PasscodeError?
     /// What the Touch ID prompt answers, e.g. `.cancelled`; nil = success.
     var biometricFailure: PasscodeError?
+    /// What a passcode check throws, e.g. `.cooldown`; nil = check normally.
+    var sealingKeyFailure: PasscodeError?
     let crash: CrashPoint
 
     init(crash: CrashPoint = CrashPoint()) {
@@ -129,6 +131,7 @@ final class FakeCredentialStore: LaunchCredentialStore {
 
     func databaseSealingKey(code: String?) throws -> SymmetricKey {
         try self.enter("databaseSealingKey")
+        if let sealingKeyFailure { throw sealingKeyFailure }
         if let code {
             try self.check(code)
         } else {

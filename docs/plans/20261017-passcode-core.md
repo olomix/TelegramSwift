@@ -137,10 +137,13 @@
   `setupAccountManager` (fresh install), both logout paths and the
   "lost credential" recovery: `resetCredential { delete db-key.v2 and the
   legacy file; delete account databases }`.
-- **Account manager.** Main app and Share extension open it with
-  `setupAccountManager` (extension: `isReadOnly: true`, as today). All
-  writes of the passcode state go through
-  `setAccessChallengeData(accessChallengeData(reference:))` or `.none`.
+- **Account manager.** Main app and Share extension build their own
+  `AccountManagerAccessChallenge` instead of `setupAccountManager`, whose
+  resolver migrates legacy markers (Task 6). The app uses the core's
+  resolver minus that migration; the extension (`isReadOnly: true`, as
+  today) keeps the stored state as is (Task 8). All writes of the passcode
+  state go through `setAccessChallengeData(accessChallengeData(reference:))`
+  or `.none`.
 - **Legacy data.** A side-effect-free legacy reader (check the file
   exists, then decrypt; never create) replaces every
   `AppEncryptionParameters` use. After migration the legacy file is
@@ -604,7 +607,7 @@ One task so no intermediate build mixes the schemes.
   unchanged: it already treats `.secured` like the old markers.
 - New English-only strings (cooldown, keychain errors, the alert), like
   the other Telex-specific alerts.
-- ⚠️ Expected until Task 8: TelegramShare still uses
+- (Resolved in Task 8.) Until Task 8 TelegramShare still used
   `AppEncryptionParameters`, so after the app migrates (legacy file
   retired) the extension shows its lock and no code opens it. It never
   writes: the retired file stops its key generation.
@@ -685,15 +688,58 @@ works); the fingerprint step is still the user's (checkbox above).
 - Modify: `TelegramShare/ShareViewController.swift`
 - Modify: `TelegramShare/SEPasslockController.swift`
 
-- [ ] configure `PasscodeEnvironment` with `.appExtension` and the same
-      scope; account manager via `setupAccountManager` (`isReadOnly: true`)
-- [ ] unlock with `verify` and unseal `db-key.v2`; never migrate, write
+- [x] configure `PasscodeEnvironment` with `.appExtension` and the same
+      scope; account manager with its own read-only
+      `AccountManagerAccessChallenge` (`isReadOnly: true`), not
+      `setupAccountManager` (see results)
+- [x] unlock with `verify` and unseal `db-key.v2`; never migrate, write
       key material or reset from the extension; no Touch ID (refused for
       extensions by design)
-- [ ] only the legacy file present → "Open Telex once to finish the
+- [x] only the legacy file present → "Open Telex once to finish the
       update"
-- [ ] tests for the extension's decision helper (wrong code, legacy-only,
+- [x] tests for the extension's decision helper (wrong code, legacy-only,
       credential lost); run all unit tests and the build check
+
+**Results** (2026-10-17).
+- MacPasscode `ReadOnlyUnlock` (new): states `ready(needsPasscode:)`,
+  `needsAppLaunch` (live legacy file, also next to `db-key.v2` after an
+  interrupted migration, or no key file at all), `credentialLost`
+  (`db-key.v2` without credential, or a retired legacy file without
+  `db-key.v2`). It only sees `CredentialReader` (`hasStoredCredential`,
+  `isProtectionEnabled`, `databaseSealingKey`), now the base protocol of
+  `LaunchCredentialStore`, and wraps the file storage so writes and
+  removes throw `.readOnly`: it cannot migrate, retire, reset or create.
+- `MacPasscodeEnvironment.configure(.appExtension)` also calls
+  `requireExistingCredential()`, so PasscodeCore throws `.unavailable`
+  instead of creating a credential (`unprotectedSession` would otherwise
+  create one if the item vanished after the state check).
+- Account manager: `prepare` checks the shared group and sets the
+  cross-process lock (`accounts-metadata/passcode-v1.lock`), no reset;
+  `resolve` returns the stored value unchanged. The core's resolver is not
+  used even without migration: `getAccessChallengeData` calls it with
+  `allowMigration: true` and writes back any differing answer, which a
+  read-only account manager must not do.
+- `ShareViewController`: no passcode → unseal silently; passcode →
+  `SEPasslockController`, checked on a background queue (wrong code
+  shakes, cooldown shakes and shows the seconds under the field, further
+  submissions ignored while a check runs); `needsAppLaunch` → "Open Telex
+  once to finish the update, then share again."; credential lost, keychain
+  or unseal errors, missing keychain prefix → "…keychain item is missing or
+  unreadable. Open Telex to fix this." English only. No reset anywhere.
+- TelegramShare no longer uses `AppEncryptionParameters`, `.passthrough`,
+  `BuildConfig` or `PasscodeAccessChallenge` (unlinked; MacPasscode linked
+  instead), and its Info.plist has `TGKeychainGroupPrefix`; the built
+  appex shows `2FKX9S8MFA.`.
+- Tests: MacPasscode 88 (new 14: unlock with / without passcode and after
+  a fresh install, wrong code, cooldown, legacy-only with and without
+  passcode, `.tempkey`, interrupted migration, no key, credential lost,
+  retired file without `db-key.v2`, keychain error, unreadable file,
+  storage refusing writes; every case asserts no file write, no credential
+  change and no store call besides `databaseSealingKey`); ApiCredentials
+  25; PasscodeAccessChallenge 6. Debug build check passes; the appex is
+  signed with only `…telex.shared`, `codesign --verify --deep --strict`
+  passes. Not launched (the user's Telex owns the data folder; a real share
+  is in Post-Completion).
 
 ### Task 9: Remove the old storage and the adapter
 **Files:**

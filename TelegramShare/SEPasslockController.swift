@@ -20,6 +20,7 @@ private class PasscodeLockView : Control, NSTextFieldDelegate {
     fileprivate let input = NSSecureTextField(frame: NSZeroRect)
     fileprivate let inputContainer = View()
     private let nextButton = ImageButton()
+    private let messageField = NSTextField(labelWithString: "")
     
     fileprivate var cancel:ImageButton = ImageButton()
     private let animationView: SE_LottiePlayerView = .init(frame: NSMakeRect(0, 0, 150, 150))
@@ -40,6 +41,13 @@ private class PasscodeLockView : Control, NSTextFieldDelegate {
         addSubview(inputContainer)
         addSubview(nextButton)
         addSubview(cancel)
+        addSubview(messageField)
+
+        messageField.alignment = .center
+        messageField.font = NSFont.normal(FontSize.text)
+        messageField.textColor = theme.colors.redUI
+        messageField.lineBreakMode = .byWordWrapping
+        messageField.maximumNumberOfLines = 2
         
         input.isBordered = false
         input.isBezeled = false
@@ -82,6 +90,11 @@ private class PasscodeLockView : Control, NSTextFieldDelegate {
     @objc func checkPasscode() {
         value.set(input.stringValue)
     }
+
+    func showMessage(_ text: String?) {
+        messageField.stringValue = text ?? ""
+        needsLayout = true
+    }
     
     func update() {
         inputContainer.backgroundColor = theme.colors.grayBackground
@@ -115,6 +128,10 @@ private class PasscodeLockView : Control, NSTextFieldDelegate {
         
         
         nextButton.setFrameOrigin(NSMakePoint(inputContainer.frame.maxX + 10, inputContainer.frame.minY + 4))
+
+        let messageWidth = frame.width - 80
+        let messageHeight = messageField.sizeThatFits(NSMakeSize(messageWidth, .greatestFiniteMagnitude)).height
+        messageField.frame = NSMakeRect(40, inputContainer.frame.maxY + 10, messageWidth, messageHeight)
         
         cancel.setFrameOrigin(10, 10)
         
@@ -125,12 +142,23 @@ private class PasscodeLockView : Control, NSTextFieldDelegate {
     }
 }
 
+/// How the lock reacts to a rejected passcode.
+enum SEPasslockFeedback {
+    case wrongCode
+    /// Shake and show `text`, e.g. the cooldown.
+    case message(String)
+}
+
 class SEPasslockController: ModalViewController {
 
     private let valueDisposable = MetaDisposable()
     private let cancelImpl:()->Void
-    private let checkNextValue: (String)->Bool
-    init(checkNextValue: @escaping(String)->Bool, cancelImpl:@escaping()->Void) {
+    private let checkNextValue: (String, @escaping (SEPasslockFeedback) -> Void) -> Void
+    private var isChecking = false
+
+    /// `checkNextValue` calls back only for a rejected code; until then
+    /// further submissions are ignored.
+    init(checkNextValue: @escaping (String, @escaping (SEPasslockFeedback) -> Void) -> Void, cancelImpl:@escaping()->Void) {
         self.cancelImpl = cancelImpl
         self.checkNextValue = checkNextValue
         super.init(frame: NSMakeRect(0, 0, 340, 310))
@@ -151,12 +179,24 @@ class SEPasslockController: ModalViewController {
         }, for: .Click)
         
         valueDisposable.set((genericView.value.get() |> deliverOnMainQueue).start(next: { [weak self] value in
-            guard let `self` = self else {
+            guard let `self` = self, !self.isChecking else {
                 return
             }
-            if !self.checkNextValue(value) {
-                self.genericView.inputContainer.shake()
-            }
+            self.isChecking = true
+            self.genericView.showMessage(nil)
+            self.checkNextValue(value, { [weak self] feedback in
+                guard let `self` = self else {
+                    return
+                }
+                self.isChecking = false
+                switch feedback {
+                case .wrongCode:
+                    self.genericView.inputContainer.shake()
+                case let .message(text):
+                    self.genericView.inputContainer.shake()
+                    self.genericView.showMessage(text)
+                }
+            })
         }))
         
         genericView.update()

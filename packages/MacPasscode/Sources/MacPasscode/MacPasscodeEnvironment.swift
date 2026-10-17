@@ -33,9 +33,16 @@ public struct MacPasscodeEnvironment: Equatable {
                               keychainScope: self.keychainScope)
     }
 
-    public func configure(_ role: PasscodeConfiguration.ProcessRole, environment: PasscodeEnvironment = .shared) throws {
+    /// For `.appExtension` also makes `store` refuse to create a credential
+    /// when none exists, so the extension can never start a new one.
+    public func configure(_ role: PasscodeConfiguration.ProcessRole,
+                          environment: PasscodeEnvironment = .shared,
+                          store: PasscodeCredentialStore = .shared) throws {
         let privateAccessGroup = self.privateAccessGroup
         try environment.configure(self.configuration(for: role),
                                   privateAccessGroup: role == .mainApp ? { privateAccessGroup } : nil)
+        if role == .appExtension {
+            store.requireExistingCredential()
+        }
     }
 }

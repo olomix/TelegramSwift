@@ -59,5 +59,7 @@
 	<string>${SOURCE}</string>
 	<key>TGAppGroup</key>
 	<string>$(TeamIdentifierPrefix)com.korthane.telex</string>
+	<key>TGKeychainGroupPrefix</key>
+	<string>$(AppIdentifierPrefix)</string>
 </dict>
 </plist>

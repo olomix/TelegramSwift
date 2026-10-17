@@ -1182,7 +1182,7 @@
 		A1C0DE0000000000000A1204 /* MTProtoRustEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1202 /* MTProtoRustEngine */; };
 		A1C0DE0000000000000A1205 /* MTProtoRustEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1203 /* MTProtoRustEngine */; };
 		A1C0DE0000000000000A1304 /* PasscodeAccessChallenge in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1302 /* PasscodeAccessChallenge */; };
-		A1C0DE0000000000000A1305 /* PasscodeAccessChallenge in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1303 /* PasscodeAccessChallenge */; };
+		A1C0DE0000000000000A1505 /* MacPasscode in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1503 /* MacPasscode */; };
 		A1C0DE0000000000000A1404 /* PasscodeCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1402 /* PasscodeCore */; };
 		A1C0DE0000000000000A1405 /* PasscodeCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1403 /* PasscodeCore */; };
 		A1C0DE0000000000000A1414 /* PasscodeAccountManager in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1412 /* PasscodeAccountManager */; };
@@ -3405,7 +3405,7 @@
 				27D43DCF27919229006968A6 /* libssl.a in Frameworks */,
 				27B6D04B2739388600C785C7 /* TelegramCore in Frameworks */,
 				A1C0DE0000000000000A1205 /* MTProtoRustEngine in Frameworks */,
-				A1C0DE0000000000000A1305 /* PasscodeAccessChallenge in Frameworks */,
+				A1C0DE0000000000000A1505 /* MacPasscode in Frameworks */,
 				A1C0DE0000000000000A1405 /* PasscodeCore in Frameworks */,
 				A1C0DE0000000000000A1415 /* PasscodeAccountManager in Frameworks */,
 				27EE444C297FD91B0077AA0F /* DateUtils in Frameworks */,
@@ -6994,7 +6994,7 @@
 				27B6D0482739388600C785C7 /* TelegramApi */,
 				27B6D04A2739388600C785C7 /* TelegramCore */,
 				A1C0DE0000000000000A1203 /* MTProtoRustEngine */,
-				A1C0DE0000000000000A1303 /* PasscodeAccessChallenge */,
+				A1C0DE0000000000000A1503 /* MacPasscode */,
 				A1C0DE0000000000000A1403 /* PasscodeCore */,
 				A1C0DE0000000000000A1413 /* PasscodeAccountManager */,
 				27B6D04C2739388C00C785C7 /* Postbox */,
@@ -9626,10 +9626,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = PasscodeAccessChallenge;
 		};
-		A1C0DE0000000000000A1303 /* PasscodeAccessChallenge */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = PasscodeAccessChallenge;
-		};
 		A1C0DE0000000000000A1402 /* PasscodeCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PasscodeCore;
@@ -9647,6 +9643,10 @@
 			productName = PasscodeAccountManager;
 		};
 		A1C0DE0000000000000A1502 /* MacPasscode */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MacPasscode;
+		};
+		A1C0DE0000000000000A1503 /* MacPasscode */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MacPasscode;
 		};
