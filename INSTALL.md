@@ -28,10 +28,28 @@ the official Telegram app.
    Settings → Accounts). It is required: the app and the Share extension
    share data through an app group, and the group name starts with the team
    ID. Debug and Release builds are both signed with this team as
-   "Apple Development". The build signs fine with a paid developer team. A
-   free personal team is untested for app groups and may not work. The file
-   is git-ignored; never commit it.
-4. Build the native libraries (takes 20+ minutes). Repeat after updating
+   "Apple Development" by default. The file is git-ignored; never commit it.
+4. Register the App IDs and get provisioning profiles. The app and the
+   Share extension share Keychain items through the access group
+   `<TeamID>.com.korthane.telex.shared` (`keychain-access-groups`), which
+   macOS allows only with a provisioning profile, so a paid developer team
+   is required.
+   - In the [developer portal](https://developer.apple.com/account/resources/identifiers/list)
+     register the App IDs `com.korthane.telex` and
+     `com.korthane.telex.TelegramShare`, both with the App Groups
+     capability. Keychain Sharing is not needed: every macOS profile
+     allows the team's own access groups.
+   - Debug: signing is automatic. Build once in Xcode, or pass
+     `-allowProvisioningUpdates -allowProvisioningDeviceRegistration` to
+     `xcodebuild` (as below). Xcode registers this Mac and creates the
+     "Mac Team Provisioning Profile" for each App ID.
+   - Release (optional, for builds you give to others): create Developer
+     ID provisioning profiles for both App IDs, install them, and set
+     `TELEX_RELEASE_SIGN_STYLE`, `TELEX_RELEASE_SIGN_IDENTITY`,
+     `TELEX_APP_PROFILE` and `TELEX_SHARE_PROFILE` in `Secrets.xcconfig`
+     (see `Secrets.example.xcconfig`). Without them Release is signed like
+     Debug.
+5. Build the native libraries (takes 20+ minutes). Repeat after updating
    submodules:
 	```
 	CMAKE_POLICY_VERSION_MINIMUM=3.5 bash scripts/configure_frameworks.sh
@@ -74,7 +92,7 @@ the official Telegram app.
 xcodebuild -workspace Telegram-Mac.xcworkspace -scheme Telegram \
   -configuration Debug -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath ~/build/TelegramSwift \
-  -allowProvisioningUpdates build
+  -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
 
 open ~/build/TelegramSwift/Build/Products/Debug/Telex.app
 ```

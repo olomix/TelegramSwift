@@ -101,7 +101,9 @@
   - `cd packages/PasscodeAccessChallenge && swift test` until removed
 - **build check**: `xcodebuild -workspace Telegram-Mac.xcworkspace -scheme
   Telegram -configuration Debug -destination 'platform=macOS,arch=arm64'
-  -derivedDataPath ~/build/TelegramSwift build`
+  -derivedDataPath ~/build/TelegramSwift -allowProvisioningUpdates
+  -allowProvisioningDeviceRegistration build` (the provisioning flags
+  are required since Task 2)
 - Real-keychain behaviour is checked in the Task 1 spike and in
   Post-Completion, not in unit tests.
 - **e2e**: none in the project.
@@ -291,22 +293,44 @@ profiles. The user creates the profiles; this task wires the project.
 - Modify: `Telegram-Mac/Telegram-Mac.entitlements`, `Telegram-Mac/Telegram-Sandbox.entitlements`, `TelegramShare/TelegramShare.entitlements`
 - Modify: `Telegram-Mac/Secrets.xcconfig.example` (or the template the project uses), `INSTALL.md`
 
-- [ ] add `keychain-access-groups` =
+- [x] add `keychain-access-groups` =
       `$(AppIdentifierPrefix)com.korthane.telex.shared` to the app (Debug
       and Sandbox) and TelegramShare entitlements
-- [ ] Debug: automatic signing creates the development profiles; document
+- [x] Debug: automatic signing creates the development profiles; document
       `-allowProvisioningUpdates` for command-line builds and update the
       plan's build check accordingly
-- [ ] Release: profile names (Developer ID) come from `Secrets.xcconfig`
+- [x] Release: profile names (Developer ID) come from `Secrets.xcconfig`
       (e.g. `TELEX_APP_PROFILE`, `TELEX_SHARE_PROFILE`), never committed
-- [ ] INSTALL.md: what each builder must register (App IDs
+- [x] INSTALL.md: what each builder must register (App IDs
       `com.korthane.telex` and `com.korthane.telex.TelegramShare` with App
       Groups + Keychain Sharing; development and Developer ID profiles)
-- [ ] ⚠️ manual: the user creates the App IDs and profiles; if the Debug
+- [x] ⚠️ manual: the user creates the App IDs and profiles; if the Debug
       build cannot be signed yet, mark this checkbox ⚠️ with the exact
       signing error and STOP (do not start Task 3)
-- [ ] Debug build check passes with the new entitlement; `codesign -d
+- [x] Debug build check passes with the new entitlement; `codesign -d
       --entitlements -` shows the group on Telex.app and TelegramShare.appex
+
+**Results** (2026-10-17). The user registered both App IDs (App Groups
+only) in team 2FKX9S8MFA. The first build with `-allowProvisioningUpdates`
+failed with `Device "descartes" isn't registered in your developer
+account.` and `No profiles for 'com.korthane.telex' were found`; adding
+`-allowProvisioningDeviceRegistration` registered the Mac and created:
+- `Mac Team Provisioning Profile: com.korthane.telex`
+  (`8b06bbaf-6466-4814-8c2a-41a462297692`)
+- `Mac Team Provisioning Profile: com.korthane.telex.TelegramShare`
+  (`9181306c-8c04-4aa2-bc92-47fcb8b23e69`)
+
+Both profiles allow `keychain-access-groups` = `2FKX9S8MFA.*`, so the
+Keychain Sharing capability is not needed. Telex.app and
+TelegramShare.appex each carry `embedded.provisionprofile`; signed
+entitlements show `keychain-access-groups` =
+`2FKX9S8MFA.com.korthane.telex.shared`; `codesign --verify --deep
+--strict` passes. The Debug binary ran 8 s and quit normally (not
+killed by AMFI). Release reads `TELEX_RELEASE_SIGN_STYLE`,
+`TELEX_RELEASE_SIGN_IDENTITY`, `TELEX_APP_PROFILE`,
+`TELEX_SHARE_PROFILE` from `Secrets.xcconfig` (defaults: Automatic,
+Apple Development, no profile); checked with `-showBuildSettings`, not
+signed with Developer ID yet (no profiles exist).
 
 ### Task 3: Patch PasscodeCore to use the shared group on macOS
 **Files:**
