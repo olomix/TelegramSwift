@@ -124,15 +124,15 @@
 - Modify: `packages/ApiCredentials/Sources/ApiCredentials/Config.swift`
 - Modify: `Telegram-Mac/AppDelegate.swift`
 
-- [ ] delete `moveLegacyDataIntoAppGroup()` with its doc comment,
+- [x] delete `moveLegacyDataIntoAppGroup()` with its doc comment,
       `showDataMoveFailedAlert()` and their guard in
       `applicationDidFinishLaunching`; it then reads: app lock →
       `observeReopenRequests()` → rest of startup
-- [ ] delete `ApiEnvironment.legacyDataRootURL`
-- [ ] delete `DataFolderMigration.swift` and its tests
-- [ ] check nothing else references them (`git grep`)
-- [ ] run `cd packages/ApiCredentials && swift test` - must pass
-- [ ] run the build check - must pass
+- [x] delete `ApiEnvironment.legacyDataRootURL`
+- [x] delete `DataFolderMigration.swift` and its tests
+- [x] check nothing else references them (`git grep`)
+- [x] run `cd packages/ApiCredentials && swift test` - must pass
+- [x] run the build check - must pass
 
 ### Task 3: Update INSTALL.md
 - [ ] new ID in the intro and the app group path

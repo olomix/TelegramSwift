@@ -404,33 +404,6 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
         }
     }
 
-    /// Returns false when this build's data could not be moved, so starting
-    /// would log in on an empty folder and strand the old data.
-    private func moveLegacyDataIntoAppGroup() -> Bool {
-        guard let legacy = ApiEnvironment.legacyDataRootURL, let root = ApiEnvironment.dataRootURL else {
-            return true
-        }
-        do {
-            try DataFolderMigration.move(from: legacy, to: root, fileManager: .default)
-            return true
-        } catch {
-            // Logger is not set up yet; its log folder is part of the data being moved.
-            NSLog("Moving data from \(legacy.path) to \(root.path) failed: \(error)")
-            return !DataFolderMigration.isPending(ApiEnvironment.prefix, from: legacy, to: root, fileManager: .default)
-        }
-    }
-
-    private func showDataMoveFailedAlert() {
-        let legacyPath = ApiEnvironment.legacyDataRootURL?.path ?? ""
-        let rootPath = ApiEnvironment.dataRootURL?.path ?? ""
-        // Untranslated: the language pack lives in the data that failed to move.
-        let alert = NSAlert()
-        alert.alertStyle = .critical
-        alert.messageText = "Cannot move your data into the app group folder"
-        alert.informativeText = "Your data is still in \(legacyPath). Close other copies of the app, free some disk space and start the app again; it will finish moving the data into \(rootPath)."
-        alert.runModal()
-    }
-    
     func updateGraphicContext() {
         ctxLayer?.display()
     }
@@ -446,11 +419,6 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
             return
         }
         observeReopenRequests()
-        guard moveLegacyDataIntoAppGroup() else {
-            showDataMoveFailedAlert()
-            NSApp.terminate(nil)
-            return
-        }
 
         _ = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: { event in
             return BrowserStateContext.checkKey(event)

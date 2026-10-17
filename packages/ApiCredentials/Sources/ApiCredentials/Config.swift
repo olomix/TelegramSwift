@@ -37,12 +37,6 @@ public final class ApiEnvironment {
         return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
     }
 
-    /// Where data lived before it moved into the app group container. Inside
-    /// the App Sandbox this resolves into the app's own container instead.
-    public static var legacyDataRootURL: URL? {
-        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent(bundleId)
-    }
-
     /// At the group root, so every build type shares one file.
     public static var credentialsFileURL: URL? {
         return dataRootURL?.appendingPathComponent("api-credentials.json")
