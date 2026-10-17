@@ -186,8 +186,8 @@ yet, it asks you to open Telex first.
   `cd packages/FoundationUtils && swift test`.
 - Run the ApiCredentials package's unit tests with
   `cd packages/ApiCredentials && swift test`.
-- Run the PasscodeAccessChallenge package's unit tests with
-  `cd packages/PasscodeAccessChallenge && swift test`.
+- Run the MacPasscode package's unit tests with
+  `cd packages/MacPasscode && swift test`.
 - After a build, check that the packages' images (call screen icons) load:
   `swift scripts/check-package-assets.swift ~/build/TelegramSwift/Build/Products/Debug/Telex.app`
   (adjust the path to your build output).

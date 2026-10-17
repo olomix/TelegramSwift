@@ -3,7 +3,7 @@ import CryptoKit
 import Foundation
 
 /// Reads the database key stored by the old `AppEncryptionParameters`
-/// (`submodules/BuildConfig/Sources/BuildConfig.m`) without its side
+/// (formerly in `submodules/BuildConfig`) without its side
 /// effects: reading never creates, upgrades or deletes a file.
 ///
 /// `.tempkeyEncrypted` is AES-256-CBC without padding, keyed by

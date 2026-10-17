@@ -1,7 +1,7 @@
 import XCTest
 @testable import MacPasscode
 
-/// Files written by the old `AppEncryptionParameters` (`BuildConfig.m`):
+/// Files written by the old, since removed `AppEncryptionParameters`:
 /// `initWithPath:` then `change:` for a passcode, with the key and salt
 /// its `decrypt` returned.
 private struct Fixture {

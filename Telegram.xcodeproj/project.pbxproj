@@ -1181,7 +1181,6 @@
 		A1C0DE0000000000000A1103 /* ExtensionAllowingRustEngineFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE0000000000000A1101 /* ExtensionAllowingRustEngineFactory.swift */; };
 		A1C0DE0000000000000A1204 /* MTProtoRustEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1202 /* MTProtoRustEngine */; };
 		A1C0DE0000000000000A1205 /* MTProtoRustEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1203 /* MTProtoRustEngine */; };
-		A1C0DE0000000000000A1304 /* PasscodeAccessChallenge in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1302 /* PasscodeAccessChallenge */; };
 		A1C0DE0000000000000A1505 /* MacPasscode in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1503 /* MacPasscode */; };
 		A1C0DE0000000000000A1404 /* PasscodeCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1402 /* PasscodeCore */; };
 		A1C0DE0000000000000A1405 /* PasscodeCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE0000000000000A1403 /* PasscodeCore */; };
@@ -2855,7 +2854,6 @@
 		A1C0DE0000000000000A1001 /* NetworkInitializationArguments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInitializationArguments.swift; sourceTree = "<group>"; };
 		A1C0DE0000000000000A1101 /* ExtensionAllowingRustEngineFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionAllowingRustEngineFactory.swift; sourceTree = "<group>"; };
 		A1C0DE0000000000000A1201 /* MTProtoRustEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MTProtoRustEngine; path = "submodules/telegram-ios/submodules/MTProtoRustEngine"; sourceTree = "<group>"; };
-		A1C0DE0000000000000A1301 /* PasscodeAccessChallenge */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PasscodeAccessChallenge; path = packages/PasscodeAccessChallenge; sourceTree = "<group>"; };
 		A1C0DE0000000000000A1401 /* PasscodeCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PasscodeCore; path = "submodules/telegram-ios/submodules/PasscodeCore"; sourceTree = "<group>"; };
 		A1C0DE0000000000000A1501 /* MacPasscode */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MacPasscode; path = packages/MacPasscode; sourceTree = "<group>"; };
 		A1C0DE0000000000000A0D01 /* ApiCredentialsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiCredentialsController.swift; sourceTree = "<group>"; };
@@ -3507,7 +3505,6 @@
 				277C209827A2F6160070B3BF /* YuvConversion in Frameworks */,
 				27B6D05127393A3200C785C7 /* TelegramCore in Frameworks */,
 				A1C0DE0000000000000A1204 /* MTProtoRustEngine in Frameworks */,
-				A1C0DE0000000000000A1304 /* PasscodeAccessChallenge in Frameworks */,
 				A1C0DE0000000000000A1404 /* PasscodeCore in Frameworks */,
 				A1C0DE0000000000000A1414 /* PasscodeAccountManager in Frameworks */,
 				A1C0DE0000000000000A1504 /* MacPasscode in Frameworks */,
@@ -4665,7 +4662,6 @@
 				27B6D0472739387500C785C7 /* TelegramApi */,
 				27B6D0462739382800C785C7 /* TelegramCore */,
 				A1C0DE0000000000000A1201 /* MTProtoRustEngine */,
-				A1C0DE0000000000000A1301 /* PasscodeAccessChallenge */,
 				A1C0DE0000000000000A1401 /* PasscodeCore */,
 				A1C0DE0000000000000A1501 /* MacPasscode */,
 				27F3B75F273933C800B81F10 /* GraphUI */,
@@ -7055,7 +7051,6 @@
 				27B6D04E27393A2A00C785C7 /* TelegramApi */,
 				27B6D05027393A3200C785C7 /* TelegramCore */,
 				A1C0DE0000000000000A1202 /* MTProtoRustEngine */,
-				A1C0DE0000000000000A1302 /* PasscodeAccessChallenge */,
 				A1C0DE0000000000000A1402 /* PasscodeCore */,
 				A1C0DE0000000000000A1412 /* PasscodeAccountManager */,
 				A1C0DE0000000000000A1502 /* MacPasscode */,
@@ -9621,10 +9616,6 @@
 		A1C0DE0000000000000A1203 /* MTProtoRustEngine */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MTProtoRustEngine;
-		};
-		A1C0DE0000000000000A1302 /* PasscodeAccessChallenge */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = PasscodeAccessChallenge;
 		};
 		A1C0DE0000000000000A1402 /* PasscodeCore */ = {
 			isa = XCSwiftPackageProductDependency;

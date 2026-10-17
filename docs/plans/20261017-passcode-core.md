@@ -747,13 +747,38 @@ works); the fingerprint step is still the user's (checkbox above).
 - Modify: `submodules/BuildConfig/Sources/BuildConfig.m`, `BuildConfig.h`
 - Modify: `Telegram.xcodeproj/project.pbxproj`
 
-- [ ] delete the adapter package and its tests
-- [ ] remove `AppEncryptionParameters` (or keep only what
+- [x] delete the adapter package and its tests
+- [x] remove `AppEncryptionParameters` (or keep only what
       `LegacyKeyReader` needs), plus the unused `encryptData` /
       `decryptData` and the old `.tempkey` upgrade; record whether
       `.tempkey`-only installs are still supported
-- [ ] `git grep` finds no remaining users
-- [ ] run all unit tests and the build check
+- [x] `git grep` finds no remaining users
+- [x] run all unit tests and the build check
+
+**Results** (2026-10-17).
+- `packages/PasscodeAccessChallenge` deleted and unlinked from
+  `project.pbxproj` (file reference, group entry, the app's framework
+  build file and product dependency; TelegramShare was unlinked in
+  Task 8).
+- `submodules/BuildConfig` is a plain directory in this repo, edited
+  directly. `AppEncryptionParameters` is gone with `encryptData` /
+  `decryptData` and the `.tempkey` upgrade, plus the `MurMurHash32` and
+  `CryptoUtils` dependencies only it used. Kept, as still declared in
+  the header: `DeviceSpecificEncryptionParameters` (returned by
+  `BuildConfig.deviceSpecificEncryptionParameters`), `LocalPrivateKey`
+  and `BuildConfig`. No Swift code uses any of them today (the four
+  `import BuildConfig` lines are leftovers); removing the module is out
+  of scope.
+- `.tempkey`-only installs remain supported: `LegacyKeyReader` (Task 5)
+  reads a 48-byte `.tempkey` as an unprotected key and the launch
+  migration moves it to `db-key.v2`.
+- `git grep` (excluding `submodules/telegram-ios` and `docs/plans`) finds
+  no users of `AppEncryptionParameters`, `PasscodeAccessChallenge`,
+  `storeAccessChallengeData` or the passcode `.passthrough`; two
+  MacPasscode doc comments still name the old class as history.
+- INSTALL.md: the PasscodeAccessChallenge test command is replaced by
+  the MacPasscode one.
+- Tests: MacPasscode 88, ApiCredentials 25. Debug build check passes.
 
 ### Task 10: Verify acceptance criteria
 - [ ] fresh install: launch works, `db-key.v2` exists, the legacy file is

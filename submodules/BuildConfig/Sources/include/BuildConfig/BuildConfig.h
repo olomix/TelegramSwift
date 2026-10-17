@@ -8,19 +8,6 @@
 @end
 
 
-@interface AppEncryptionParameters : NSObject
-
--(id _Nonnull)initWithPath:(NSString * _Nonnull)path;
--(void)applyPasscode:(NSString * _Nonnull)passcode;
--(void)change:(NSString * _Nonnull)passcode;
--(void)remove;
--(DeviceSpecificEncryptionParameters * _Nullable)decrypt;
-
--(NSData * _Nullable)encryptData:(NSData * _Nonnull)data;
--(NSData * _Nullable)decryptData:(NSData * _Nonnull)data;
--(BOOL)hasPasscode;
-@end
-
 @interface LocalPrivateKey : NSObject {
     SecKeyRef _privateKey;
     SecKeyRef _publicKey;
