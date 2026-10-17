@@ -30,6 +30,7 @@ import TelegramMedia
 import RLottie
 import KeyboardKey
 import PasscodeAccessChallenge
+import FoundationUtils
 
 #if BETA || DEBUG
 #endif
@@ -332,6 +333,77 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
     
     private var ctxLayer: CtxInstallLayer?
 
+    // Held for the process lifetime; the kernel drops it on exit or crash.
+    private var appLock: ProcessLock?
+
+    /// Returns false when another copy of the app holds the lock. Copies
+    /// share the group container and would crash on its locked databases.
+    private func acquireAppLock() -> Bool {
+        guard let root = ApiEnvironment.dataRootURL, let url = ApiEnvironment.appLockFileURL else {
+            return true
+        }
+        do {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: nil)
+            // Wait a little: a copy relaunched by AppRelauncher can start
+            // before the exiting copy has closed the lock fd.
+            guard let lock = try ProcessLock.acquire(at: url, waitingUpTo: 1) else {
+                return false
+            }
+            appLock = lock
+        } catch {
+            // A broken lock must never keep the user out of the app.
+            NSLog("Taking the app lock at \(url.path) failed: \(error)")
+        }
+        return true
+    }
+
+    private func showAlreadyRunningAlert() {
+        let message = "\(appName) is already running"
+        FileHandle.standardError.write(Data("\(message); quitting this copy.\n".utf8))
+        // A terminal launch would otherwise hide the alert behind the terminal.
+        NSApp.activate()
+        // Untranslated: the language pack lives in the data folder.
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.informativeText = "Only one copy of the app can run at a time, because all copies share the same data folder."
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private func activateOtherCopy() {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+        if let other = others.first(where: { $0.processIdentifier != pid }) {
+            NSApp.yieldActivation(to: other)
+            reopen(other)
+        }
+    }
+
+    private static let reopenRequestName = Notification.Name((Bundle.main.bundleIdentifier ?? "") + ".reopenRequest")
+
+    /// Activates `app` and asks it to show its window even when the user
+    /// closed it; activate() alone does not.
+    private func reopen(_ app: NSRunningApplication) {
+        app.activate()
+        // Addressed by pid: a LaunchServices reopen by bundle URL can reach
+        // this copy instead. Sandboxed apps may post only a string object.
+        DistributedNotificationCenter.default().postNotificationName(
+            AppDelegate.reopenRequestName,
+            object: String(app.processIdentifier),
+            userInfo: nil,
+            deliverImmediately: true)
+    }
+
+    private func observeReopenRequests() {
+        let pid = String(ProcessInfo.processInfo.processIdentifier)
+        DistributedNotificationCenter.default().addObserver(
+            forName: AppDelegate.reopenRequestName, object: pid, queue: .main
+        ) { [weak self] _ in
+            NSApp.activate()
+            _ = self?.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false)
+        }
+    }
+
     /// Returns false when this build's data could not be moved, so starting
     /// would log in on an empty folder and strand the old data.
     private func moveLegacyDataIntoAppGroup() -> Bool {
@@ -367,6 +439,13 @@ class AppDelegate: NSResponder, NSApplicationDelegate, NSUserNotificationCenterD
 
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        guard acquireAppLock() else {
+            showAlreadyRunningAlert()
+            activateOtherCopy()
+            NSApp.terminate(nil)
+            return
+        }
+        observeReopenRequests()
         guard moveLegacyDataIntoAppGroup() else {
             showDataMoveFailedAlert()
             NSApp.terminate(nil)

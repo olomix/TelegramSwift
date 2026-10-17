@@ -48,6 +48,11 @@ public final class ApiEnvironment {
         return dataRootURL?.appendingPathComponent("api-credentials.json")
     }
 
+    /// At the group root: every build type shares the data, so one lock.
+    public static var appLockFileURL: URL? {
+        return dataRootURL?.appendingPathComponent("app.lock")
+    }
+
     public static var containerURL: URL? {
         let containerUrl = dataRootURL?.appendingPathComponent(prefix)
         if let containerUrl = containerUrl {
