@@ -83,8 +83,8 @@
   - `dev.alek.telegram.FocusIntents` → `com.korthane.telex.FocusIntents`
   - `$(TeamIdentifierPrefix)dev.alek.telegram` →
     `$(TeamIdentifierPrefix)com.korthane.telex`
-- After the change, `git grep dev.alek -- ':!submodules' ':!docs/plans/completed'`
-  finds nothing.
+- After the change, `git grep dev.alek -- ':!submodules' ':!docs/plans'`
+  finds only the old-folder list in INSTALL.md.
 - `applicationDidFinishLaunching` starts with the app lock, then goes on
   with the rest of startup; no data-move step.
 
@@ -146,14 +146,16 @@
 - [x] update CLAUDE.md if needed (it names no bundle ID today)
 
 ### Task 4: Verify acceptance criteria
-- [ ] `git grep dev.alek -- ':!submodules' ':!docs/plans/completed'`
-      finds nothing
-- [ ] run `cd packages/ApiCredentials && swift test` and the build check
-- [ ] launch the Debug build from the terminal; it creates
+- [x] `git grep dev.alek -- ':!submodules' ':!docs/plans/completed'`
+      finds nothing (only expected hits: the old-folder list in INSTALL.md
+      from Task 3, plus this plan)
+- [x] run `cd packages/ApiCredentials && swift test` and the build check
+- [x] launch the Debug build from the terminal; it creates
       `~/Library/Group Containers/<TeamID>.com.korthane.telex/debug/` and
       `app.lock`, and shows the login screen; quit it (do not kill any
-      process you did not start)
-- [ ] move this plan to `docs/plans/completed/`
+      process you did not start) (first screen is the fork's API
+      credentials form, shown before login on a fresh data folder)
+- [x] move this plan to docs/plans/completed/ (done by the exec completion step)
 
 ## Post-Completion
 *Manual, on each developer machine*
