@@ -165,6 +165,26 @@ yet, it asks you to open Telex first.
 - Before you run a build with a new Telegram core the first time, back up
   the app group folder. The database upgrade on first start (SQLCipher
   4.19) can't be undone, so older builds can't open the data afterwards.
+- The passcode is kept by upstream's PasscodeCore in the data protection
+  Keychain (shared group `<TeamID>.com.korthane.telex.shared`), separately
+  for Debug and Release. The local database key is sealed with a key from
+  that Keychain item, so local data depends on it: if the item is lost
+  (Keychain reset, another Mac, a copied app group folder), the app offers
+  "Quit" or "Log Out and Reset". Reset signs every account out; chats load
+  again from the server, secret chats are lost.
+- The first start of a build with PasscodeCore moves the old database key
+  file (`.tempkeyEncrypted`) to `db-key.v2` and retires the old file. This
+  can't be undone: back up the app group folder first. Older builds can't
+  open the local data afterwards.
+- Touch ID also goes through PasscodeCore. Turning it on or off in the
+  passcode settings asks for the passcode. If Touch ID was on in an older
+  build, the next unlock with the code turns it on again with one Touch ID
+  prompt.
+- After the update, open Telex once before sharing: until then the Share
+  extension asks you to. The Share extension unlocks with the passcode
+  only, never with Touch ID.
+- Release builds still carry the `get-task-allow` entitlement (Xcode
+  injects it outside an archive export), so they can't be notarized yet.
 - The app and the Share extension use the Rust MTProto engine and fall back
   to MtProtoKit when it can't run. The app log shows which one runs:
   `Network: Account N: engine rust` or `engine mtProtoKit (...)`. The

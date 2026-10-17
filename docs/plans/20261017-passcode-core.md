@@ -832,14 +832,30 @@ works); the fingerprint step is still the user's (checkbox above).
   user's real `debug/` data. Left for Post-Completion after a backup.
 
 ### Task 11: [Final] Update documentation
-- [ ] INSTALL.md: passcode in PasscodeCore / login keychain; data depends
+- [x] INSTALL.md: passcode in PasscodeCore / login keychain; data depends
       on that keychain item ("Log out and reset" if lost); Touch ID; Share
       extension needs Telex opened once after the update; downgrading
       after the update cannot open local data; update the test-command
       lines that mention PasscodeAccessChallenge
-- [ ] remove the passcode item from `nogit_todo.md`
-- [ ] update CLAUDE.md if a non-obvious rule came up
-- [ ] move this plan to `docs/plans/completed/`
+- [x] remove the passcode item from `nogit_todo.md`
+- [x] update CLAUDE.md if a non-obvious rule came up
+- [x] move this plan to `docs/plans/completed/` (done by the exec
+      completion step)
+
+**Results** (2026-10-17).
+- INSTALL.md (Notes): the data protection Keychain (not the login
+  keychain, after Task 2/3), per build type; local data depends on the
+  item, "Quit" / "Log Out and Reset" if lost; the first start migrates
+  the old key file irreversibly (back up first, no downgrade); Touch ID
+  asks for the passcode, one prompt for the carry-over; the Share
+  extension needs Telex opened once and has no Touch ID; Release still
+  carries `get-task-allow` (Task 10 ⚠️, unchanged), so not notarizable.
+  The signing steps (Task 2) and the MacPasscode test line (Task 9) were
+  already there.
+- `nogit_todo.md` (untracked): passcode item removed from "Finish the
+  move"; the manual checks point to Post-Completion.
+- CLAUDE.md: one rule on the patch, profiles, `migrateLegacyItems`,
+  `setupAccountManager` and `ReadOnlyUnlock`.
 
 ## Post-Completion
 *Manual, with signed builds and real data*
