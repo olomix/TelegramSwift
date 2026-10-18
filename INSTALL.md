@@ -103,6 +103,25 @@ To see the app's console output, run the binary directly instead of `open`:
 ~/build/TelegramSwift/Build/Products/Debug/Telex.app/Contents/MacOS/Telex
 ```
 
+## Build a release
+
+`scripts/release.sh` archives Release, exports it with Developer ID,
+notarizes and staples it, and writes `build/release/Telex-<version>-<build>.zip`.
+It needs the Developer ID lines in `Secrets.xcconfig` (step 4 above) and
+notary credentials, saved once in the Keychain:
+```
+xcrun notarytool store-credentials telex-notary \
+  --apple-id <your Apple ID> --team-id <TeamID>
+```
+It asks for an app-specific password; create one at
+[account.apple.com](https://account.apple.com) → Sign-In and Security.
+If you saved the credentials under another name, set
+`TELEX_NOTARY_PROFILE` to it in `Secrets.xcconfig`.
+`scripts/release.sh --no-notarize` skips notarization and writes
+`...-unnotarized.zip`. Notarizing does not publish anything: Apple only
+records the build, so test builds can be notarized too (Apple suggests at
+most 75 a day).
+
 ## Build and run in Xcode
 
 Open `Telegram-Mac.xcworkspace`, select the **Telegram** scheme (not a

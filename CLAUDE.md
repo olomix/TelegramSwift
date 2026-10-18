@@ -18,3 +18,5 @@
   never the app group ID (the extension can read that one). Both targets
   get the prefix from Info.plist `TGKeychainGroupPrefix`.
 * Leave `README.md` as upstream wrote it to keep merge diffs small.
+  The same goes for `buildbox/` and `fastlane/`: upstream's release
+  tooling, unused by Telex. Releases use `scripts/release.sh`.

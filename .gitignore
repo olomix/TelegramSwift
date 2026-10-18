@@ -24,3 +24,6 @@ nogit_*
 
 # revmux review records
 .revmux/
+
+# scripts/release.sh output
+/build/
