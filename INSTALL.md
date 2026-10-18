@@ -122,6 +122,23 @@ If you saved the credentials under another name, set
 records the build, so test builds can be notarized too (Apple suggests at
 most 75 a day).
 
+Apple usually answers within minutes, but a first submission can stay
+"In Progress" for hours. The script keeps waiting and retries network
+timeouts. If it still gives up, the upload is not lost: finish that run
+later without rebuilding or uploading again:
+```
+scripts/release.sh --resume <submission-id>
+```
+The error message prints this command with the ID. To look the ID up, or
+to see how long a submission has been waiting:
+```
+xcrun notarytool history --keychain-profile <profile>
+xcrun notarytool info <submission-id> --keychain-profile <profile>
+```
+`--resume` uses the app in `build/release/export/`, so run it before the
+next build replaces it. If Apple rejects the build, the reasons are in
+`build/release/notary-log.json`.
+
 ## Build and run in Xcode
 
 Open `Telegram-Mac.xcworkspace`, select the **Telegram** scheme (not a
