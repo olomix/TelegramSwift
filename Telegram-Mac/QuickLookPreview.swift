@@ -63,6 +63,20 @@ class QuickLookPreview : NSObject, QLPreviewPanelDelegate, QLPreviewPanelDataSou
         super.init()
     }
     
+    /// Shows the file, asking first if opening it could run code or mislead.
+    public func showAfterWarningIfRisky(context: AccountContext, with file: TelegramMediaFile, stableId: ChatHistoryEntryId?, window: Window, _ delegate: InteractionContentViewProtocol? = nil) {
+        let riskyExtensions = ["sh", "bash", "zsh", "csh", "tcsh", "command", "svg", "html", "htm", "xhtml", "app", "exe", "bin", "run", "pkg", "mpkg", "dmg", "iso", "docm", "xlsm", "pptm", "alias", "lnk", "plist", "conf", "ini"]
+        let fileName = (file.fileName ?? "").lowercased()
+        let isRisky = riskyExtensions.contains(file.mimeType) || riskyExtensions.contains(where: { fileName.hasSuffix("." + $0) })
+        if isRisky {
+            verifyAlert_button(for: window, information: strings().chatFileQuickLookMalf, successHandler: { [weak delegate] _ in
+                self.show(context: context, with: file, stableId: stableId, delegate)
+            })
+        } else {
+            show(context: context, with: file, stableId: stableId, delegate)
+        }
+    }
+
     public func show(context: AccountContext, with media:Media, stableId:ChatHistoryEntryId?,  _ delegate:InteractionContentViewProtocol? = nil) {
         self.context = context
         self.media = media

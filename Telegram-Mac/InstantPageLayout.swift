@@ -894,6 +894,21 @@ func layoutInstantPageBlock(webpage: TelegramMediaWebpage, rtl: Bool, block: Ins
         }
         
         return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
+    case let .document(id, caption):
+        var contentSize = CGSize(width: boundingWidth, height: 0.0)
+        var items: [InstantPageItem] = []
+
+        if let file = media[id] as? TelegramMediaFile {
+            let item = InstantPageDocumentItem(frame: CGRect(x: 0.0, y: 0.0, width: boundingWidth, height: InstantPageDocumentItem.height), file: file, webpage: webpage, horizontalInset: horizontalInset, pageTheme: theme)
+            contentSize.height += item.frame.height
+            items.append(item)
+        }
+
+        let (captionItems, captionSize) = layoutCaption(caption, contentSize)
+        items.append(contentsOf: captionItems)
+        contentSize.height += captionSize.height
+
+        return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
     default:
         return InstantPageLayout(origin: CGPoint(), contentSize: CGSize(), items: [])
     }

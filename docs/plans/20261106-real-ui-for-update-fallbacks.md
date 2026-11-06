@@ -255,12 +255,14 @@ the form fetched at open for showing the price, and keep the balance check.
 - Create: `Telegram-Mac/InstantPageDocumentItem.swift`
 - Modify: `Telegram-Mac/InstantPageLayout.swift`
 - Modify: `Telegram-Mac/InstantPageLayoutSpacings.swift`
+- Modify: `Telegram-Mac/QuickLookPreview.swift`
+- Modify: `Telegram-Mac/ChatFileContentView.swift`
 - Modify: `Telegram.xcodeproj/project.pbxproj`
 
-- [ ] add an item with `isInteractive = false` and empty `medias`, and a view showing the file name and size. Don't follow `InstantPageAudioItem`: it is interactive and has no download code
-- [ ] on click, download with `freeMediaFileInteractiveFetched` using `FileMediaReference.webPage(...)`, so expired references can refresh, then open with `QuickLookPreview.current.show`
-- [ ] add the `.document` case with its caption, and a spacing rule; render only the caption if `media[id]` is missing
-- [ ] run the Debug build - must pass before task 9
+- [x] add an item with `isInteractive = false` and empty `medias`, and a view showing the file name and size. Don't follow `InstantPageAudioItem`: it is interactive and has no download code
+- [x] on click, download with `freeMediaFileInteractiveFetched` using `FileMediaReference.webPage(...)`, so expired references can refresh, then open with `QuickLookPreview.current.show`
+- [x] add the `.document` case with its caption, and a spacing rule; render only the caption if `media[id]` is missing
+- [x] run the Debug build - must pass before task 9
 
 ### Task 9: Show unique gift notes
 
