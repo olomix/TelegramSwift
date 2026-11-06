@@ -9,12 +9,29 @@
 import Cocoa
 import TGUIKit
 import TelegramCore
+import FoundationUtils
 
 import Postbox
 
 
 extension NSAttributedString.Key {
     static let URL: NSAttributedString.Key = NSAttributedString.Key("TelegramURL")
+    static let instantPageTextAction = NSAttributedString.Key("InstantPageTextAction")
+}
+
+enum InstantPageTextAction: Hashable {
+    case copyTonAddress(String)
+    case button(InstantPageButton)
+
+    // InstantPageButton isn't Hashable, so all buttons share one hash.
+    func hash(into hasher: inout Hasher) {
+        switch self {
+        case let .copyTonAddress(address):
+            hasher.combine(address)
+        case .button:
+            hasher.combine(1)
+        }
+    }
 }
 
 struct InstantPageUrlItem: Hashable {
@@ -86,10 +103,18 @@ final class InstantPageTextLine {
     }
     
     func linkAt(point: NSPoint) -> InstantPageUrlItem? {
+        return attribute(.URL, at: point) as? InstantPageUrlItem
+    }
+    
+    func actionAt(point: NSPoint) -> InstantPageTextAction? {
+        return attribute(.instantPageTextAction, at: point) as? InstantPageTextAction
+    }
+    
+    private func attribute(_ key: NSAttributedString.Key, at point: NSPoint) -> Any? {
         if point.x >= 0 && point.x <= frame.width {
             let index: CFIndex = CTLineGetStringIndexForPosition(line, point)
             if index >= 0 && index < attributedString.length {
-                return attributedString.attribute(.URL, at: index, effectiveRange: nil) as? InstantPageUrlItem
+                return attributedString.attribute(key, at: index, effectiveRange: nil)
             }
         }
         
@@ -272,6 +297,20 @@ final class InstantPageTextItem: InstantPageItem {
     }
     
     func linkAt(point: NSPoint) -> InstantPageUrlItem? {
+        guard let (line, linePoint) = lineHit(at: point) else {
+            return nil
+        }
+        return line.linkAt(point: linePoint)
+    }
+    
+    func actionAt(point: NSPoint) -> InstantPageTextAction? {
+        guard let (line, linePoint) = lineHit(at: point) else {
+            return nil
+        }
+        return line.actionAt(point: linePoint)
+    }
+    
+    private func lineHit(at point: NSPoint) -> (InstantPageTextLine, NSPoint)? {
         for line in lines {
             var point = NSMakePoint(point.x, point.y)
             switch alignment {
@@ -284,7 +323,7 @@ final class InstantPageTextItem: InstantPageItem {
             }
             
             if NSPointInRect(point, line.frame) {
-                return line.linkAt(point: NSMakePoint(point.x, 0))
+                return (line, NSMakePoint(point.x, 0))
             }
         }
         return nil
@@ -567,8 +606,18 @@ func attributedStringForRichText(_ text: RichText, styleStack: InstantPageTextSt
         return result
     case let .textCustomEmoji(_, alt):
         return attributedStringForRichText(.plain(alt), styleStack: styleStack, url: url, boundingWidth: boundingWidth)
-    case let .textAutoEmail(text), let .textAutoPhone(text), let .textAutoUrl(text), let .textBankCard(text), let .textBotCommand(text), let .textCashtag(text), let .textHashtag(text), let .textMention(text), let .textMentionName(text, _), let .textSpoiler(text), let .textDate(text, _, _), let .textTonAddress(text):
+    case let .textAutoEmail(text), let .textAutoPhone(text), let .textAutoUrl(text), let .textBankCard(text), let .textBotCommand(text), let .textCashtag(text), let .textHashtag(text), let .textMention(text), let .textMentionName(text, _), let .textSpoiler(text), let .textDate(text, _, _):
         return attributedStringForRichText(text, styleStack: styleStack, url: url, boundingWidth: boundingWidth)
+    case let .textTonAddress(text):
+        let address = text.plainText
+        guard isValidTonAddress(address) else {
+            return attributedStringForRichText(text, styleStack: styleStack, url: url, boundingWidth: boundingWidth)
+        }
+        styleStack.push(.link(false))
+        let result = NSMutableAttributedString(attributedString: attributedStringForRichText(text, styleStack: styleStack, url: url, boundingWidth: boundingWidth))
+        styleStack.pop()
+        result.addAttribute(.instantPageTextAction, value: InstantPageTextAction.copyTonAddress(address), range: NSMakeRange(0, result.length))
+        return result
     case let .textButton(button):
         // No page-button UI on Mac yet; show the label as plain text.
         return attributedStringForRichText(button.text, styleStack: styleStack, url: url, boundingWidth: boundingWidth)

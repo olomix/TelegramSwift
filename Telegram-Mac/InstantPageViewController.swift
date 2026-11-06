@@ -256,6 +256,8 @@ class InstantPageViewController: TelegramGenericViewController<ScrollView> {
                 self.updateVisibleItems(visibleBounds: self.genericView.contentView.bounds, animated: false)
             }, openUrl: { [weak self] url in
                 self?.openUrl(url)
+            }, performTextAction: { [weak self] action in
+                self?.performTextAction(action)
             }, itemsInRect: { [weak self] rect in
                 guard let `self` = self, let currentLayout = self.currentLayout else { return [] }
                 return currentLayout.items.filter{rect.intersects(self.effectiveFrameForItem($0))}
@@ -284,6 +286,17 @@ class InstantPageViewController: TelegramGenericViewController<ScrollView> {
                     strongSelf.updateVisibleItems(visibleBounds: strongSelf.genericView.contentView.bounds, animated: false)
                 }
             }))
+        }
+    }
+    
+    private func performTextAction(_ action: InstantPageTextAction) {
+        switch action {
+        case let .copyTonAddress(address):
+            copyToClipboard(address)
+            // The page can live in the browser window rather than the main one.
+            showModalText(for: window ?? context.window, text: strings().shareLinkCopied)
+        case .button:
+            break
         }
     }
     

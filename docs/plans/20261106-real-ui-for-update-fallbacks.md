@@ -190,11 +190,11 @@ the form fetched at open for showing the price, and keep the balance check.
 - Modify: `Telegram-Mac/InstantPageSelectText.swift`
 - Modify: `Telegram-Mac/InstantPageViewController.swift`
 
-- [ ] add the action attribute and an enum with `copyTonAddress` and `button` cases; `button` does nothing until task 4
-- [ ] add `actionAt(point:)` next to `linkAt` on the line and text item, and check it first in the click handler (`InstantPageSelectText.swift:256`)
-- [ ] check `actionAt` in the hover path too (`InstantPageSelectText.swift:424`), so the cursor becomes a hand
-- [ ] split `.textTonAddress` out of the shared case at line 570 and style it as a link with the copy action when valid
-- [ ] run the Debug build - must pass before task 4
+- [x] add the action attribute and an enum with `copyTonAddress` and `button` cases; `button` does nothing until task 4
+- [x] add `actionAt(point:)` next to `linkAt` on the line and text item, and check it first in the click handler (`InstantPageSelectText.swift:256`)
+- [x] check `actionAt` in the hover path too (`InstantPageSelectText.swift:424`), so the cursor becomes a hand
+- [x] split `.textTonAddress` out of the shared case at line 570 and style it as a link with the copy action when valid
+- [x] run the Debug build - must pass before task 4
 
 ### Task 4: Render inline page buttons and run their actions
 

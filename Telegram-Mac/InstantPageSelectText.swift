@@ -163,7 +163,7 @@ class InstantPageSelectText : NSObject {
         return nil
     }
     
-    func initializeHandlers(for window:Window, instantLayout: InstantPageLayout, instantPage: InstantPage, context: AccountContext, updateLayout: @escaping()->Void, openUrl:@escaping(InstantPageUrlItem) -> Void, itemsInRect:@escaping(NSRect) -> [InstantPageItem], effectiveRectForItem:@escaping(InstantPageItem)-> NSRect) {
+    func initializeHandlers(for window:Window, instantLayout: InstantPageLayout, instantPage: InstantPage, context: AccountContext, updateLayout: @escaping()->Void, openUrl:@escaping(InstantPageUrlItem) -> Void, performTextAction:@escaping(InstantPageTextAction) -> Void, itemsInRect:@escaping(NSRect) -> [InstantPageItem], effectiveRectForItem:@escaping(InstantPageItem)-> NSRect) {
         window.removeAllHandlers(for: self)
         
 
@@ -253,7 +253,10 @@ class InstantPageSelectText : NSObject {
                     }
                     
                     if event.clickCount == 1, instantSelectManager.isEmpty {
-                        if let link = textItem.linkAt(point: itemRect.origin) {
+                        if let action = textItem.actionAt(point: itemRect.origin) {
+                            performTextAction(action)
+                            result = .rejected
+                        } else if let link = textItem.linkAt(point: itemRect.origin) {
                             openUrl(link)
                             result = .rejected
                         } else {
@@ -421,7 +424,7 @@ class InstantPageSelectText : NSObject {
                         let effectiveRect = effectiveRectForItem(textItem)
                         itemRect = rect.offsetBy(dx: -effectiveRect.minX, dy: -effectiveRect.minY)
                     }
-                    if let _ = textItem.linkAt(point: itemRect.origin) {
+                    if textItem.actionAt(point: itemRect.origin) != nil || textItem.linkAt(point: itemRect.origin) != nil {
                         NSCursor.pointingHand.set()
                         break
                     } else if item.1 == nil {
