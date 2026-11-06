@@ -19,6 +19,7 @@ import InputView
 import ColorPalette
 import CodeSyntax
 import TelegramMedia
+import FoundationUtils
 
 
 struct ChatTextCustomEmojiAttribute : Equatable {
@@ -737,7 +738,7 @@ class ChatMessageItem: ChatRowItem {
         entities = concatMessageAttributes(entities).filter({ entity in
             if ignoreLinks {
                 switch entity.type {
-                case .Url, .TextUrl, .TextMention, .Email, .PhoneNumber, .BankCard, .BotCommand, .Mention:
+                case .Url, .TextUrl, .TextMention, .Email, .PhoneNumber, .BankCard, .TonAddress, .BotCommand, .Mention:
                     return false
                 default:
                     return true
@@ -917,6 +918,19 @@ class ChatMessageItem: ChatRowItem {
                 string.addAttribute(NSAttributedString.Key.link, value: inAppLink.callback(nsString!.substring(with: range), { bankCard in
                     openBank(bankCard)
                 }), range: range)
+            case .TonAddress:
+                if nsString == nil {
+                    nsString = text as NSString
+                }
+                let address = nsString!.substring(with: range)
+                if isValidTonAddress(address) {
+                    string.addAttribute(NSAttributedString.Key.foregroundColor, value: linkColor, range: range)
+                    // The Mac app has no wallet, so copying is all a click can do.
+                    string.addAttribute(NSAttributedString.Key.link, value: inAppLink.callback(address, { address in
+                        copyToClipboard(address)
+                        showModalText(for: context.window, text: strings().shareLinkCopied)
+                    }), range: range)
+                }
             case .PhoneNumber:
                 if nsString == nil {
                     nsString = text as NSString

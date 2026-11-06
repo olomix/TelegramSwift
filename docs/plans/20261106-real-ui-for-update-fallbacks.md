@@ -178,10 +178,10 @@ the form fetched at open for showing the price, and keep the balance check.
 **Files:**
 - Modify: `Telegram-Mac/ChatMessageItem.swift`
 
-- [ ] add a `.TonAddress` case next to `.BankCard` (line 912) with link colour and an `inAppLink.callback` that copies and shows the toast
-- [ ] add `.TonAddress` to the `ignoreLinks` filter (line 740)
-- [ ] leave the text plain when validation fails
-- [ ] run the Debug build - must pass before task 3
+- [x] add a `.TonAddress` case next to `.BankCard` (line 912) with link colour and an `inAppLink.callback` that copies and shows the toast
+- [x] add `.TonAddress` to the `ignoreLinks` filter (line 740)
+- [x] leave the text plain when validation fails
+- [x] run the Debug build - must pass before task 3
 
 ### Task 3: Add the Instant View click action and TON addresses
 
