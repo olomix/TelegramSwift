@@ -12,6 +12,7 @@ import CurrencyFormat
 import SwiftSignalKit
 import Postbox
 import TGUIKit
+import InputView
 
 
 struct UserInfoEditingState: Equatable {
@@ -126,6 +127,52 @@ final class UserInfoState : PeerInfoState {
     }
 }
 
+/// Builds the note under a verified peer's name: the verifier's description
+/// with its entities and detected links, or `officialText` for official badges.
+func peerVerifiedInfoText(_ value: PeerVerification?, officialText: String, arguments: PeerInfoArguments) -> NSAttributedString {
+    guard let value else {
+        let attr = NSMutableAttributedString()
+        attr.append(string: officialText, color: theme.colors.listGrayText, font: .normal(.text))
+        attr.insertEmbedded(.embedded(name: "Icon_Verified_Telegram", color: theme.colors.grayIcon, resize: false), for: clown)
+        attr.detectLinks(type: [.Links], color: theme.colors.listGrayText)
+        return attr
+    }
+    
+    var entities = value.descriptionEntities
+    for detected in generateTextEntities(value.description, enabledTypes: [.url]) {
+        let overlapsLink = entities.contains(where: { current in
+            switch current.type {
+            case .Url, .TextUrl, .Email:
+                return current.range.overlaps(detected.range)
+            default:
+                return false
+            }
+        })
+        if !overlapsLink {
+            entities.append(detected)
+        }
+    }
+    
+    let prefix = "\(clown) "
+    let offset = prefix.utf16.count
+    let shifted = entities.map { MessageTextEntity(range: $0.range.lowerBound + offset ..< $0.range.upperBound + offset, type: $0.type) }
+    
+    let context = arguments.context
+    let attr = ChatMessageItem.applyMessageEntities(with: [TextEntitiesMessageAttribute(entities: shifted)], for: prefix + value.description, message: nil, context: context, fontSize: .text, openInfo: { [weak arguments] peerId, toChat, postId, _ in
+        if toChat {
+            arguments?.peerChat(peerId, postId: postId)
+        } else {
+            arguments?.peerInfo(peerId)
+        }
+    }, hashtag: { hashtag in
+        context.bindings.globalSearch(hashtag, nil, nil)
+    }, textColor: theme.colors.listGrayText, linkColor: theme.colors.listGrayText, isDark: theme.colors.isDark, bubbled: false).mutableCopy() as! NSMutableAttributedString
+    
+    InlineStickerItem.apply(to: attr, associatedMedia: [:], entities: value.descriptionEntities, isPremium: true, offset: offset)
+    InlineStickerItem.apply(to: attr, associatedMedia: [:], entities: [.init(range: 0 ..< clown.utf16.count, type: .CustomEmoji(stickerPack: nil, fileId: value.iconFileId))], isPremium: true)
+    return attr
+}
+
 class UserInfoArguments : PeerInfoArguments {
     
     
@@ -208,7 +255,7 @@ class UserInfoArguments : PeerInfoArguments {
                             
                             let limit = context.appConfiguration.getGeneralValue("bot_verification_description_length_limit", orElse: 70)
                             
-                            var text: String = ""
+                            let description = Atomic(value: Updated_ChatTextInputState())
                             
                             let title: String
                             let info: String
@@ -248,11 +295,18 @@ class UserInfoArguments : PeerInfoArguments {
                                 }
                                 ok = strings().botVerificationVerifyVerify
                                 footer = .init(value: { initialSize, stableId, presentation, updateData in
-                                    return InputDataRowItem(initialSize, stableId: 0, mode: .plain, error: nil, viewType: .singleItem, currentText: "", placeholder: nil, inputPlaceholder: strings().botVerificationVerifyPlaceholder, filter: { $0 }, updated: { updated in
-                                        text = updated
+                                    return InputTextDataRowItem(initialSize, stableId: stableId, context: context, state: description.with { $0 }, viewType: .singleItem, placeholder: nil, inputPlaceholder: strings().botVerificationVerifyPlaceholder, filter: { $0 }, updateState: { updated in
+                                        _ = description.swap(updated)
                                         DispatchQueue.main.async(execute: updateData)
                                     }, limit: limit)
-                                })
+                                }, validateData: { _ in
+                                    // The row only reddens its counter,
+                                    // so enforce the limit here.
+                                    if description.with({ $0.string.length }) > Int(limit) {
+                                        return .fail(.fields([InputDataIdentifier("footer1") : .shake]))
+                                    }
+                                    return .none
+                                }, rebuildsOnDataUpdate: true)
                             }
                                                         
                             let data = ModalAlertData(title: title, info: info, description: nil, ok: ok, options: [], mode: .confirm(text: strings().modalCancel, isThird: false), footer: .init(value: { initialSize, stableId, presentation, _ in
@@ -265,7 +319,10 @@ class UserInfoArguments : PeerInfoArguments {
                                 if currentVerification?.botId == botId {
                                     update = .disabled
                                 } else {
-                                    update = .enabled(description: text.isEmpty ? nil : text, descriptionEntities: nil)
+                                    let state = description.with { $0 }
+                                    // Send only typed formatting, as iOS does;
+                                    // links are detected on display.
+                                    update = .enabled(description: state.string.isEmpty ? nil : state.string, descriptionEntities: state.string.isEmpty ? nil : state.textInputState().messageTextEntities([]))
                                 }
                                 
                                 subscriber.putNext(true)
@@ -2098,26 +2155,7 @@ enum UserInfoEntry: PeerInfoEntry {
                 arguments.context.bindings.globalSearch(value, nil, nil)
             }, canTranslate: true)
         case let .verifiedInfo(_, value, viewType):
-            let attr = NSMutableAttributedString()
-            
-            let text: String
-            if let value {
-                text = "\(clown) \(value.description)"
-            } else {
-                text = strings().peerInfoVerified(clown)
-            }
-            
-            
-            
-            attr.append(string: text, color: theme.colors.listGrayText, font: .normal(.text))
-
-            if let value {
-                InlineStickerItem.apply(to: attr, associatedMedia: [:], entities: [.init(range: 0..<2, type: .CustomEmoji(stickerPack: nil, fileId: value.iconFileId))], isPremium: true)
-            } else {
-                attr.insertEmbedded(.embedded(name: "Icon_Verified_Telegram", color: theme.colors.grayIcon, resize: false), for: clown)
-            }
-            attr.detectLinks(type: [.Links], color: theme.colors.listGrayText)
-
+            let attr = peerVerifiedInfoText(value, officialText: strings().peerInfoVerified(clown), arguments: arguments)
             return GeneralTextRowItem(initialSize, stableId: stableId.hashValue, text: .attributed(attr), viewType: viewType, context: arguments.context)
         case let .birthday(_, text, canBirth, viewType):
             return  TextAndLabelItem(initialSize, stableId:stableId.hashValue, label: strings().peerInfoBirthday, copyMenuText: strings().textCopyLabelBio, text:text, context: arguments.context, viewType: viewType, gift: canBirth ? arguments.giftBirthday : nil)

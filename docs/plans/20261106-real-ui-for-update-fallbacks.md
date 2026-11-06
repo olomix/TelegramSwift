@@ -297,11 +297,12 @@ the form fetched at open for showing the price, and keep the balance check.
 - Modify: `Telegram-Mac/UserInfoEntries.swift`
 - Modify: `Telegram-Mac/ChannelInfoEntries.swift`
 - Modify: `Telegram-Mac/GroupInfoEntries.swift`
+- Modify: `Telegram-Mac/ModalAlertController.swift`
 
-- [ ] add the shared rendering helper described in Technical Details, and use it in all three `verifiedInfo` entries (`UserInfoEntries.swift:2105`, `ChannelInfoEntries.swift:1226`, `GroupInfoEntries.swift:1861`)
-- [ ] keep the input at `UserInfoEntries.swift:252` without a format menu, as iOS does (`VerifyAlertController.swift:280`), under the `bot_verification_description_length_limit` limit
-- [ ] send entities at line 268 from `messageTextEntities`, choosing its detection argument deliberately; its default is `[.Hashtags]`
-- [ ] run the Debug build - must pass before task 12
+- [x] add the shared rendering helper described in Technical Details, and use it in all three `verifiedInfo` entries (`UserInfoEntries.swift:2105`, `ChannelInfoEntries.swift:1226`, `GroupInfoEntries.swift:1861`)
+- [x] keep the input at `UserInfoEntries.swift:252` without a format menu, as iOS does (`VerifyAlertController.swift:280`), under the `bot_verification_description_length_limit` limit
+- [x] send entities at line 268 from `messageTextEntities`, choosing its detection argument deliberately; its default is `[.Hashtags]`
+- [x] run the Debug build - must pass before task 12
 
 ### Task 12: Add a DEBUG Instant View fixture page
 

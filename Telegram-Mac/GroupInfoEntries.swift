@@ -1854,23 +1854,7 @@ enum GroupInfoEntry: PeerInfoEntry {
         case let .notifications(_, settings, viewType):
             return GeneralInteractedRowItem(initialSize, stableId: stableId.hashValue, name: strings().peerInfoNotifications, type: .switchable(!((settings as? TelegramPeerNotificationSettings)?.isMuted ?? true)), viewType: viewType, action: {})
         case let .verifiedInfo(_, value, viewType):
-            let attr = NSMutableAttributedString()
-
-            let text: String
-            if let value {
-                text = "\(clown) \(value.description)"
-            } else {
-                text = clown + " " + strings().peerInfoVerificationInfoGroup
-            }
-            
-            attr.append(string: text, color: theme.colors.listGrayText, font: .normal(.text))
-            if let value {
-                InlineStickerItem.apply(to: attr, associatedMedia: [:], entities: [.init(range: 0..<2, type: .CustomEmoji(stickerPack: nil, fileId: value.iconFileId))], isPremium: true)
-            } else {
-                attr.insertEmbedded(.embedded(name: "Icon_Verified_Telegram", color: theme.colors.grayIcon, resize: false), for: clown)
-            }
-            attr.detectLinks(type: [.Links], color: theme.colors.listGrayText)
-
+            let attr = peerVerifiedInfoText(value, officialText: clown + " " + strings().peerInfoVerificationInfoGroup, arguments: arguments)
             return GeneralTextRowItem(initialSize, stableId: stableId.hashValue, text: .attributed(attr), viewType: viewType, context: arguments.context)
         case let .sharedMedia(_, viewType):
             return GeneralInteractedRowItem(initialSize, stableId: stableId.hashValue, name: strings().peerInfoSharedMedia, type: .next, viewType: viewType, action: arguments.sharedMedia)

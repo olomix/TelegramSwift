@@ -1219,23 +1219,7 @@ enum ChannelInfoEntry: PeerInfoEntry {
                 arguments.context.bindings.globalSearch(hashtag, arguments.peerId, nil)
             }, canTranslate: true)
         case let .verifiedInfo(_, value, viewType):
-            let attr = NSMutableAttributedString()
-            
-            let text: String
-            if let value {
-                text = "\(clown) \(value.description)"
-            } else {
-                text = clown + " " + strings().peerInfoVerificationInfoChannel
-            }
-            
-            attr.append(string: text, color: theme.colors.listGrayText, font: .normal(.text))
-            if let value {
-                InlineStickerItem.apply(to: attr, associatedMedia: [:], entities: [.init(range: 0..<2, type: .CustomEmoji(stickerPack: nil, fileId: value.iconFileId))], isPremium: true)
-            } else {
-                attr.insertEmbedded(.embedded(name: "Icon_Verified_Telegram", color: theme.colors.grayIcon, resize: false), for: clown)
-            }
-            attr.detectLinks(type: [.Links], color: theme.colors.listGrayText)
-
+            let attr = peerVerifiedInfoText(value, officialText: clown + " " + strings().peerInfoVerificationInfoChannel, arguments: arguments)
             return GeneralTextRowItem(initialSize, stableId: stableId.hashValue, text: .attributed(attr), viewType: viewType, context: arguments.context)
         case let .userName(_, value, viewType):
             let link = "@\(value[0].username)"

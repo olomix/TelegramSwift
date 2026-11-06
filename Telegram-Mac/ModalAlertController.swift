@@ -710,7 +710,8 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
         }))
         
         if let footer1 = state.data.footer1 {
-            entries.append(.custom(sectionId: 0, index: 0, value: .none, identifier: .init("footer1"), equatable: .init(footer1), comparable: nil, item: { initialSize, stableId in
+            let footer1Equatable: InputDataEquatable = footer1.rebuildsOnDataUpdate ? .init(state.footerRevision) : .init(footer1)
+            entries.append(.custom(sectionId: 0, index: 0, value: .none, identifier: .init("footer1"), equatable: footer1Equatable, comparable: nil, item: { initialSize, stableId in
                 return footer1.value(initialSize, stableId, arguments.presentation, arguments.updateDatas)
             }))
         }
@@ -836,7 +837,7 @@ private func ModalAlertController(data: ModalAlertData, completion: @escaping(Mo
     
     let arguments = Arguments(presentation: presentation, action: {
         
-        if let footer = data.footer {
+        for footer in [data.footer, data.footer1].compactMap({ $0 }) {
             if let result = footer.validateData?([:]) {
                 switch result {
                 case .fail:
@@ -880,7 +881,7 @@ private func ModalAlertController(data: ModalAlertData, completion: @escaping(Mo
             cancel()
         }
     }, updateDatas: {
-        if data.footer?.rebuildsOnDataUpdate == true {
+        if data.footer?.rebuildsOnDataUpdate == true || data.footer1?.rebuildsOnDataUpdate == true {
             updateState { current in
                 var current = current
                 current.footerRevision += 1
