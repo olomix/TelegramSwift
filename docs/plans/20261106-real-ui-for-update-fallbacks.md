@@ -334,7 +334,7 @@ gift lists, so a sold-out gift stays listed until they next reload.
 
 - [x] when buying for someone else, replace `verifyAlert` (line 1574) with `showModalAlert` holding an `InputTextDataRowItem` note and a hide-my-name option; check the footer refreshes on change, because `ModalAlertData.Footer` always compares equal (`ModalAlertController.swift:745`)
 - [x] when buying for yourself, keep the plain alert and send `hideName: true` with no note, matching `GiftViewScreen.swift:503`
-- [x] replace `sendStarsPaymentForm` with `buyStarGift`, passing the confirmed price, and keep the confetti, list updates and toast on completion
+- [x] replace `sendStarsPaymentForm` with `payResaleForm`, passing the confirmed price, and keep the confetti, list updates and toast on completion
 - [x] handle `.priceChanged` with the new string, and show the generic error for `.starGiftResellTooEarly`, `.serverProvided` and `.generic`; unlike `GiftViewBuyGift.swift:73`, `.serverProvided` isn't silent
 - [x] replace the hard-coded `ton: false` at line 1544 with `gift.resellForTonOnly`, and build `price` in the matching currency
 - [x] run the Debug build - must pass before task 11
@@ -420,6 +420,10 @@ them to Mac; it only exercises the rendering.
   suspicious peer isn't linked.
 
 **Gifts (these spend real Stars, so use a low-priced gift):**
+- The first real Stars purchase checks the `XTR` assumption: a Stars resale form
+  counts as matching only if its currency is `XTR`, which was never seen on a live
+  form. With any other code, every Stars listing says OK, a click shows the
+  listing-changed text and closes, and nothing is charged. Do this check first.
 - Open a unique gift that has a note, and one with original details. Check the
   note on the chat bubble and in the gift screen.
 - Buy a resale gift for another user with a note and a hidden name. Confirm what
