@@ -142,6 +142,27 @@ final class InstantPageTheme {
     func withUpdatedFontStyles(sizeMultiplier: CGFloat, forceSerif: Bool) -> InstantPageTheme {
         return InstantPageTheme(type: type, pageBackgroundColor: pageBackgroundColor, textCategories: self.textCategories.withUpdatedFontStyles(sizeMultiplier: sizeMultiplier, forceSerif: forceSerif), serif: forceSerif, codeBlockBackgroundColor: codeBlockBackgroundColor, linkColor: linkColor, textHighlightColor: textHighlightColor, linkHighlightColor: linkHighlightColor, markerColor: markerColor, panelBackgroundColor: panelBackgroundColor, panelHighlightedBackgroundColor: panelHighlightedBackgroundColor, panelPrimaryColor: panelPrimaryColor, panelSecondaryColor: panelSecondaryColor, panelAccentColor: panelAccentColor, tableBorderColor: tableBorderColor, tableHeaderColor: tableHeaderColor, controlColor: controlColor, imageTintColor: imageTintColor, overlayPanelColor: overlayPanelColor)
     }
+
+    // Same H1-H6 sizes as iOS; out-of-range levels clamp to the nearest one.
+    func headingTextAttributes(level: Int32) -> InstantPageTextAttributes {
+        let size: CGFloat
+        switch level {
+        case ...1:
+            size = 22.0
+        case 2:
+            size = 20.0
+        case 3:
+            size = 18.0
+        case 4:
+            size = 17.0
+        case 5:
+            size = 16.0
+        default:
+            size = 15.0
+        }
+        let subheader = self.textCategories.subheader
+        return InstantPageTextAttributes(font: InstantPageFont(style: subheader.font.style, size: size, lineSpacingFactor: subheader.font.lineSpacingFactor), color: subheader.color)
+    }
 }
 
 private let lightTheme = InstantPageTheme(

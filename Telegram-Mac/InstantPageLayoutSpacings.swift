@@ -10,7 +10,21 @@ import Cocoa
 import TelegramCore
 
 
+// Headings space like subheaders, and thinking and formula text like paragraphs.
+private func blockWithSameSpacing(as block: InstantPageBlock) -> InstantPageBlock {
+    switch block {
+    case .heading:
+        return .subheader(.empty)
+    case .thinking, .formula:
+        return .paragraph(.empty)
+    default:
+        return block
+    }
+}
+
 func spacingBetweenBlocks(upper: InstantPageBlock?, lower: InstantPageBlock?) -> CGFloat {
+    let upper = upper.map(blockWithSameSpacing(as:))
+    let lower = lower.map(blockWithSameSpacing(as:))
     if let upper = upper, let lower = lower {
         switch (upper, lower) {
         case (_, .cover), (_, .channelBanner), (.details, .details), (.relatedArticles, nil), (_, .anchor):

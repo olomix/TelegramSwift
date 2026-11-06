@@ -230,11 +230,11 @@ the form fetched at open for showing the price, and keep the balance check.
 - Modify: `Telegram-Mac/InstantPageLayoutSpacings.swift`
 - Modify: `Telegram-Mac/InstantPageTheme.swift` (if new heading categories are needed)
 
-- [ ] add `.heading`, copying the `.header` arm at line 194 and mapping all six levels, following iOS V1 (`InstantPageUI/Sources/InstantPageLayout.swift:295`)
-- [ ] add `.thinking` as text in a secondary style, after reading the iOS V2 version
-- [ ] add `.formula` showing the LaTeX source as text, following iOS V1 (`:300`)
-- [ ] add spacing rules for all three
-- [ ] run the Debug build - must pass before task 7
+- [x] add `.heading`, copying the `.header` arm at line 194 and mapping all six levels, following iOS V1 (`InstantPageUI/Sources/InstantPageLayout.swift:295`)
+- [x] add `.thinking` as text in a secondary style, after reading the iOS V2 version
+- [x] add `.formula` showing the LaTeX source as text, following iOS V1 (`:300`)
+- [x] add spacing rules for all three
+- [x] run the Debug build - must pass before task 7
 
 ### Task 7: Render the button row block
 

@@ -60,7 +60,10 @@ final class InstantPageLayout {
 }
 
 private func setupStyleStack(_ stack: InstantPageTextStyleStack, theme: InstantPageTheme, category: InstantPageTextCategoryType, link: Bool) {
-    let attributes = theme.textCategories.attributes(type: category, link: link)
+    setupStyleStack(stack, theme: theme, attributes: theme.textCategories.attributes(type: category, link: link))
+}
+
+private func setupStyleStack(_ stack: InstantPageTextStyleStack, theme: InstantPageTheme, attributes: InstantPageTextAttributes) {
     stack.push(.textColor(attributes.color))
     stack.push(.markerColor(theme.markerColor))
     stack.push(.linkColor(theme.linkColor))
@@ -200,6 +203,24 @@ func layoutInstantPageBlock(webpage: TelegramMediaWebpage, rtl: Bool, block: Ins
         let styleStack = InstantPageTextStyleStack()
         setupStyleStack(styleStack, theme: theme, category: .subheader, link: false)
         let (_, items, contentSize) = layoutTextItemWithString(attributedStringForRichText(text, styleStack: styleStack), boundingWidth: boundingWidth - horizontalInset * 2.0, offset: CGPoint(x: horizontalInset, y: 0.0), media: media, webpage: webpage)
+        return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
+    case let .heading(text, level):
+        let styleStack = InstantPageTextStyleStack()
+        setupStyleStack(styleStack, theme: theme, attributes: theme.headingTextAttributes(level: level))
+        // The lower levels match body text in size, so weight has to set them apart.
+        styleStack.push(.medium)
+        let (_, items, contentSize) = layoutTextItemWithString(attributedStringForRichText(text, styleStack: styleStack), boundingWidth: boundingWidth - horizontalInset * 2.0, offset: CGPoint(x: horizontalInset, y: 0.0), media: media, webpage: webpage)
+        return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
+    case let .thinking(text):
+        let paragraph = theme.textCategories.paragraph
+        let styleStack = InstantPageTextStyleStack()
+        setupStyleStack(styleStack, theme: theme, attributes: InstantPageTextAttributes(font: paragraph.font, color: paragraph.color.withAlphaComponent(0.55)))
+        let (_, items, contentSize) = layoutTextItemWithString(attributedStringForRichText(text, styleStack: styleStack), boundingWidth: boundingWidth - horizontalInset * 2.0, horizontalInset: horizontalInset, offset: CGPoint(x: horizontalInset, y: 0.0), media: media, webpage: webpage)
+        return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
+    case let .formula(latex):
+        let styleStack = InstantPageTextStyleStack()
+        setupStyleStack(styleStack, theme: theme, category: .paragraph, link: false)
+        let (_, items, contentSize) = layoutTextItemWithString(attributedStringForRichText(.plain(latex), styleStack: styleStack), boundingWidth: boundingWidth - horizontalInset * 2.0, horizontalInset: horizontalInset, offset: CGPoint(x: horizontalInset, y: 0.0), media: media, webpage: webpage)
         return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
     case let .paragraph(text):
         let styleStack = InstantPageTextStyleStack()
