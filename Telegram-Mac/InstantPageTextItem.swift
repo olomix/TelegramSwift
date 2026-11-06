@@ -317,7 +317,8 @@ final class InstantPageTextItem: InstantPageItem {
             case .center:
                 point.x -= floorToScreenPixels(System.backingScale, (frame.width - line.frame.width) / 2)
             case .right:
-                point.x = frame.width - point.x
+                // Match drawInTile; CTLine x starts at the line's origin.
+                point.x -= frameForLine(line, boundingWidth: frame.width, alignment: alignment).minX
             default:
                 break
             }

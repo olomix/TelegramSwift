@@ -78,6 +78,12 @@ private func tableRows() -> [InstantPageTableRow] {
             cell(.textTonAddress(text: .plain(validTonAddress))),
             cell(.textButton(button("Copy from cell", .copyText(payload: "Copied from a table cell")))),
         ]),
+        // Right-aligned hit testing: a mirrored x would swap the two buttons.
+        InstantPageTableRow(cells: [
+            cell(.plain("Right-aligned clicks")),
+            cell(.concat([.url(text: .plain("Link"), url: "https://telegram.org", webpageId: nil), .plain(" then text")]), .right),
+            cell(.concat([.textButton(button("First", .copyText(payload: "First"))), .plain("  "), .textButton(button("Second", .copyText(payload: "Second")))]), .right),
+        ]),
         InstantPageTableRow(cells: [
             cell(.plain("A taller cell, so that its neighbours have room to show their vertical alignment when the text wraps")),
             cell(.plain("Centre, middle"), .center, .middle),

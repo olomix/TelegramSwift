@@ -397,6 +397,9 @@ them to Mac; it only exercises the rendering.
   Confirm the blocks stay after that refresh returns.
 - Click the link, address and button in table cells in both tables, and in details
   blocks. Check the hand cursor over addresses and inline buttons.
+- In the "Right-aligned clicks" row of both tables, click First and Second, then
+  paste: each must copy its own name. Click the link, and the plain text beside it,
+  which must do nothing.
 - In "Clicks across text tiles", click the bottom edge of every pill and document;
   each must respond. Repeat at another window width, since layout moves the edges.
 - Click the unfetchable document twice: fetching, then cancel. Check button row
