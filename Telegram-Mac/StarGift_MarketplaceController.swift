@@ -600,7 +600,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
   
     if let resaleState = state.resaleState {
                 
-        let chunks = resaleState.gifts.filter { $0.unique?.resellStars != nil }.chunks(3)
+        let chunks = resaleState.gifts.filter { $0.unique?.resalePrice != nil }.chunks(3)
         
         let isLoading: Bool
         switch resaleState.dataState {

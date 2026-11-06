@@ -35,16 +35,31 @@ final class TonAddressTests: XCTestCase {
         }
     }
 
-    // One Character but several UTF-8 bytes, so counting either way must fail.
-    func testRejectsCombiningCharacters() {
+    // Exactly 48 bytes, so the alphabet rejects it rather than the length.
+    func testRejectsNonAsciiOfValidByteLength() {
+        let address = String(standard.dropLast(2)) + "я"
+        XCTAssertEqual(address.utf8.count, 48)
+        XCTAssertFalse(isValidTonAddress(address))
+    }
+
+    // Exactly 48 characters, with an accent no alphabet holds.
+    func testRejectsCombiningCharacterOfValidCharacterCount() {
         let address = String(standard.dropLast()) + "A\u{301}"
         XCTAssertEqual(address.count, 48)
         XCTAssertFalse(isValidTonAddress(address))
     }
 
     func testRejectsMixedAlphabets() {
-        let mixed = "EQDtFpEwcFAEcRe5mLVh2N6C0x+_xJ5uWsYKBk4OZ3a9zXYZ"
-        XCTAssertEqual(mixed.count, 48)
-        XCTAssertFalse(isValidTonAddress(mixed))
+        for mixed in [
+            "EQDtFpEwcFAEcRe5mLVh2N6C0x+_xJ5uWsYKBk4OZ3a9zXYZ",
+            "EQDtFpEwcFAEcRe5mLVh2N6C0x/-xJ5uWsYKBk4OZ3a9zXYZ",
+        ] {
+            XCTAssertEqual(mixed.count, 48)
+            XCTAssertFalse(isValidTonAddress(mixed), "accepted \(mixed)")
+        }
+    }
+
+    func testRejectsTrailingNewlineAfterFullLength() {
+        XCTAssertFalse(isValidTonAddress(standard + "\n"))
     }
 }

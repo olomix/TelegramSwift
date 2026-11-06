@@ -119,8 +119,23 @@ leaves it alone because changing it would affect every link type.
 `context.engine.payments.buyStarGift(slug:peerId:price:hideName:text:entities:)`.
 It fetches the form with the chosen options, fails with `.priceChanged` if the
 price rose above the confirmed `price`, and pays with the same source. A manual
-refetch would skip that check and could charge more than the alert showed. Keep
-the form fetched at open for showing the price, and keep the balance check.
+refetch would skip that check and could charge more than the alert showed. Fetch
+the form at open only for the price, keep the balance check, and treat an unknown
+balance as unknown rather than zero. After `.priceChanged` the next confirmation
+uses the error's new price, without a refetch; other errors reload the balance
+and the price. The note and hide-name choice survive a retry. Every error except
+`.priceChanged` shows the generic error, because `.serverProvided` carries a raw
+RPC code. Return in the note field doesn't confirm; only the OK button pays.
+
+**Still open in resale, because they need a core change.** `_internal_buyStarGift`
+applies `ignoreValues` and flattens errors, and this plan doesn't touch the core:
+
+- A false success on `.externalVerificationRequired` remains possible. The result
+  is discarded and the signal completes normally, so the app would play confetti,
+  show the bought toast, remove the gift from the lists and close, though nothing
+  was paid. Whether Stars and TON forms ever return it is unconfirmed.
+- The specific errors (already paid, payment failed, precheckout failed, out of
+  stock, user limit) reach the app as `.generic`, so they show the generic error.
 
 ## Technical Details
 
@@ -128,9 +143,11 @@ the form fetched at open for showing the price, and keep the balance check.
   `NSEdgeInsetsMake(7, 6, 7, 6)`. `tableCellInsets` is a private global used
   during layout and hit testing (`InstantPageTableItem.swift:280, 321, 524-537,
   587, 595`),
-  so store the chosen insets on `InstantPageTableItem`.
-- **TON address validation:** exactly 48 characters, all from the base64 or
-  URL-safe base64 alphabets. That is the iOS length gate plus a character check.
+  so store the chosen insets on `InstantPageTableItem`. The height trim for
+  non-text cell items is halved with them, from 10 to 5, or inline items overflow.
+- **TON address validation:** exactly 48 characters, all from the base64 or all
+  from the URL-safe base64 alphabet, so mixed alphabets and `=` padding fail. That
+  is the iOS length gate plus a character check.
   No checksum: the action only copies, and iOS's real parser (`parseTonAddress`
   in `WalletEngineFFI`) has no source in this checkout, so a stricter rule could
   wrongly reject real addresses.
@@ -140,6 +157,15 @@ the form fetched at open for showing the price, and keep the balance check.
   overlaps, as `peerVerificationDescriptionEntities` does, and pass custom emoji
   through `InlineStickerItem.apply` with its `offset` parameter
   (`ChatMessageItem.swift:73`). Use one shared helper for all three info screens.
+- **Verification input:** Task 11's input became `InputTextDataRowItem`, because
+  `InputDataRowItem` reports a plain string and can't carry entities. The limit
+  now blocks confirm instead of stopping input.
+- **Pure helpers:** TON validation, the risky file check, resale price selection,
+  button row packing and original-info slot filling live in
+  `packages/FoundationUtils`, where they are tested.
+- **Risky files:** documents open through `QuickLookPreview.showAfterWarningIfRisky`,
+  which chat files share. It ignores case and also checks real MIME types, so it
+  warns on more files than the old chat check, never on fewer.
 - **New strings:** "not available here" and the resale price-changed message
   are Telex-only and missing from the server language pack. Add them as a local
   constant in the style of
@@ -260,7 +286,7 @@ the form fetched at open for showing the price, and keep the balance check.
 - Modify: `Telegram.xcodeproj/project.pbxproj`
 
 - [x] add an item with `isInteractive = false` and empty `medias`, and a view showing the file name and size. Don't follow `InstantPageAudioItem`: it is interactive and has no download code
-- [x] on click, download with `freeMediaFileInteractiveFetched` using `FileMediaReference.webPage(...)`, so expired references can refresh, then open with `QuickLookPreview.current.show`
+- [x] on click, download with `freeMediaFileInteractiveFetched` using `FileMediaReference.webPage(...)`, so expired references can refresh, then open with `QuickLookPreview.current.showAfterWarningIfRisky`
 - [x] add the `.document` case with its caption, and a spacing rule; render only the caption if `media[id]` is missing
 - [x] run the Debug build - must pass before task 9
 
@@ -287,7 +313,7 @@ the form fetched at open for showing the price, and keep the balance check.
 - [x] when buying for someone else, replace `verifyAlert` (line 1574) with `showModalAlert` holding an `InputTextDataRowItem` note and a hide-my-name option; check the footer refreshes on change, because `ModalAlertData.Footer` always compares equal (`ModalAlertController.swift:745`)
 - [x] when buying for yourself, keep the plain alert and send `hideName: true` with no note, matching `GiftViewScreen.swift:503`
 - [x] replace `sendStarsPaymentForm` with `buyStarGift`, passing the confirmed price, and keep the confetti, list updates and toast on completion
-- [x] handle `.priceChanged` with the new string, and handle `.starGiftResellTooEarly`, `.serverProvided` and `.generic` as in `GiftViewBuyGift.swift:73-75`
+- [x] handle `.priceChanged` with the new string, and show the generic error for `.starGiftResellTooEarly`, `.serverProvided` and `.generic`; unlike `GiftViewBuyGift.swift:73`, `.serverProvided` isn't silent
 - [x] replace the hard-coded `ton: false` at line 1544 with `gift.resellForTonOnly`, and build `price` in the matching currency
 - [x] run the Debug build - must pass before task 11
 
@@ -339,15 +365,27 @@ them to Mac; it only exercises the rendering.
 *Manual checks with a real account and test content; no checkboxes.*
 
 **Instant View:**
-- Open the DEBUG fixture page (Command-T in the main window of a Debug build) in
-  light and dark themes. Check each block, each working button action, the toast
-  for a message-bound button, and the disabled button. Open the stored document.
-  The fixture has no server-side file, so a real download can only be checked on
-  a real page with a document block, if one turns up.
+- Open the DEBUG fixture page (Command-T in the main window of a Debug build;
+  each press alternates LTR and RTL) in light and dark themes. Check each block,
+  each working button action, the toast for a message-bound button, and the
+  disabled buttons, including those with a link or address inside. Open the stored
+  document. The fixture has no server-side file, so a real download can only be
+  checked on a real page with a document block, if one turns up.
+- The fixture still sends `messages.getWebPage` for its `telex.invalid` URLs.
+  Confirm the blocks stay after that refresh returns.
+- Click the link, address and button in table cells in both tables, and in details
+  blocks. Check the hand cursor over addresses and inline buttons.
+- Click the unfetchable document twice: fetching, then cancel. Check button row
+  alignments and wrapping at a narrow width.
 - Also try real pages with tables, headings and formulas, and note any new block
   type seen on a real page.
 - Check that text selection and existing links still work.
 - Reopen a cached page, since cached pages already hold these blocks.
+
+**Risky files:**
+- Open a normal and a risky file from a chat, including an upper-case extension
+  such as `.HTML`, and the risky documents on the fixture page. Each risky one
+  warns first.
 
 **TON addresses in chat:**
 - Click a valid address, and confirm it's copied with a toast.
@@ -360,7 +398,30 @@ them to Mac; it only exercises the rendering.
 - Buy a resale gift for another user with a note and a hidden name. Confirm what
   the recipient sees, and that the payment doesn't fail on a form mismatch.
 - Buy a resale gift for yourself.
+- Press Return in the note field: it must not confirm or pay. Check what it does
+  to the text, and that the OK button still works.
+- Type a long multi-line note: the row and modal grow, the counter updates, the
+  caret and focus survive the rebuild on each keystroke, and over the limit the
+  row shakes and confirm is blocked.
+- Non-success paths: a TON-only gift (card, sale row, button and alert all show
+  TON), too low a balance in each currency, a balance not yet loaded, the
+  `.priceChanged` alert (the button and next alert show the new price, the note
+  and hide-name choice stay), and a failed purchase (generic error, nothing
+  charged, balance reloaded).
+- Watch for a false success: if a purchase ever shows the bought toast without a
+  charge, it is the `.externalVerificationRequired` risk in Solution Overview.
+- Gift bubbles: a refunded gift with a note (refund line first), a note with
+  attributes and a badge, and a gift with no note. All rely on an offset change in
+  the gift row. Profile notes with a hidden sender and an unknown sender (the
+  second shows no note), opened from the gifts tab and from the pinned gifts in
+  the profile header. Click a mention in a note in the gift screen.
 
 **Bot verification (needs a bot with verifier rights):**
 - Verify a peer with a formatted description, and check it in the user, group and
   channel info screens.
+- There is no format menu, so enter formatting by paste and command shortcuts.
+  Check a pasted custom emoji (its offset), a spoiler reveal, a text link, a typed
+  link overlapping an auto-detected one, a hashtag click, and an empty description.
+- The input row grows with long text, keeps caret and focus while typing, and over
+  the limit shakes and blocks confirm.
+- Check the official-badge fallback on all three screens.

@@ -14,6 +14,7 @@ import TGUIKit
 import SwiftSignalKit
 import DateUtils
 import CurrencyFormat
+import FoundationUtils
 
 extension StarGift.UniqueGift {
     var file: TelegramMediaFile? {
@@ -2032,5 +2033,17 @@ func Star_TransactionScreen(context: AccountContext, fromPeerId: PeerId, peer: E
 extension StarGift.UniqueGift {
     var resellStars: Int64? {
         return self.resellAmounts?.first(where: { $0.currency == .stars })?.amount.value
+    }
+
+    /// The price resale charges, which isn't `resellStars` for TON-only gifts.
+    var resalePrice: CurrencyAmount? {
+        return resaleListing(in: self.resellAmounts ?? [], tonOnly: self.resellForTonOnly, isTon: { $0.currency == .ton })
+    }
+}
+
+extension ProfileGiftsContext.State.StarGift {
+    /// How a gift saved on a profile opens: it carries the note and its sender.
+    var profilePurpose: Star_TransactionPurpose {
+        return .starGift(gift: self.gift, convertStars: self.convertStars, text: self.text, entities: self.entities, nameHidden: self.nameHidden, savedToProfile: self.savedToProfile, converted: false, fromProfile: true, upgraded: false, transferStars: self.transferStars, canExportDate: self.canExportDate, reference: self.reference, sender: self.fromPeer, saverId: nil, canTransferDate: self.canTransferDate, canResaleDate: self.canResaleDate)
     }
 }

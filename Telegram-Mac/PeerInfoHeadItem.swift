@@ -1454,7 +1454,7 @@ private final class SpawnGiftsView: View {
         for (_, iconLayer) in self.iconLayers {
             if iconLayer.frame.contains(location), let window = window as? Window {
                 if let context = self.context, let unique = iconLayer.gift.gift.unique {
-                    showModal(with: StarGift_Nft_Controller(context: context, gift: .unique(unique), source: .quickLook(peer, unique), giftsContext: self.giftsContext, pinnedInfo: iconLayer.gift.reference.flatMap { .init(pinnedInfo: iconLayer.gift.pinnedToTop, reference: $0) }), for: window)
+                    showModal(with: StarGift_Nft_Controller(context: context, gift: .unique(unique), source: .quickLook(peer, unique), purpose: iconLayer.gift.profilePurpose, giftsContext: self.giftsContext, pinnedInfo: iconLayer.gift.reference.flatMap { .init(pinnedInfo: iconLayer.gift.pinnedToTop, reference: $0) }), for: window)
                 }
             }
         }

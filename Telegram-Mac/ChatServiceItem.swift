@@ -1685,7 +1685,15 @@ class ChatServiceItem: ChatRowItem {
                         }
                         
                         
+                        // First, because the line cap below may cut a long note.
+                        if refunded {
+                            info.append(string: strings().giftUpgradeRefunded, color: grayTextColor, font: .normal(theme.fontSize))
+                        }
+
                         if let noteText, !noteText.isEmpty {
+                            if refunded {
+                                info.append(string: "\n", color: grayTextColor, font: .normal(theme.fontSize))
+                            }
                             // Refunded gifts have no backdrop for white text to sit on.
                             let noteColor = refunded ? grayTextColor : NSColor.white
                             let attr = ChatMessageItem.applyMessageEntities(with: [TextEntitiesMessageAttribute(entities: noteEntities ?? [])], for: noteText, message: nil, context: context, fontSize: theme.fontSize, openInfo: { _, _, _, _ in }, textColor: noteColor, linkColor: noteColor, isDark: theme.colors.isDark, bubbled: true).mutableCopy() as! NSMutableAttributedString
@@ -1693,13 +1701,6 @@ class ChatServiceItem: ChatRowItem {
                             InlineStickerItem.apply(to: attr, associatedMedia: message.associatedMedia, entities: noteEntities ?? [], isPremium: context.isPremium)
 
                             info.append(attr)
-                        }
-
-                        if refunded {
-                            if !info.string.isEmpty {
-                                info.append(string: "\n", color: grayTextColor, font: .normal(theme.fontSize))
-                            }
-                            info.append(string: strings().giftUpgradeRefunded, color: grayTextColor, font: .normal(theme.fontSize))
                         }
                         
                         self.giftData = .init(from: authorId ?? message.id.peerId, to: message.id.peerId, text: TextViewLayout(header, alignment: .center), info: info.string.isEmpty ? nil : TextViewLayout(info, maximumNumberOfLines: 4, alignment: .center), source: .starGift(amount: 0, date: message.timestamp, from: uniqueGiftSender(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: context.account.peerId).flatMap(EnginePeer.init), to: toPeer, purpose: purpose), ribbon: ribbon, uniqueAttributes: uniqueAttributes, authorLayout: authorLayout, author: authorPeer)

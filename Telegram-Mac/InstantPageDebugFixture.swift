@@ -12,14 +12,20 @@ import TelegramCore
 // Real pages may lack these blocks, so this renders them from local values.
 // It says nothing about what the server actually sends to Mac.
 
-// Fixed IDs so reopening reuses the browser tab and the stored file.
-private let fixtureWebpageId = MediaId(namespace: Namespaces.Media.LocalWebpage, id: 0x7E1E_F1C7)
+// Fixed IDs so reopening reuses the browser tab and the stored files.
+private let ltrWebpageId = MediaId(namespace: Namespaces.Media.LocalWebpage, id: 0x7E1E_F1C7)
+private let rtlWebpageId = MediaId(namespace: Namespaces.Media.LocalWebpage, id: 0x7E1E_F1CB)
 private let storedDocumentId = MediaId(namespace: Namespaces.Media.LocalFile, id: 0x7E1E_F1C8)
 private let unfetchableDocumentId = MediaId(namespace: Namespaces.Media.LocalFile, id: 0x7E1E_F1C9)
 private let missingDocumentId = MediaId(namespace: Namespaces.Media.LocalFile, id: 0x7E1E_F1CA)
+private let riskyDocumentId = MediaId(namespace: Namespaces.Media.LocalFile, id: 0x7E1E_F1CC)
+private let namelessDocumentId = MediaId(namespace: Namespaces.Media.LocalFile, id: 0x7E1E_F1CD)
+// The layout looks inline images up in this namespace.
+private let inlineImageId = MediaId(namespace: Namespaces.Media.CloudFile, id: 0x7E1E_F1CE)
 
 // .invalid never resolves: the page controller asks the server to refresh its URL.
-private let fixtureUrl = "https://telex.invalid/instant-page-fixture"
+private let ltrFixtureUrl = "https://telex.invalid/instant-page-fixture"
+private let rtlFixtureUrl = "https://telex.invalid/instant-page-fixture-rtl"
 // Passes isValidTonAddress but is no real wallet; a click copies it.
 private let validTonAddress = "EQTelexInstantPageFixture_NotARealAddress-000000"
 private let invalidTonAddress = "EQTooShortToBeAnAddress"
@@ -56,10 +62,30 @@ private func tableRows() -> [InstantPageTableRow] {
             InstantPageTableCell(text: .plain($0), header: header, alignment: .left, verticalAlignment: .top, colspan: 1, rowspan: 1)
         })
     }
+    func cell(_ text: RichText, _ alignment: TableHorizontalAlignment = .left, _ verticalAlignment: TableVerticalAlignment = .top) -> InstantPageTableCell {
+        return InstantPageTableCell(text: text, header: false, alignment: alignment, verticalAlignment: verticalAlignment, colspan: 1, rowspan: 1)
+    }
     return [
         row(["Block", "Level", "Note"], header: true),
         row(["heading", "1-6", "All six levels"]),
         row(["table", "n/a", "Same rows in both tables, so insets compare"]),
+        // Clicks here go through the table's own hit testing and stored insets.
+        InstantPageTableRow(cells: [
+            cell(.url(text: .plain("Link"), url: "https://telegram.org", webpageId: nil)),
+            cell(.textTonAddress(text: .plain(validTonAddress))),
+            cell(.textButton(button("Copy from cell", .copyText(payload: "Copied from a table cell")))),
+        ]),
+        InstantPageTableRow(cells: [
+            cell(.plain("A taller cell, so that its neighbours have room to show their vertical alignment when the text wraps")),
+            cell(.plain("Centre, middle"), .center, .middle),
+            cell(.plain("Right, bottom"), .right, .bottom),
+        ]),
+        // An inline image becomes an additional item, the only user of the height trim.
+        InstantPageTableRow(cells: [
+            cell(.plain("Inline image")),
+            cell(.image(id: inlineImageId, dimensions: PixelDimensions(width: 40, height: 40))),
+            cell(.concat([.plain("With text "), .image(id: inlineImageId, dimensions: PixelDimensions(width: 40, height: 40))])),
+        ]),
     ]
 }
 
@@ -68,6 +94,9 @@ private func buttonBlocks(profilePeerId: PeerId) -> [InstantPageBlock] {
     let inlineButtons: [RichText] = (working + messageBoundButtons + [disabledButton, button("Link style", .url("https://telegram.org"), isLink: true)]).flatMap { button -> [RichText] in
         return [.textButton(button), .plain("  ")]
     }
+    let linkInside = InstantPageButton(text: .concat([.plain("Link "), .url(text: .plain("inside"), url: "https://telegram.org", webpageId: nil)]), action: .copyText(payload: "Label with a link"), color: .primary, isLink: false)
+    let disabledWithLinkInside = InstantPageButton(text: .url(text: .plain("Disabled, link inside"), url: "https://telegram.org", webpageId: nil), action: .disabled, color: nil, isLink: false)
+    let disabledWithTonInside = InstantPageButton(text: .textTonAddress(text: .plain(validTonAddress)), action: .disabled, color: nil, isLink: false)
     return [
         .header(.plain("Inline buttons")),
         .paragraph(.concat([.plain("Inside text: ")] + inlineButtons)),
@@ -83,15 +112,37 @@ private func buttonBlocks(profilePeerId: PeerId) -> [InstantPageBlock] {
         .buttonRow(alignment: .left, buttons: [disabledButton]),
         .paragraph(.plain("The schema's maximum of eight, to check wrapping when narrow:")),
         .buttonRow(alignment: .justify, buttons: (1 ... 8).map { button("Button \($0)", .copyText(payload: "Button \($0)")) }),
+        .paragraph(.plain("Link style, coloured disabled, a t.me link and a label containing a link:")),
+        .buttonRow(alignment: .left, buttons: [
+            button("Link style", .url("https://telegram.org"), isLink: true),
+            button("Disabled", .disabled, color: .danger),
+            button("t.me link", .url("https://t.me/telegram"), color: .primary),
+            linkInside,
+        ]),
+        .paragraph(.plain("Labels too long for the row, tight padding then truncation:")),
+        .buttonRow(alignment: .left, buttons: [button(String(repeating: "A long label ", count: 12), .copyText(payload: "Long label"))]),
+        .buttonRow(alignment: .justify, buttons: (1 ... 3).map { button(String(repeating: "Long label \($0) ", count: 4), .copyText(payload: "Long label \($0)")) }),
+        .paragraph(.plain("An empty row follows; nothing should render for it:")),
+        .buttonRow(alignment: .left, buttons: []),
+        .header(.plain("Nested rich text")),
+        // Neither the link nor the address may fire inside a disabled button.
+        .paragraph(.concat([.plain("Disabled over nested actions: "), .textButton(disabledWithLinkInside), .plain("  "), .textButton(disabledWithTonInside)])),
+        .paragraph(.concat([.plain("Disabled inside a link, should not open: "), .url(text: .textButton(disabledButton), url: "https://telegram.org", webpageId: nil)])),
+        // The action wins over the surrounding link.
+        .paragraph(.concat([.plain("Address inside a link, copies: "), .url(text: .textTonAddress(text: .plain(validTonAddress)), url: "https://telegram.org", webpageId: nil)])),
     ]
 }
 
-private func instantPageDebugFixture(profilePeerId: PeerId, storedDocument: TelegramMediaFile, unfetchableDocument: TelegramMediaFile) -> TelegramMediaWebpage {
+private func instantPageDebugFixture(profilePeerId: PeerId, rtl: Bool, storedDocument: TelegramMediaFile, unfetchableDocument: TelegramMediaFile, riskyDocument: TelegramMediaFile, namelessDocument: TelegramMediaFile, inlineImage: TelegramMediaFile) -> TelegramMediaWebpage {
+    let title = rtl ? "Instant Page fixture (RTL)" : "Instant Page fixture"
+    let url = rtl ? rtlFixtureUrl : ltrFixtureUrl
     var blocks: [InstantPageBlock] = [
-        .title(.plain("Instant Page fixture")),
+        .title(.plain(title)),
         .subtitle(.plain("Renders local blocks; no server content")),
+        .paragraph(.plain("هذه فقرة باللغة العربية لفحص اتجاه النص من اليمين إلى اليسار.")),
     ]
-    blocks += (1 ... 6).map { level in
+    // 0 and 7 are outside the schema, to check clamping.
+    blocks += (0 ... 7).map { level in
         .heading(text: .plain("Heading level \(level)"), level: Int32(level))
     }
     blocks += [
@@ -113,28 +164,54 @@ private func instantPageDebugFixture(profilePeerId: PeerId, storedDocument: Tele
         .document(id: storedDocumentId, caption: caption("Stored locally: opens in Quick Look, without a download.")),
         .document(id: unfetchableDocumentId, caption: caption("Not stored and has no server copy: shows the remote state and never finishes downloading.")),
         .document(id: missingDocumentId, caption: caption("Media missing from the page: only this caption renders.")),
+        .document(id: riskyDocumentId, caption: caption("Stored, upper-case risky extension: warns before opening.")),
+        .document(id: namelessDocumentId, caption: caption("Stored, no name and an HTML MIME type: shows the fallback name and warns before opening.")),
+        // Details items have their own hit-test path.
+        .details(title: .plain("Details, expanded"), blocks: [
+            .paragraph(.concat([.plain("Address: "), .textTonAddress(text: .plain(validTonAddress)), .plain("  Button: "), .textButton(workingButtons(profilePeerId: profilePeerId)[2])])),
+            .buttonRow(alignment: .center, buttons: workingButtons(profilePeerId: profilePeerId)),
+            .document(id: storedDocumentId, caption: caption("Stored document inside details.")),
+        ], expanded: true),
+        .details(title: .plain("Details, collapsed"), blocks: [
+            .buttonRow(alignment: .justify, buttons: messageBoundButtons),
+        ], expanded: false),
     ]
 
     let page = InstantPage(blocks: blocks, media: [
         storedDocumentId: storedDocument,
         unfetchableDocumentId: unfetchableDocument,
-    ], isComplete: true, rtl: false, url: fixtureUrl, views: nil)
+        riskyDocumentId: riskyDocument,
+        namelessDocumentId: namelessDocument,
+        inlineImageId: inlineImage,
+    ], isComplete: true, rtl: rtl, url: url, views: nil)
 
-    return TelegramMediaWebpage(webpageId: fixtureWebpageId, content: .Loaded(TelegramMediaWebpageLoadedContent(url: fixtureUrl, displayUrl: fixtureUrl, hash: 0, type: "article", websiteName: "Instant Page fixture", title: "Instant Page fixture", text: nil, embedUrl: nil, embedType: nil, embedSize: nil, duration: nil, author: nil, isMediaLargeByDefault: nil, imageIsVideoCover: false, image: nil, file: nil, story: nil, attributes: [], instantPage: page)))
+    return TelegramMediaWebpage(webpageId: rtl ? rtlWebpageId : ltrWebpageId, content: .Loaded(TelegramMediaWebpageLoadedContent(url: url, displayUrl: url, hash: 0, type: "article", websiteName: title, title: title, text: nil, embedUrl: nil, embedType: nil, embedSize: nil, duration: nil, author: nil, isMediaLargeByDefault: nil, imageIsVideoCover: false, image: nil, file: nil, story: nil, attributes: [], instantPage: page)))
 }
 
-private func localDocument(id: MediaId, fileName: String, size: Int64?) -> TelegramMediaFile {
-    return TelegramMediaFile(fileId: id, partialReference: nil, resource: LocalFileMediaResource(fileId: id.id, size: size), previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: "text/plain", size: size, attributes: [.FileName(fileName: fileName)], alternativeRepresentations: [])
+private func localDocument(id: MediaId, fileName: String?, mimeType: String = "text/plain", size: Int64?, attributes: [TelegramMediaFileAttribute] = []) -> TelegramMediaFile {
+    return TelegramMediaFile(fileId: id, partialReference: nil, resource: LocalFileMediaResource(fileId: id.id, size: size), previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: mimeType, size: size, attributes: fileName.map { [.FileName(fileName: $0)] + attributes } ?? attributes, alternativeRepresentations: [])
 }
 
+private var opensRtlFixtureNext = false
+
+/// Opens the fixture page, alternating between LTR and RTL on each call.
 func openInstantPageDebugFixture(context: AccountContext) {
-    let storedData = Data("Stored by the Instant Page fixture.\n".utf8)
-    let storedDocument = localDocument(id: storedDocumentId, fileName: "fixture.txt", size: Int64(storedData.count))
-    context.account.postbox.mediaBox.storeResourceData(storedDocument.resource.id, data: storedData, synchronous: true)
-    let unfetchableDocument = localDocument(id: unfetchableDocumentId, fileName: "a very long file name that should be cut in the middle so the extension stays visible on a narrow page.txt", size: nil)
+    let rtl = opensRtlFixtureNext
+    opensRtlFixtureNext.toggle()
 
-    let webPage = instantPageDebugFixture(profilePeerId: context.peerId, storedDocument: storedDocument, unfetchableDocument: unfetchableDocument)
-    BrowserStateContext.get(context).open(tab: .instantView(url: fixtureUrl, webPage: webPage, anchor: nil))
+    let storedData = Data("Stored by the Instant Page fixture.\n".utf8)
+    let size = Int64(storedData.count)
+    let storedDocument = localDocument(id: storedDocumentId, fileName: "fixture.txt", size: size)
+    let riskyDocument = localDocument(id: riskyDocumentId, fileName: "FIXTURE.HTML", size: size)
+    let namelessDocument = localDocument(id: namelessDocumentId, fileName: nil, mimeType: "text/html", size: size)
+    for document in [storedDocument, riskyDocument, namelessDocument] {
+        context.account.postbox.mediaBox.storeResourceData(document.resource.id, data: storedData, synchronous: true)
+    }
+    let unfetchableDocument = localDocument(id: unfetchableDocumentId, fileName: "a very long file name that should be cut in the middle so the extension stays visible on a narrow page.txt", size: nil)
+    let inlineImage = localDocument(id: inlineImageId, fileName: nil, mimeType: "image/png", size: nil, attributes: [.ImageSize(size: PixelDimensions(width: 40, height: 40))])
+
+    let webPage = instantPageDebugFixture(profilePeerId: context.peerId, rtl: rtl, storedDocument: storedDocument, unfetchableDocument: unfetchableDocument, riskyDocument: riskyDocument, namelessDocument: namelessDocument, inlineImage: inlineImage)
+    BrowserStateContext.get(context).open(tab: .instantView(url: rtl ? rtlFixtureUrl : ltrFixtureUrl, webPage: webPage, anchor: nil))
 }
 
 #endif

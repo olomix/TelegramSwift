@@ -235,7 +235,20 @@ final class GiftOptionsRowItem : GeneralRowItem {
                 badge = nil
             }
             
-            return .init(file: option.file!, image: nil, colors: [], text: nil, type: option.resellStars != nil ? .stars(option.resellStars!, true, resale) : .none, badge: badge, peer: nil, invisible: false, pinned: false, toggleSelect: nil, priceBadge: nil, nativeStarUniqueGift: option)
+            let type: TypeValue
+            switch option.resalePrice {
+            case .none:
+                type = .none
+            case let .some(price):
+                switch price.currency {
+                case .stars:
+                    type = .stars(price.amount.value, true, resale)
+                case .ton:
+                    type = .price(price.fullyFormatted)
+                }
+            }
+
+            return .init(file: option.file!, image: nil, colors: [], text: nil, type: type, badge: badge, peer: nil, invisible: false, pinned: false, toggleSelect: nil, priceBadge: nil, nativeStarUniqueGift: option)
         }
         
         
@@ -252,12 +265,17 @@ final class GiftOptionsRowItem : GeneralRowItem {
             var priceBadge: TextViewLayout? = nil
             
             let badge: Badge?
-            if let resellStars = option.gift.unique?.resellStars {
+            if let resalePrice = option.gift.unique?.resalePrice {
                 badge = .init(text: strings().giftSale, colors: [NSColor(0x74b036), NSColor(0x87d151)], textColor: theme.colors.underSelectedColor, outline: false)
                 
                 let attr = NSMutableAttributedString()
-                attr.append(.initialize(string: "\(clown_space)\(resellStars)", color: .white, font: .normal(.text)))
-                attr.insertEmbedded(.embeddedAnimated(LocalAnimatedSticker.star_currency_new.file), for: clown)
+                switch resalePrice.currency {
+                case .stars:
+                    attr.append(.initialize(string: "\(clown_space)\(resalePrice.amount.value)", color: .white, font: .normal(.text)))
+                    attr.insertEmbedded(.embeddedAnimated(LocalAnimatedSticker.star_currency_new.file), for: clown)
+                case .ton:
+                    attr.append(.initialize(string: resalePrice.fullyFormatted, color: .white, font: .normal(.text)))
+                }
                 
                 priceBadge = .init(attr)
                 priceBadge?.measure(width: .greatestFiniteMagnitude)

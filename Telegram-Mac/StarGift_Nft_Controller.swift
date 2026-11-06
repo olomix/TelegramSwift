@@ -13,16 +13,11 @@ import SwiftSignalKit
 import TelegramCore
 import Postbox
 import InputView
+import FoundationUtils
 
-private extension StarGift.UniqueGift {
-    /// The price resale charges: TON-only gifts can list a Stars amount too.
-    var resalePrice: CurrencyAmount? {
-        let currency: CurrencyAmount.Currency = self.resellForTonOnly ? .ton : .stars
-        return self.resellAmounts?.first(where: { $0.currency == currency })
-    }
-}
+// Telex-only text: the server language pack has no such strings.
+private let resaleBalanceUnknownText = "Your balance hasn't loaded yet. You were not charged. Try again in a moment."
 
-// Telex-only text: the server language pack has no such string.
 private func resalePriceChangedText(from oldPrice: CurrencyAmount, to newPrice: CurrencyAmount) -> String {
     return "The price of this gift changed from \(oldPrice.fullyFormatted) to \(newPrice.fullyFormatted). You were not charged. Check the new price and try again."
 }
@@ -1063,7 +1058,9 @@ private struct State : Equatable {
     var nameEnabled: Bool = true
     var converted: Bool = false
     
-    var form: BotPaymentForm?
+    // The next resale charge cap: the form's price, or the price from a
+    // .priceChanged error. Nil until known, then the listed price applies.
+    var resaleConfirmedPrice: CurrencyAmount?
     
 
     var author: EnginePeer?
@@ -1122,7 +1119,7 @@ private struct State : Equatable {
                     break
                 }
             }
-            if let resalePrice = gift.resalePrice {
+            if let resalePrice = resaleConfirmedPrice ?? gift.resalePrice {
                 return strings().starNftBuyFor(resalePrice.fullyFormatted)
             }
             return strings().modalOK
@@ -1201,16 +1198,23 @@ private struct State : Equatable {
 
 private let _id_ton_input = InputDataIdentifier("_id_ton_input")
 
-private func giftNoteAttributedText(_ text: String, entities: [MessageTextEntity]?, context: AccountContext) -> NSAttributedString {
-    let attr = ChatMessageItem.applyMessageEntities(with: [TextEntitiesMessageAttribute(entities: entities ?? [])], for: text, message: nil, context: context, fontSize: FontSize.text, openInfo: { _, _, _, _ in }, textColor: theme.colors.text, isDark: theme.colors.isDark, bubbled: true).mutableCopy() as! NSMutableAttributedString
+private func giftNoteAttributedText(_ text: String, entities: [MessageTextEntity]?, arguments: Arguments) -> NSAttributedString {
+    let context = arguments.context
+    let attr = ChatMessageItem.applyMessageEntities(with: [TextEntitiesMessageAttribute(entities: entities ?? [])], for: text, message: nil, context: context, fontSize: FontSize.text, openInfo: { peerId, toChat, _, _ in
+        _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId)) |> deliverOnMainQueue).startStandalone(next: { peer in
+            if let peer {
+                arguments.openPeer(peer, toChat)
+            }
+        })
+    }, textColor: theme.colors.text, isDark: theme.colors.isDark, bubbled: true).mutableCopy() as! NSMutableAttributedString
 
     InlineStickerItem.apply(to: attr, associatedMedia: [:], entities: entities ?? [], isPremium: context.isPremium)
 
     return attr
 }
 
-private func giftNoteRow(_ text: String, entities: [MessageTextEntity]?, context: AccountContext) -> InputDataTableBasedItem.Row {
-    let layout = TextViewLayout(giftNoteAttributedText(text, entities: entities, context: context))
+private func giftTextRow(_ text: NSAttributedString) -> InputDataTableBasedItem.Row {
+    let layout = TextViewLayout(text)
     layout.interactions = globalLinkExecutor
     return .init(left: nil, right: .init(name: layout))
 }
@@ -1283,22 +1287,11 @@ private func giftOriginalInfoRow(senderPeerId: PeerId?, recipientPeerId: PeerId,
         (recipientSlot, peerName(state.originalInfoPeers[recipientPeerId]))
     ]
     if let note {
-        replacements.append((noteSlot, giftNoteAttributedText(note, entities: noteEntities, context: arguments.context)))
+        replacements.append((noteSlot, giftNoteAttributedText(note, entities: noteEntities, arguments: arguments)))
     }
 
-    let result = NSMutableAttributedString()
-    result.append(string: format, color: theme.colors.text, font: .normal(.text))
-
-    // Back to front, so earlier ranges stay valid. Inserting the rendered note
-    // carries its entity ranges along, as on iOS.
-    let ranges = replacements.map { (range: format.nsstring.range(of: $0.slot), value: $0.value) }
-    for item in ranges.filter({ $0.range.location != NSNotFound }).sorted(by: { $0.range.location > $1.range.location }) {
-        result.replaceCharacters(in: item.range, with: item.value)
-    }
-
-    let layout = TextViewLayout(result)
-    layout.interactions = globalLinkExecutor
-    return .init(left: nil, right: .init(name: layout))
+    // Inserting the rendered note carries its entity ranges along, as on iOS.
+    return giftTextRow(fillingSlots(in: .initialize(string: format, color: theme.colors.text, font: .normal(.text)), replacements: replacements))
 }
 
 
@@ -1408,15 +1401,15 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
                 }
                 
                 
-                if let resellStars = gift.resellStars, badge != nil {
-                    rows.append(.init(left: .init(.initialize(string: strings().starNftPriceSale, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: "\(resellStars)", color: theme.colors.text, font: .normal(.text))), leftView: { previous in
+                if let resalePrice = gift.resalePrice, badge != nil {
+                    rows.append(.init(left: .init(.initialize(string: strings().starNftPriceSale, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: resalePrice.formatted, color: theme.colors.text, font: .normal(.text))), leftView: { previous in
                         let control: ImageView
                         if let previous = previous as? ImageView {
                             control = previous
                         } else {
                             control = ImageView(frame: NSMakeRect(0, 0, 20, 20))
                         }
-                        control.image = NSImage(resource: .iconStarCurrency).precomposed()
+                        control.image = NSImage(resource: resalePrice.currency == .ton ? .iconTonCurrency : .iconStarCurrency).precomposed()
                         return control
                     }, badge: badge)))
                 }
@@ -1439,7 +1432,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
                 rows.append(.init(left: .init(.initialize(string: strings().starTransactionAvailability, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: strings().starTransactionGiftUpgradeIssued(Int(gift.availability.issued).formattedWithSeparator, Int(gift.availability.total).formattedWithSeparator), color: theme.colors.text, font: .normal(.text))))))
 
                 if let note = uniqueGiftNote(state.purpose) {
-                    rows.append(giftNoteRow(note.text, entities: note.entities, context: arguments.context))
+                    rows.append(giftTextRow(giftNoteAttributedText(note.text, entities: note.entities, arguments: arguments)))
                 }
 
             default:
@@ -1672,11 +1665,15 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         }
     }
     
-    let loadResaleForm: (StarGift.UniqueGift) -> Void = { gift in
+    let loadResaleConfirmedPrice: (StarGift.UniqueGift) -> Void = { gift in
+        guard let listedPrice = gift.resalePrice else {
+            return
+        }
         actionsDisposable.add(context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: gift.resellForTonOnly, hideName: false, text: nil, entities: nil), themeParams: nil).startStrict(next: { form in
             updateState { current in
                 var current = current
-                current.form = form
+                let amount = resaleChargeCap(formCurrency: form.invoice.currency, formAmount: form.invoice.prices.first?.amount, listedCurrency: listedPrice.currency.stringValue, listedAmount: listedPrice.amount.value)
+                current.resaleConfirmedPrice = CurrencyAmount(amount: StarsAmount(value: amount, nanos: 0), currency: listedPrice.currency)
                 return current
             }
         }))
@@ -1684,14 +1681,31 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
     
     switch source {
     case let .quickLook(_, gift):
-        if gift.resalePrice != nil {
-            loadResaleForm(gift)
+        if let resalePrice = gift.resalePrice {
+            loadResaleConfirmedPrice(gift)
+            // Nothing else here loads the TON balance, and the buy check needs it.
+            if resalePrice.currency == .ton {
+                context.tonContext.load(force: false)
+            }
         }
     default:
         break
     }
     
     
+    
+    let reloadBalance: (CurrencyAmount.Currency) -> Void = { currency in
+        switch currency {
+        case .stars:
+            context.starsContext.load(force: true)
+        case .ton:
+            context.tonContext.load(force: true)
+        }
+    }
+    
+    // Outlive the alert: a retry after a top-up or a price change keeps them.
+    let resaleNote = Atomic(value: Updated_ChatTextInputState())
+    let resaleHidesName = Atomic(value: false)
     
     let buyResellGift:(StarGift.UniqueGift, EnginePeer)->Void = { [weak giftsContext, weak resaleContext] gift, peer in
         guard let listedPrice = gift.resalePrice else {
@@ -1700,50 +1714,54 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         }
         
         // buyStarGift rejects anything above this amount, so it must be the one the alert shows.
-        let confirmedPrice: CurrencyAmount
-        if let form = stateValue.with({ $0.form }), form.invoice.currency == listedPrice.currency.stringValue, let formAmount = form.invoice.prices.first?.amount {
-            confirmedPrice = CurrencyAmount(amount: StarsAmount(value: formAmount, nanos: 0), currency: listedPrice.currency)
-        } else {
-            confirmedPrice = listedPrice
-        }
+        let confirmedPrice = stateValue.with({ $0.resaleConfirmedPrice }) ?? listedPrice
         let priceText = confirmedPrice.fullyFormatted
         
         let purchase: (Bool, String?, [MessageTextEntity]?) -> Void = { hideName, text, entities in
             let required = confirmedPrice.amount.value
+            let knownBalance: Int64?
             switch confirmedPrice.currency {
             case .stars:
-                if required > stateValue.with({ $0.myBalance?.value ?? 0 }) {
-                    showModal(with: Star_ListScreen(context: context, source: .buy(suffix: nil, amount: required)), for: window)
-                    return
-                }
+                knownBalance = stateValue.with({ $0.myBalance?.value })
             case .ton:
-                let balance = context.tonContext.currentState?.balance.value ?? 0
-                if required > balance {
+                knownBalance = context.tonContext.currentState?.balance.value
+            }
+            // Unknown isn't zero: a top-up screen would ask for the full price.
+            guard let balance = knownBalance else {
+                reloadBalance(confirmedPrice.currency)
+                showModalText(for: window, text: resaleBalanceUnknownText)
+                return
+            }
+            if required > balance {
+                switch confirmedPrice.currency {
+                case .stars:
+                    showModal(with: Star_ListScreen(context: context, source: .buy(suffix: nil, amount: required)), for: window)
+                case .ton:
                     showModal(with: AddTonBalanceController(context: context, tonAmount: required - balance), for: window)
-                    return
                 }
+                return
             }
             
             _ = showModalProgress(signal: context.engine.payments.buyStarGift(slug: gift.slug, peerId: peer.id, price: confirmedPrice, hideName: hideName, text: text, entities: entities), for: window).startStandalone(error: { error in
                 switch error {
                 case let .priceChanged(newPrice):
-                    alert(for: window, info: resalePriceChangedText(from: confirmedPrice, to: newPrice))
                     // Otherwise the next attempt confirms the old price and fails the same way.
-                    loadResaleForm(gift)
-                case .serverProvided:
-                    // Silent on purpose, matching GiftViewBuyGift.swift:73.
-                    break
-                case .starGiftResellTooEarly, .generic:
+                    updateState { current in
+                        var current = current
+                        current.resaleConfirmedPrice = newPrice
+                        return current
+                    }
+                    alert(for: window, info: resalePriceChangedText(from: confirmedPrice, to: newPrice))
+                case .serverProvided, .starGiftResellTooEarly, .generic:
+                    // The core hides the cause, which may be a stale price or balance.
+                    // .serverProvided carries a raw RPC code, not a readable message.
+                    reloadBalance(confirmedPrice.currency)
+                    loadResaleConfirmedPrice(gift)
                     showModalText(for: window, text: strings().unknownError)
                 }
             }, completed: {
                 PlayConfetti(for: window, stars: true)
-                switch confirmedPrice.currency {
-                case .stars:
-                    context.starsContext.load(force: true)
-                case .ton:
-                    context.tonContext.load(force: true)
-                }
+                reloadBalance(confirmedPrice.currency)
                 context.starsSubscriptionsContext.load(force: true)
                 giftsContext?.removeStarGift(gift: .unique(gift))
                 resaleContext?.removeStarGift(gift: .unique(gift))
@@ -1766,28 +1784,29 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
             })
         } else {
             let maxNoteLength: Int32 = context.appConfiguration.getGeneralValue("stargifts_message_length_max", orElse: 256)
-            let note = Atomic(value: Updated_ChatTextInputState())
             let name = peer._asPeer().compactDisplayTitle
             
             let footer = ModalAlertData.Footer(value: { initialSize, stableId, _, updateData in
-                return InputTextDataRowItem(initialSize, stableId: stableId, context: context, state: note.with { $0 }, viewType: .singleItem, placeholder: nil, inputPlaceholder: strings().starsGiftPreviewMessagePlaceholder, filter: { $0 }, updateState: { updated in
-                    _ = note.swap(updated)
+                return InputTextDataRowItem(initialSize, stableId: stableId, context: context, state: resaleNote.with { $0 }, viewType: .singleItem, placeholder: nil, inputPlaceholder: strings().starsGiftPreviewMessagePlaceholder, filter: { $0 }, updateState: { updated in
+                    _ = resaleNote.swap(updated)
                     DispatchQueue.main.async(execute: updateData)
                 }, limit: maxNoteLength, hasEmoji: true)
             }, validateData: { _ in
                 // The row only reddens its counter, so enforce the limit before paying.
-                if note.with({ $0.string.length }) > Int(maxNoteLength) {
+                if resaleNote.with({ $0.string.length }) > Int(maxNoteLength) {
                     return .fail(.fields([InputDataIdentifier("footer") : .shake]))
                 }
                 return .none
-            }, rebuildsOnDataUpdate: true)
+            }, rebuildsOnDataUpdate: true, keepsReturnKey: true)
             
-            let data = ModalAlertData(title: strings().starNftGiftConfirmTitle, info: strings().starNftGiftBuyConfirm(gift.title, priceText, peer._asPeer().displayTitle), description: .init(string: strings().starsGiftPreviewHideMyNameInfo(name, name), onlyWhenEnabled: false), ok: strings().starNftGiftConfirmOk(priceText), options: [.init(string: strings().starsGiftPreviewHideMyName, isSelected: false)], mode: .confirm(text: strings().modalCancel, isThird: false), footer: footer)
+            let data = ModalAlertData(title: strings().starNftGiftConfirmTitle, info: strings().starNftGiftBuyConfirm(gift.title, priceText, peer._asPeer().displayTitle), description: .init(string: strings().starsGiftPreviewHideMyNameInfo(name, name), onlyWhenEnabled: false), ok: strings().starNftGiftConfirmOk(priceText), options: [.init(string: strings().starsGiftPreviewHideMyName, isSelected: resaleHidesName.with { $0 })], mode: .confirm(text: strings().modalCancel, isThird: false), footer: footer)
             
             showModalAlert(for: window, data: data, completion: { result in
-                let noteState = note.with { $0 }
+                let hidesName = result.selected[0] == true
+                _ = resaleHidesName.swap(hidesName)
+                let noteState = resaleNote.with { $0 }
                 let hasNote = !noteState.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                purchase(result.selected[0] == true, hasNote ? noteState.string : nil, hasNote ? noteState.textInputState().messageTextEntities() : nil)
+                purchase(hidesName, hasNote ? noteState.string : nil, hasNote ? noteState.textInputState().messageTextEntities() : nil)
             })
         }
     }

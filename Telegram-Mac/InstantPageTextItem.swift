@@ -646,8 +646,9 @@ private func attributedStringForPageButton(_ button: InstantPageButton, styleSta
     let result = NSMutableAttributedString(attributedString: label)
     let range = NSMakeRange(0, result.length)
     if isDisabled {
-        // Inert as a whole, so a link around or inside the label must not fire.
+        // Inert as a whole, so nothing around or inside the label may fire.
         result.removeAttribute(.URL, range: range)
+        result.removeAttribute(.instantPageTextAction, range: range)
         result.enumerateAttribute(.foregroundColor, in: range) { value, runRange, _ in
             if let color = value as? NSColor {
                 result.addAttribute(.foregroundColor, value: color.withAlphaComponent(0.4), range: runRange)

@@ -704,14 +704,12 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
     }))
     
     if let footer = state.data.footer {
-        let footerEquatable: InputDataEquatable = footer.rebuildsOnDataUpdate ? .init(state.footerRevision) : .init(footer)
-        entries.append(.custom(sectionId: 0, index: 0, value: .none, identifier: .init("footer"), equatable: footerEquatable, comparable: nil, item: { initialSize, stableId in
+        entries.append(.custom(sectionId: 0, index: 0, value: .none, identifier: .init("footer"), equatable: footer.equatable(revision: state.footerRevision), comparable: nil, item: { initialSize, stableId in
             return footer.value(initialSize, stableId, arguments.presentation, arguments.updateDatas)
         }))
         
         if let footer1 = state.data.footer1 {
-            let footer1Equatable: InputDataEquatable = footer1.rebuildsOnDataUpdate ? .init(state.footerRevision) : .init(footer1)
-            entries.append(.custom(sectionId: 0, index: 0, value: .none, identifier: .init("footer1"), equatable: footer1Equatable, comparable: nil, item: { initialSize, stableId in
+            entries.append(.custom(sectionId: 0, index: 0, value: .none, identifier: .init("footer1"), equatable: footer1.equatable(revision: state.footerRevision), comparable: nil, item: { initialSize, stableId in
                 return footer1.value(initialSize, stableId, arguments.presentation, arguments.updateDatas)
             }))
         }
@@ -748,8 +746,14 @@ struct ModalAlertData : Equatable {
         /// For rows built from the caller's current state, whose height depends on it.
         /// Other rows must keep their item: a rebuild would reset typed text.
         var rebuildsOnDataUpdate: Bool = false
+        /// Return stays in the row's input, so only the OK button confirms.
+        /// For alerts that spend money, where a stray Return can't be undone.
+        var keepsReturnKey: Bool = false
         static func ==(lhs: Footer, rhs: Footer) -> Bool {
             return true
+        }
+        fileprivate func equatable(revision: Int) -> InputDataEquatable {
+            return rebuildsOnDataUpdate ? .init(revision) : .init(self)
         }
     }
     
@@ -916,6 +920,12 @@ private func ModalAlertController(data: ModalAlertData, completion: @escaping(Mo
     controller.validateData = { inputData in
         arguments.action()
         return .none
+    }
+    
+    if data.footer?.keepsReturnKey == true || data.footer1?.keepsReturnKey == true {
+        controller.returnKeyInvocation = { _, _ in
+            return .invokeEvent
+        }
     }
     
     controller.getBackgroundColor = {
