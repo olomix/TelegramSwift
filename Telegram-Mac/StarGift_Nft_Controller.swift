@@ -17,17 +17,44 @@ import FoundationUtils
 
 // Telex-only text: the server language pack has no such strings.
 private let resaleBalanceUnknownText = "Your balance hasn't loaded yet. You were not charged. Try again in a moment."
+private let resaleListingChangedText = "This gift's listing has changed, so it can't be bought at the price shown. You were not charged."
 
 private func resalePriceChangedText(from oldPrice: CurrencyAmount, to newPrice: CurrencyAmount) -> String {
     return "The price of this gift changed from \(oldPrice.exactlyFormatted) to \(newPrice.exactlyFormatted). You were not charged. Check the new price and try again."
 }
 
-// The core compares raw amounts, so a cap in another currency would mix units.
+// A relist while the screen is open can leave a confirmed price in another currency.
 private func resaleChargePrice(confirmed: CurrencyAmount?, listed: CurrencyAmount) -> CurrencyAmount {
     if let confirmed, confirmed.currency == listed.currency {
         return confirmed
     }
     return listed
+}
+
+private enum ResalePurchaseError {
+    case priceRaised(CurrencyAmount)
+    case listingChanged
+    case failed
+}
+
+// Not buyStarGift: it compares raw amounts, so a Stars form passes a nanoton cap.
+// The form checked here is the one paid, so nothing can change in between.
+private func payResaleForm(context: AccountContext, slug: String, peerId: PeerId, confirmedPrice: CurrencyAmount, hideName: Bool, text: String?, entities: [MessageTextEntity]?) -> Signal<Never, ResalePurchaseError> {
+    let source: BotPaymentInvoiceSource = .starGiftResale(slug: slug, toPeerId: peerId, ton: confirmedPrice.currency == .ton, hideName: hideName, text: text, entities: entities)
+    return context.engine.payments.fetchBotPaymentForm(source: source, themeParams: nil)
+    |> mapError { _ in ResalePurchaseError.failed }
+    |> mapToSignal { form -> Signal<Never, ResalePurchaseError> in
+        switch resaleFormDecision(formCurrency: form.invoice.currency, formAmount: form.invoice.prices.first?.amount, confirmedCurrency: confirmedPrice.currency.stringValue, confirmedAmount: confirmedPrice.amount.value) {
+        case .send:
+            return context.engine.payments.sendStarsPaymentForm(formId: form.id, source: source)
+            |> mapError { _ in ResalePurchaseError.failed }
+            |> ignoreValues
+        case let .priceRaised(amount):
+            return .fail(.priceRaised(CurrencyAmount(amount: StarsAmount(value: amount, nanos: 0), currency: confirmedPrice.currency)))
+        case .currencyMismatch:
+            return .fail(.listingChanged)
+        }
+    }
 }
 
 final class TransferUniqueGiftHeaderItem : GeneralRowItem {
@@ -1066,9 +1093,15 @@ private struct State : Equatable {
     var nameEnabled: Bool = true
     var converted: Bool = false
     
-    // The next resale charge cap: the form's price, or the price from a
-    // .priceChanged error. Nil until known, then the listed price applies.
+    // The next resale charge cap: the form's price, or a price that rose at
+    // purchase. Nil until known, then the listed price applies.
     var resaleConfirmedPrice: CurrencyAmount?
+    // The listing whose payment form came back in another currency.
+    var resaleUnpayableListing: CurrencyAmount?
+
+    func isResaleListingUnpayable(_ gift: StarGift.UniqueGift) -> Bool {
+        return resaleUnpayableListing != nil && resaleUnpayableListing == gift.resalePrice
+    }
     
 
     var author: EnginePeer?
@@ -1147,7 +1180,7 @@ private struct State : Equatable {
                     return strings().starTransactionStarGiftChannelDisplayOnMyPage
                 }
             case .buy:
-                if let listedPrice = gift.resalePrice {
+                if let listedPrice = gift.resalePrice, !isResaleListingUnpayable(gift) {
                     return strings().starNftBuyFor(resaleChargePrice(confirmed: resaleConfirmedPrice, listed: listedPrice).exactlyFormatted)
                 }
                 return strings().modalOK
@@ -1703,8 +1736,13 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         actionsDisposable.add(context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: gift.resellForTonOnly, hideName: false, text: nil, entities: nil), themeParams: nil).startStrict(next: { form in
             updateState { current in
                 var current = current
-                let amount = resaleChargeCap(formCurrency: form.invoice.currency, formAmount: form.invoice.prices.first?.amount, listedCurrency: listedPrice.currency.stringValue, listedAmount: listedPrice.amount.value)
-                current.resaleConfirmedPrice = CurrencyAmount(amount: StarsAmount(value: amount, nanos: 0), currency: listedPrice.currency)
+                switch resaleChargeCap(formCurrency: form.invoice.currency, formAmount: form.invoice.prices.first?.amount, listedCurrency: listedPrice.currency.stringValue, listedAmount: listedPrice.amount.value) {
+                case let .amount(amount):
+                    current.resaleConfirmedPrice = CurrencyAmount(amount: StarsAmount(value: amount, nanos: 0), currency: listedPrice.currency)
+                    current.resaleUnpayableListing = nil
+                case .currencyMismatch:
+                    current.resaleUnpayableListing = listedPrice
+                }
                 return current
             }
         }))
@@ -1744,7 +1782,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
             return
         }
         
-        // buyStarGift rejects anything above this amount, so it must be the one the alert shows.
+        // The purchase stops at anything above this amount, so it must be the one the alert shows.
         let confirmedPrice = resaleChargePrice(confirmed: stateValue.with({ $0.resaleConfirmedPrice }), listed: listedPrice)
         let priceText = confirmedPrice.exactlyFormatted
         
@@ -1773,9 +1811,9 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 return
             }
             
-            _ = showModalProgress(signal: context.engine.payments.buyStarGift(slug: gift.slug, peerId: peer.id, price: confirmedPrice, hideName: hideName, text: text, entities: entities), for: window).startStandalone(error: { error in
+            _ = showModalProgress(signal: payResaleForm(context: context, slug: gift.slug, peerId: peer.id, confirmedPrice: confirmedPrice, hideName: hideName, text: text, entities: entities), for: window).startStandalone(error: { error in
                 switch error {
-                case let .priceChanged(newPrice):
+                case let .priceRaised(newPrice):
                     // Otherwise the next attempt confirms the old price and fails the same way.
                     updateState { current in
                         var current = current
@@ -1783,9 +1821,13 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                         return current
                     }
                     alert(for: window, info: resalePriceChangedText(from: confirmedPrice, to: newPrice))
-                case .serverProvided, .starGiftResellTooEarly, .generic:
-                    // The core hides the cause, which may be a stale price or balance.
-                    // .serverProvided carries a raw RPC code, not a readable message.
+                case .listingChanged:
+                    // A retry would fail the same way, so don't offer one.
+                    showModalText(for: window, text: resaleListingChangedText)
+                    close?()
+                case .failed:
+                    // The cause may be a stale price or balance, and server
+                    // errors carry a raw RPC code, not a readable message.
                     reloadBalance(confirmedPrice.currency)
                     loadResaleConfirmedPrice(gift)
                     showModalText(for: window, text: strings().unknownError)
@@ -2108,6 +2150,11 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 }
                 close?()
             case .buy:
+                if state.isResaleListingUnpayable(gift) {
+                    showModalText(for: window, text: resaleListingChangedText)
+                    close?()
+                    return .none
+                }
                 let signal = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: toPeerId)) |> deliverOnMainQueue
                 
                 _ = signal.start(next: { peer in

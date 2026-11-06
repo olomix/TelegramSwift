@@ -6,13 +6,35 @@ public func resaleListing<Listing>(in listings: [Listing], tonOnly: Bool, isTon:
     return listings.first(where: { isTon($0) == tonOnly })
 }
 
-/// The most a resale purchase may charge: the payment form's amount when it is
-/// in the listing's currency, so nanotons are never read as Stars or the reverse.
-public func resaleChargeCap(formCurrency: String?, formAmount: Int64?, listedCurrency: String, listedAmount: Int64) -> Int64 {
-    if formCurrency == listedCurrency, let formAmount = formAmount {
-        return formAmount
+public enum ResaleChargeCap: Equatable {
+    case amount(Int64)
+    case currencyMismatch
+}
+
+/// The most a resale purchase may charge: the payment form's amount, or the
+/// listed one if the form has no price. A form in another currency means the
+/// listing is stale, and nanotons must never be compared with Stars.
+public func resaleChargeCap(formCurrency: String, formAmount: Int64?, listedCurrency: String, listedAmount: Int64) -> ResaleChargeCap {
+    guard formCurrency == listedCurrency else {
+        return .currencyMismatch
     }
-    return listedAmount
+    return .amount(formAmount ?? listedAmount)
+}
+
+public enum ResaleFormDecision: Equatable {
+    case send
+    case priceRaised(Int64)
+    case currencyMismatch
+}
+
+/// Whether the payment form may be paid after the user confirmed this price.
+public func resaleFormDecision(formCurrency: String, formAmount: Int64?, confirmedCurrency: String, confirmedAmount: Int64) -> ResaleFormDecision {
+    switch resaleChargeCap(formCurrency: formCurrency, formAmount: formAmount, listedCurrency: confirmedCurrency, listedAmount: confirmedAmount) {
+    case .currencyMismatch:
+        return .currencyMismatch
+    case let .amount(amount):
+        return amount > confirmedAmount ? .priceRaised(amount) : .send
+    }
 }
 
 /// Drops only the zeros that end a fraction, keeping every other digit:

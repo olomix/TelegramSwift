@@ -29,19 +29,44 @@ final class ResalePriceTests: XCTestCase {
     }
 
     func testMatchingFormSetsTheCap() {
-        XCTAssertEqual(resaleChargeCap(formCurrency: "XTR", formAmount: 120, listedCurrency: "XTR", listedAmount: 100), 120)
+        XCTAssertEqual(resaleChargeCap(formCurrency: "XTR", formAmount: 120, listedCurrency: "XTR", listedAmount: 100), .amount(120))
     }
 
-    func testCurrencyMismatchKeepsTheListedAmount() {
-        XCTAssertEqual(resaleChargeCap(formCurrency: "TON", formAmount: 5_000_000_000, listedCurrency: "XTR", listedAmount: 100), 100)
+    func testTonFormForStarsListingHasNoCap() {
+        XCTAssertEqual(resaleChargeCap(formCurrency: "TON", formAmount: 5_000_000_000, listedCurrency: "XTR", listedAmount: 100), .currencyMismatch)
     }
 
-    func testNoFormKeepsTheListedAmount() {
-        XCTAssertEqual(resaleChargeCap(formCurrency: nil, formAmount: nil, listedCurrency: "TON", listedAmount: 7), 7)
+    func testStarsFormForTonListingHasNoCap() {
+        XCTAssertEqual(resaleChargeCap(formCurrency: "XTR", formAmount: 100, listedCurrency: "TON", listedAmount: 5_000_000_000), .currencyMismatch)
     }
 
     func testFormWithoutPricesKeepsTheListedAmount() {
-        XCTAssertEqual(resaleChargeCap(formCurrency: "XTR", formAmount: nil, listedCurrency: "XTR", listedAmount: 100), 100)
+        XCTAssertEqual(resaleChargeCap(formCurrency: "XTR", formAmount: nil, listedCurrency: "XTR", listedAmount: 100), .amount(100))
+    }
+
+    func testStarsFormBelowANanotonCapIsNotSent() {
+        XCTAssertEqual(resaleFormDecision(formCurrency: "XTR", formAmount: 100, confirmedCurrency: "TON", confirmedAmount: 5_000_000_000), .currencyMismatch)
+    }
+
+    func testTonFormAboveAStarsCapIsNotAPriceRise() {
+        XCTAssertEqual(resaleFormDecision(formCurrency: "TON", formAmount: 5_000_000_000, confirmedCurrency: "XTR", confirmedAmount: 100), .currencyMismatch)
+    }
+
+    func testMismatchedFormWithoutPricesIsNotSent() {
+        XCTAssertEqual(resaleFormDecision(formCurrency: "XTR", formAmount: nil, confirmedCurrency: "TON", confirmedAmount: 7), .currencyMismatch)
+    }
+
+    func testFormAtOrBelowTheConfirmedPriceIsSent() {
+        XCTAssertEqual(resaleFormDecision(formCurrency: "TON", formAmount: 7, confirmedCurrency: "TON", confirmedAmount: 7), .send)
+        XCTAssertEqual(resaleFormDecision(formCurrency: "XTR", formAmount: 90, confirmedCurrency: "XTR", confirmedAmount: 100), .send)
+    }
+
+    func testFormWithoutPricesInTheConfirmedCurrencyIsSent() {
+        XCTAssertEqual(resaleFormDecision(formCurrency: "XTR", formAmount: nil, confirmedCurrency: "XTR", confirmedAmount: 100), .send)
+    }
+
+    func testFormAboveTheConfirmedPriceIsAPriceRise() {
+        XCTAssertEqual(resaleFormDecision(formCurrency: "XTR", formAmount: 120, confirmedCurrency: "XTR", confirmedAmount: 100), .priceRaised(120))
     }
 
     func testTonAmountKeepsEveryDigit() {

@@ -115,17 +115,18 @@ the Mac's existing rule (`canHighlightLinks`, `ChatHistoryEntry.swift:1140`).
 That rule checks `.canReport`, while iOS also checks `.canBlock`; this plan
 leaves it alone because changing it would affect every link type.
 
-**Resale.** Replace the manual form send with
-`context.engine.payments.buyStarGift(slug:peerId:price:hideName:text:entities:)`.
-It fetches the form with the chosen options, fails with `.priceChanged` if the
-price rose above the confirmed `price`, and pays with the same source. A manual
-refetch would skip that check and could charge more than the alert showed. Fetch
-the form at open only for the price, keep the balance check, and treat an unknown
-balance as unknown rather than zero. After `.priceChanged` the next confirmation
-uses the error's new price, without a refetch; other errors reload the balance
-and the price. The note and hide-name choice survive a retry. Every error except
-`.priceChanged` shows the generic error, because `.serverProvided` carries a raw
-RPC code. Return in the note field doesn't confirm; only the OK button pays.
+**Resale.** `payResaleForm` fetches the form with the chosen options, stops if
+the price rose above the confirmed price or the form is in another currency, and
+pays that same form with the same source. It replaces `buyStarGift`, which
+compares raw amounts, so a Stars form would pass a nanoton cap. Fetch the form at
+open only for the price, keep the balance check, and treat an unknown balance as
+unknown rather than zero. After a price rise the next confirmation uses the new
+price, without a refetch; a currency mismatch at open or at purchase means the
+listing is stale, so the button says OK, a click shows why and closes, and nothing
+is sent; other errors reload the balance and the price. The note and hide-name
+choice survive a retry. Other errors show the generic error, because server errors
+carry a raw RPC code. Return in the note field doesn't confirm; only the OK button
+pays.
 
 **Who can buy.** One decision (`quickLookOkAction`) drives both the OK button's
 label and its action. Someone who manages a saved gift toggles it on their
@@ -137,15 +138,16 @@ else's profile (gifts tab and header pins). Those purchases go to the viewer's o
 account. A manager with no saved-gift reference used to get a working Buy button
 and now gets OK.
 
-**Still open in resale, because they need a core change.** `_internal_buyStarGift`
-applies `ignoreValues` and flattens errors, and this plan doesn't touch the core:
+**Still open in resale.** `payResaleForm` keeps what `buyStarGift` did here: it
+applies `ignoreValues` and flattens errors. It now sees the form's result and
+errors, so these no longer need a core change:
 
 - A false success on `.externalVerificationRequired` remains possible. The result
   is discarded and the signal completes normally, so the app would play confetti,
   show the bought toast, remove the gift from the lists and close, though nothing
   was paid. Whether Stars and TON forms ever return it is unconfirmed.
 - The specific errors (already paid, payment failed, precheckout failed, out of
-  stock, user limit) reach the app as `.generic`, so they show the generic error.
+  stock, user limit) are flattened, so they show the generic error.
 
 ## Technical Details
 
@@ -430,7 +432,7 @@ them to Mac; it only exercises the rendering.
   row shakes and confirm is blocked.
 - Non-success paths: a TON-only gift (card, sale row, button and alert all show
   TON), too low a balance in each currency, a balance not yet loaded, the
-  `.priceChanged` alert (the button and next alert show the new price, the note
+  price-changed alert (the button and next alert show the new price, the note
   and hide-name choice stay), and a failed purchase (generic error, nothing
   charged, balance reloaded).
 - Watch for a false success: if a purchase ever shows the bought toast without a
