@@ -18,6 +18,7 @@ enum InstantPageTextStyle {
     case fontSerif(Bool)
     case fontFixed(Bool)
     case bold
+    case medium
     case italic
     case underline
     case strikethrough
@@ -59,6 +60,7 @@ final class InstantPageTextStyleStack {
         var fontSerif: Bool?
         var fontFixed: Bool?
         var bold: Bool?
+        var medium: Bool?
         var italic: Bool?
         var strikethrough: Bool?
         var underline: Bool?
@@ -89,6 +91,10 @@ final class InstantPageTextStyleStack {
             case .bold:
                 if bold == nil {
                     bold = true
+                }
+            case .medium:
+                if medium == nil {
+                    medium = true
                 }
             case .italic:
                 if italic == nil {
@@ -183,6 +189,15 @@ final class InstantPageTextStyleStack {
                 attributes[.font] = NSFont(name: "Menlo-Italic", size: parsedFontSize)
             } else {
                 attributes[.font] = NSFont.italic(parsedFontSize)
+            }
+        } else if medium != nil && medium! {
+            // Georgia and Menlo have no medium weight, so they use bold.
+            if fontSerif != nil && fontSerif! {
+                attributes[.font] = NSFont(name: "Georgia-Bold", size: parsedFontSize)
+            } else if fontFixed != nil && fontFixed! {
+                attributes[.font] = NSFont(name: "Menlo-Bold", size: parsedFontSize)
+            } else {
+                attributes[.font] = systemMediumFont(parsedFontSize)
             }
         } else {
             if fontSerif != nil && fontSerif! {

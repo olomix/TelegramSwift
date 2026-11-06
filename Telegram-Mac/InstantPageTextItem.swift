@@ -619,11 +619,44 @@ func attributedStringForRichText(_ text: RichText, styleStack: InstantPageTextSt
         result.addAttribute(.instantPageTextAction, value: InstantPageTextAction.copyTonAddress(address), range: NSMakeRange(0, result.length))
         return result
     case let .textButton(button):
-        // No page-button UI on Mac yet; show the label as plain text.
-        return attributedStringForRichText(button.text, styleStack: styleStack, url: url, boundingWidth: boundingWidth)
+        return attributedStringForPageButton(button, styleStack: styleStack, url: url, boundingWidth: boundingWidth)
     case let .formula(latex):
         return attributedStringForRichText(.plain(latex), styleStack: styleStack, url: url, boundingWidth: boundingWidth)
     }
+}
+
+private func attributedStringForPageButton(_ button: InstantPageButton, styleStack: InstantPageTextStyleStack, url: InstantPageUrlItem?, boundingWidth: CGFloat?) -> NSAttributedString {
+    let isDisabled = button.action == .disabled
+    var styles: [InstantPageTextStyle] = [.link(false)]
+    if !button.isLink {
+        styles.append(.medium)
+        switch button.color {
+        case .danger:
+            styles.append(.linkColor(theme.colors.redUI))
+        case .success:
+            styles.append(.linkColor(theme.colors.greenUI))
+        case .primary, .none:
+            break
+        }
+    }
+    styles.forEach { styleStack.push($0) }
+    let label = attributedStringForRichText(button.text, styleStack: styleStack, url: url, boundingWidth: boundingWidth)
+    styles.forEach { _ in styleStack.pop() }
+
+    let result = NSMutableAttributedString(attributedString: label)
+    let range = NSMakeRange(0, result.length)
+    if isDisabled {
+        // Inert as a whole, so a link around or inside the label must not fire.
+        result.removeAttribute(.URL, range: range)
+        result.enumerateAttribute(.foregroundColor, in: range) { value, runRange, _ in
+            if let color = value as? NSColor {
+                result.addAttribute(.foregroundColor, value: color.withAlphaComponent(0.4), range: runRange)
+            }
+        }
+    } else {
+        result.addAttribute(.instantPageTextAction, value: InstantPageTextAction.button(button), range: range)
+    }
+    return result
 }
 
 func layoutTextItemWithString(_ string: NSAttributedString, boundingWidth: CGFloat, horizontalInset: CGFloat = 0.0, alignment: NSTextAlignment = .natural, offset: CGPoint, media: [MediaId: Media] = [:], webpage: TelegramMediaWebpage? = nil, minimizeWidth: Bool = false, maxNumberOfLines: Int = 0) -> (InstantPageTextItem?, [InstantPageItem], CGSize) {

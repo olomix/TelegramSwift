@@ -202,15 +202,16 @@ the form fetched at open for showing the price, and keep the balance check.
 - Create: `Telegram-Mac/InstantPageButtonAction.swift`
 - Modify: `Telegram-Mac/InstantPageTextItem.swift`
 - Modify: `Telegram-Mac/InstantPageItem.swift`
+- Modify: `Telegram-Mac/InstantPageTextStyleStack.swift`
 - Modify: `Telegram-Mac/InstantPageContentView.swift`
 - Modify: `Telegram-Mac/InstantPageViewController.swift`
 - Modify: `Telegram.xcodeproj/project.pbxproj`
 
-- [ ] replace the plain-text fallback at line 572 with accent-coloured medium-weight text, tinted by `color`; `isLink` buttons look like links. Inline pills like iOS's run-delegate version are left out to keep text layout unchanged
-- [ ] add a `performButtonAction` closure to `InstantPageItemArguments`, implement it in the controller, and forward it where arguments are rebuilt (`InstantPageContentView.swift:195`)
-- [ ] run `url` with `confirm: true`, `openUserProfile` and `copyText`
-- [ ] make `.disabled` a dimmed no-op, and show the "not available here" toast for every other action
-- [ ] run the Debug build - must pass before task 5
+- [x] replace the plain-text fallback at line 572 with accent-coloured medium-weight text, tinted by `color`; `isLink` buttons look like links. Inline pills like iOS's run-delegate version are left out to keep text layout unchanged
+- [x] add a `performButtonAction` closure to `InstantPageItemArguments`, implement it in the controller, and forward it where arguments are rebuilt (`InstantPageContentView.swift:195`)
+- [x] run `url` with `confirm: true`, `openUserProfile` and `copyText`
+- [x] make `.disabled` a dimmed no-op, and show the "not available here" toast for every other action
+- [x] run the Debug build - must pass before task 5
 
 ### Task 5: Support compact tables
 

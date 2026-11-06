@@ -18,16 +18,18 @@ final class InstantPageItemArguments {
     let openMedia:(InstantPageMedia)->Void
     let openPeer:(PeerId) -> Void
     let openUrl:(InstantPageUrlItem) -> Void
+    let performButtonAction: (InstantPageButton) -> Void
     let updateWebEmbedHeight:(CGFloat) -> Void
     let updateDetailsExpanded: (Bool) -> Void
     let isExpandedItem: (InstantPageDetailsItem) -> Bool
     let effectiveRectForItem: (InstantPageItem) -> NSRect
-    init(context: AccountContext, theme: InstantPageTheme, openMedia: @escaping (InstantPageMedia) -> Void, openPeer: @escaping (PeerId) -> Void, openUrl: @escaping (InstantPageUrlItem) -> Void, updateWebEmbedHeight: @escaping (CGFloat) -> Void, updateDetailsExpanded: @escaping (Bool) -> Void, isExpandedItem: @escaping(InstantPageDetailsItem) -> Bool, effectiveRectForItem: @escaping(InstantPageItem) -> NSRect) {
+    init(context: AccountContext, theme: InstantPageTheme, openMedia: @escaping (InstantPageMedia) -> Void, openPeer: @escaping (PeerId) -> Void, openUrl: @escaping (InstantPageUrlItem) -> Void, performButtonAction: @escaping (InstantPageButton) -> Void, updateWebEmbedHeight: @escaping (CGFloat) -> Void, updateDetailsExpanded: @escaping (Bool) -> Void, isExpandedItem: @escaping(InstantPageDetailsItem) -> Bool, effectiveRectForItem: @escaping(InstantPageItem) -> NSRect) {
         self.context = context
         self.theme = theme
         self.openMedia = openMedia
         self.openPeer = openPeer
         self.openUrl = openUrl
+        self.performButtonAction = performButtonAction
         self.updateWebEmbedHeight = updateWebEmbedHeight
         self.updateDetailsExpanded = updateDetailsExpanded
         self.isExpandedItem = isExpandedItem

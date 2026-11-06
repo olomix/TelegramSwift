@@ -295,9 +295,15 @@ class InstantPageViewController: TelegramGenericViewController<ScrollView> {
             copyToClipboard(address)
             // The page can live in the browser window rather than the main one.
             showModalText(for: window ?? context.window, text: strings().shareLinkCopied)
-        case .button:
-            break
+        case let .button(button):
+            performButtonAction(button)
         }
+    }
+    
+    private func performButtonAction(_ button: InstantPageButton) {
+        performInstantPageButtonAction(button, context: context, window: window ?? context.window, openInfo: { [weak self] peerId, openChat, messageId, initialAction in
+            self?.openInfo(peerId, openChat, messageId, initialAction)
+        })
     }
     
     private func openUrl(_ url: InstantPageUrlItem) {
@@ -743,6 +749,8 @@ class InstantPageViewController: TelegramGenericViewController<ScrollView> {
                         
                     }, openUrl: { [weak self] url in
                         self?.openUrl(url)
+                    }, performButtonAction: { [weak self] button in
+                        self?.performButtonAction(button)
                     }, updateWebEmbedHeight: { [weak self] height in
                         self?.updateWebEmbedHeight(embedIndex, height)
                     }, updateDetailsExpanded: { [weak self] expanded in
