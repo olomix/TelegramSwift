@@ -329,10 +329,10 @@ them to Mac; it only exercises the rendering.
 
 ### Task 14: [Final] Update documentation
 
-- [ ] remove the finished items from `nogit_todo.md` and note the `alreadyUpgraded` decision; leave WEB proxies and the new features there
-- [ ] add the remaining Instant View gaps to `nogit_todo.md`: `textSpoiler` and image and video `spoiler` reveal hidden content; auto links, mentions, hashtags, cashtags, bot commands and bank cards aren't clickable; checklist `checked`, quote `collapsed` and non-image slideshow slides are ignored
-- [ ] add any new patterns to `CLAUDE.md` if needed; leave `README.md` as upstream wrote it
-- [ ] move this plan to `docs/plans/completed/`
+- [x] remove the finished items from `nogit_todo.md` and note the `alreadyUpgraded` decision; leave WEB proxies and the new features there
+- [x] add the remaining Instant View gaps to `nogit_todo.md`: `textSpoiler` and image and video `spoiler` reveal hidden content; auto links, mentions, hashtags, cashtags, bot commands and bank cards aren't clickable; checklist `checked`, quote `collapsed` and non-image slideshow slides are ignored
+- [x] add any new patterns to `CLAUDE.md` if needed; leave `README.md` as upstream wrote it
+- [x] move this plan to docs/plans/completed/ (done by the orchestrator after reviews)
 
 ## Post-Completion
 
