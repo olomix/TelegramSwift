@@ -322,10 +322,10 @@ them to Mac; it only exercises the rendering.
 
 ### Task 13: Verify acceptance criteria
 
-- [ ] verify every Overview item is implemented
-- [ ] confirm `InstantPageLayout.swift`'s `default:` arm is reached only by `.unsupported`
-- [ ] run `swift test --package-path packages/FoundationUtils`
-- [ ] run the Debug build from a clean state
+- [x] verify every Overview item is implemented
+- [x] confirm `InstantPageLayout.swift`'s `default:` arm is reached only by `.unsupported`
+- [x] run `swift test --package-path packages/FoundationUtils`
+- [x] run the Debug build from a clean state
 
 ### Task 14: [Final] Update documentation
 
