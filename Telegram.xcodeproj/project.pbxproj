@@ -1233,6 +1233,7 @@
 		CACAF2546970C2CC2044ED97 /* InstantPageButtonAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9E6D659439323B965C8DA6 /* InstantPageButtonAction.swift */; };
 		155EEE763D3B4CAE88199CA6 /* InstantPageButtonRowItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 893C589894498CB47B0B3C8A /* InstantPageButtonRowItem.swift */; };
 		B7E21F93C04D4A6E8F5D2C47 /* InstantPageDocumentItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D40C7E5B2F4E8D9C3A6F10 /* InstantPageDocumentItem.swift */; };
+		C4A9E1D27F3B4C68A15D0E92 /* InstantPageDebugFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5B0F2E38A4C4D79B26E1FA3 /* InstantPageDebugFixture.swift */; };
 		C218FF961F3DAD7200DD7D35 /* InstantPageSelectText.swift in Sources */ = {isa = PBXBuildFile; fileRef = C218FF951F3DAD7200DD7D35 /* InstantPageSelectText.swift */; };
 		C218FF981F41FF2300DD7D35 /* InstantPageAnchorItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C218FF971F41FF2300DD7D35 /* InstantPageAnchorItem.swift */; };
 		C218FF9A1F42030B00DD7D35 /* InstantPageChannelItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C218FF991F42030B00DD7D35 /* InstantPageChannelItem.swift */; };
@@ -2912,6 +2913,7 @@
 		4B9E6D659439323B965C8DA6 /* InstantPageButtonAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstantPageButtonAction.swift; sourceTree = "<group>"; };
 		893C589894498CB47B0B3C8A /* InstantPageButtonRowItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstantPageButtonRowItem.swift; sourceTree = "<group>"; };
 		A1D40C7E5B2F4E8D9C3A6F10 /* InstantPageDocumentItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstantPageDocumentItem.swift; sourceTree = "<group>"; };
+		D5B0F2E38A4C4D79B26E1FA3 /* InstantPageDebugFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstantPageDebugFixture.swift; sourceTree = "<group>"; };
 		C218FF951F3DAD7200DD7D35 /* InstantPageSelectText.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InstantPageSelectText.swift; sourceTree = "<group>"; };
 		C218FF971F41FF2300DD7D35 /* InstantPageAnchorItem.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InstantPageAnchorItem.swift; sourceTree = "<group>"; };
 		C218FF991F42030B00DD7D35 /* InstantPageChannelItem.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InstantPageChannelItem.swift; sourceTree = "<group>"; };
@@ -5721,6 +5723,7 @@
 				4B9E6D659439323B965C8DA6 /* InstantPageButtonAction.swift */,
 				893C589894498CB47B0B3C8A /* InstantPageButtonRowItem.swift */,
 				A1D40C7E5B2F4E8D9C3A6F10 /* InstantPageDocumentItem.swift */,
+				D5B0F2E38A4C4D79B26E1FA3 /* InstantPageDebugFixture.swift */,
 				C218FF951F3DAD7200DD7D35 /* InstantPageSelectText.swift */,
 				C218FF971F41FF2300DD7D35 /* InstantPageAnchorItem.swift */,
 				C218FF991F42030B00DD7D35 /* InstantPageChannelItem.swift */,
@@ -8707,6 +8710,7 @@
 				CACAF2546970C2CC2044ED97 /* InstantPageButtonAction.swift in Sources */,
 				155EEE763D3B4CAE88199CA6 /* InstantPageButtonRowItem.swift in Sources */,
 				B7E21F93C04D4A6E8F5D2C47 /* InstantPageDocumentItem.swift in Sources */,
+				C4A9E1D27F3B4C68A15D0E92 /* InstantPageDebugFixture.swift in Sources */,
 				C218FF961F3DAD7200DD7D35 /* InstantPageSelectText.swift in Sources */,
 				27264B972CEC5176003E5BAD /* WebAppPermissionsState.swift in Sources */,
 				276885032770D7BE0021C891 /* AddReactionManager.swift in Sources */,

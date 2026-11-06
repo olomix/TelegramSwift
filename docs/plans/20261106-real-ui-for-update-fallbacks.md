@@ -312,13 +312,13 @@ them to Mac; it only exercises the rendering.
 
 **Files:**
 - Create: `Telegram-Mac/InstantPageDebugFixture.swift`
-- Modify: `Telegram-Mac/InstantPageViewController.swift` (or the existing debug menu, whichever is smaller)
+- Modify: `Telegram-Mac/ApplicationContext.swift` (the existing `#if DEBUG` Command-T handler, the smallest entry point)
 - Modify: `Telegram.xcodeproj/project.pbxproj`
 
-- [ ] wrap the whole file and its entry point in `#if DEBUG`, so nothing reaches release builds
-- [ ] build a page from `InstantPageBlock` values covering all five blocks, all six heading levels, compact and regular tables, a TON address, and one button for each action group: working, message-bound and `.disabled`
-- [ ] add a way to open it in a Debug build
-- [ ] run the Debug build, and confirm a Release build doesn't contain the fixture - must pass before task 13
+- [x] wrap the whole file and its entry point in `#if DEBUG`, so nothing reaches release builds
+- [x] build a page from `InstantPageBlock` values covering all five blocks, all six heading levels, compact and regular tables, a TON address, and one button for each action group: working, message-bound and `.disabled`
+- [x] add a way to open it in a Debug build
+- [x] run the Debug build, and confirm a Release build doesn't contain the fixture - must pass before task 13
 
 ### Task 13: Verify acceptance criteria
 
@@ -339,9 +339,11 @@ them to Mac; it only exercises the rendering.
 *Manual checks with a real account and test content; no checkboxes.*
 
 **Instant View:**
-- Open the DEBUG fixture page in light and dark themes. Check each block, each
-  working button action, the toast for a message-bound button, and the disabled
-  button. Download and open a document.
+- Open the DEBUG fixture page (Command-T in the main window of a Debug build) in
+  light and dark themes. Check each block, each working button action, the toast
+  for a message-bound button, and the disabled button. Open the stored document.
+  The fixture has no server-side file, so a real download can only be checked on
+  a real page with a document block, if one turns up.
 - Also try real pages with tables, headings and formulas, and note any new block
   type seen on a real page.
 - Check that text selection and existing links still work.

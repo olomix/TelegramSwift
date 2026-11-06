@@ -575,6 +575,8 @@ final class AuthorizedApplicationContext: NSObject, SplitViewDelegate {
             
            // context.bindings.rootNavigation().push(SuggestPostController(context: context, peerId: context.peerId))
 
+            openInstantPageDebugFixture(context: context)
+
             return .invoked
         }, with: self, for: .T, priority: .supreme, modifierFlags: [.command])
         
