@@ -222,6 +222,18 @@ func layoutInstantPageBlock(webpage: TelegramMediaWebpage, rtl: Bool, block: Ins
         setupStyleStack(styleStack, theme: theme, category: .paragraph, link: false)
         let (_, items, contentSize) = layoutTextItemWithString(attributedStringForRichText(.plain(latex), styleStack: styleStack), boundingWidth: boundingWidth - horizontalInset * 2.0, horizontalInset: horizontalInset, offset: CGPoint(x: horizontalInset, y: 0.0), media: media, webpage: webpage)
         return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
+    case let .buttonRow(alignment, buttons):
+        let labelledButtons = buttons.map { button -> (button: InstantPageButton, label: NSAttributedString) in
+            let styleStack = InstantPageTextStyleStack()
+            setupStyleStack(styleStack, theme: theme, category: .paragraph, link: false)
+            styleStack.push(.fontSize(instantPageButtonRowFontSize))
+            styleStack.push(.medium)
+            return (button, attributedStringForRichText(button.text, styleStack: styleStack))
+        }
+        guard let item = layoutInstantPageButtonRow(labelledButtons: labelledButtons, alignment: alignment, boundingWidth: boundingWidth, horizontalInset: horizontalInset, rtl: rtl, pageTheme: theme) else {
+            return InstantPageLayout(origin: CGPoint(), contentSize: CGSize(), items: [])
+        }
+        return InstantPageLayout(origin: CGPoint(), contentSize: item.frame.size, items: [item])
     case let .paragraph(text):
         let styleStack = InstantPageTextStyleStack()
         setupStyleStack(styleStack, theme: theme, category: .paragraph, link: false)

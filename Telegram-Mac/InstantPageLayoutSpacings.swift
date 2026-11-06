@@ -67,6 +67,8 @@ func spacingBetweenBlocks(upper: InstantPageBlock?, lower: InstantPageBlock?) ->
             return 20.0
         case (_, .header), (_, .subheader):
             return 32.0
+        case (.buttonRow, .buttonRow):
+            return 8.0
         default:
             return 20.0
         }

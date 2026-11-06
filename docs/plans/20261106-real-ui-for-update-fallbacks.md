@@ -244,10 +244,10 @@ the form fetched at open for showing the price, and keep the balance check.
 - Modify: `Telegram-Mac/InstantPageLayoutSpacings.swift`
 - Modify: `Telegram.xcodeproj/project.pbxproj`
 
-- [ ] add an `InstantPageItem` with `isInteractive = false` and a view that lays out buttons, honouring `alignment` and wrapping when narrow (read `InstantPageV2ButtonRowLayout.swift`)
-- [ ] run actions through `performButtonAction` from task 4
-- [ ] add the `.buttonRow` case and its spacing rule
-- [ ] run the Debug build - must pass before task 8
+- [x] add an `InstantPageItem` with `isInteractive = false` and a view that lays out buttons, honouring `alignment` and wrapping when narrow (read `InstantPageV2ButtonRowLayout.swift`)
+- [x] run actions through `performButtonAction` from task 4
+- [x] add the `.buttonRow` case and its spacing rule
+- [x] run the Debug build - must pass before task 8
 
 ### Task 8: Render the document block
 
