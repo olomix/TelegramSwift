@@ -624,7 +624,7 @@ func layoutInstantPageBlock(webpage: TelegramMediaWebpage, rtl: Bool, block: Ins
         contentSize.height += captionSize.height
         
         return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)
-    case let .table(title, rows, bordered, striped, _):
+    case let .table(title, rows, bordered, striped, compact):
         var contentSize = CGSize(width: boundingWidth, height: 0.0)
         var items: [InstantPageItem] = []
         
@@ -641,7 +641,7 @@ func layoutInstantPageBlock(webpage: TelegramMediaWebpage, rtl: Bool, block: Ins
         styleStack = InstantPageTextStyleStack()
         setupStyleStack(styleStack, theme: theme, category: .table, link: false)
         let tableBoundingWidth = boundingWidth - horizontalInset * 2.0
-        let tableItem = layoutTableItem(rtl: rtl, rows: rows, styleStack: styleStack, theme: theme, bordered: bordered, striped: striped, boundingWidth: tableBoundingWidth, horizontalInset: horizontalInset, media: media, webpage: webpage)
+        let tableItem = layoutTableItem(rtl: rtl, rows: rows, styleStack: styleStack, theme: theme, bordered: bordered, striped: striped, compact: compact, boundingWidth: tableBoundingWidth, horizontalInset: horizontalInset, media: media, webpage: webpage)
         tableItem.frame = tableItem.frame.offsetBy(dx: 0.0, dy: contentSize.height)
         
         contentSize.height += tableItem.frame.height

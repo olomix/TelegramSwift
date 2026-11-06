@@ -219,9 +219,9 @@ the form fetched at open for showing the price, and keep the balance check.
 - Modify: `Telegram-Mac/InstantPageLayout.swift`
 - Modify: `Telegram-Mac/InstantPageTableItem.swift`
 
-- [ ] pass `compact` from `.table` (line 627) into `layoutTableItem`
-- [ ] replace every use of the global `tableCellInsets` with insets stored on the item, including hit testing
-- [ ] run the Debug build - must pass before task 6
+- [x] pass `compact` from `.table` (line 627) into `layoutTableItem`
+- [x] replace every use of the global `tableCellInsets` with insets stored on the item, including hit testing
+- [x] run the Debug build - must pass before task 6
 
 ### Task 6: Render the heading, thinking and formula blocks
 

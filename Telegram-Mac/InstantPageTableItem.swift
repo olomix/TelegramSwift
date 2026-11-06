@@ -96,7 +96,8 @@ private struct InstantPageTableCellItem {
     }
 }
 
-private let tableCellInsets = NSEdgeInsetsMake(14.0, 12.0, 14.0, 12.0)
+private let regularTableCellInsets = NSEdgeInsetsMake(14.0, 12.0, 14.0, 12.0)
+private let compactTableCellInsets = NSEdgeInsetsMake(7.0, 6.0, 7.0, 6.0)
 private let tableBorderWidth: CGFloat = 1.0
 private let tableCornerRadius: CGFloat = 5.0
 
@@ -121,14 +122,16 @@ final class InstantPageTableItem: InstantPageScrollableItem {
     let isRTL: Bool
     fileprivate let cells: [InstantPageTableCellItem]
     private let borderWidth: CGFloat
+    private let cellInsets: NSEdgeInsets
     
     let anchors: [String: (CGFloat, Bool)]
     
-    fileprivate init(frame: CGRect, totalWidth: CGFloat, horizontalInset: CGFloat, borderWidth: CGFloat, theme: InstantPageTheme, cells: [InstantPageTableCellItem], rtl: Bool) {
+    fileprivate init(frame: CGRect, totalWidth: CGFloat, horizontalInset: CGFloat, borderWidth: CGFloat, cellInsets: NSEdgeInsets, theme: InstantPageTheme, cells: [InstantPageTableCellItem], rtl: Bool) {
         self.frame = frame
         self.totalWidth = totalWidth
         self.horizontalInset = horizontalInset
         self.borderWidth = borderWidth
+        self.cellInsets = cellInsets
         self.theme = theme
         self.cells = cells
         self.isRTL = rtl
@@ -267,7 +270,7 @@ final class InstantPageTableItem: InstantPageScrollableItem {
     
 //    func linkSelectionRects(at point: CGPoint) -> [CGRect] {
 //        for cell in self.cells {
-//            if let item = cell.textItem, item.selectable, item.frame.insetBy(dx: -tableCellInsets.left, dy: -tableCellInsets.top).contains(point.offsetBy(dx: -cell.frame.minX - self.horizontalInset, dy: -cell.frame.minY)) {
+//            if let item = cell.textItem, item.selectable, item.frame.insetBy(dx: -self.cellInsets.left, dy: -self.cellInsets.top).contains(point.offsetBy(dx: -cell.frame.minX - self.horizontalInset, dy: -cell.frame.minY)) {
 //                let rects = item.linkSelectionRects(at: point.offsetBy(dx: -cell.frame.minX - self.horizontalInset - item.frame.minX, dy: -cell.frame.minY - item.frame.minY))
 //                return rects.map { $0.offsetBy(dx: cell.frame.minX + item.frame.minX + self.horizontalInset, dy: cell.frame.minY + item.frame.minY) }
 //            }
@@ -277,7 +280,7 @@ final class InstantPageTableItem: InstantPageScrollableItem {
     
     func textItemAtLocation(_ location: CGPoint) -> (InstantPageTextItem, CGPoint)? {
         for cell in self.cells {
-            if let item = cell.textItem, item.selectable, item.frame.insetBy(dx: -tableCellInsets.left, dy: -tableCellInsets.top).contains(location.offsetBy(dx: -cell.frame.minX - self.horizontalInset, dy: -cell.frame.minY)) {
+            if let item = cell.textItem, item.selectable, item.frame.insetBy(dx: -self.cellInsets.left, dy: -self.cellInsets.top).contains(location.offsetBy(dx: -cell.frame.minX - self.horizontalInset, dy: -cell.frame.minY)) {
                 return (item, cell.frame.origin.offsetBy(dx: self.horizontalInset, dy: 0.0))
             }
         }
@@ -312,13 +315,16 @@ private func offestForVerticalAlignment(_ verticalAlignment: TableVerticalAlignm
     }
 }
 
-func layoutTableItem(rtl: Bool, rows: [InstantPageTableRow], styleStack: InstantPageTextStyleStack, theme: InstantPageTheme, bordered: Bool, striped: Bool, boundingWidth: CGFloat, horizontalInset: CGFloat, media: [MediaId: Media], webpage: TelegramMediaWebpage) -> InstantPageTableItem {
+func layoutTableItem(rtl: Bool, rows: [InstantPageTableRow], styleStack: InstantPageTextStyleStack, theme: InstantPageTheme, bordered: Bool, striped: Bool, compact: Bool, boundingWidth: CGFloat, horizontalInset: CGFloat, media: [MediaId: Media], webpage: TelegramMediaWebpage) -> InstantPageTableItem {
+    let cellInsets = compact ? compactTableCellInsets : regularTableCellInsets
     if rows.count == 0 {
-        return InstantPageTableItem(frame: CGRect(), totalWidth: 0.0, horizontalInset: 0.0,  borderWidth: 0.0, theme: theme, cells: [], rtl: rtl)
+        return InstantPageTableItem(frame: CGRect(), totalWidth: 0.0, horizontalInset: 0.0,  borderWidth: 0.0, cellInsets: cellInsets, theme: theme, cells: [], rtl: rtl)
     }
     
     let borderWidth = bordered ? tableBorderWidth : 0.0
-    let totalCellPadding = tableCellInsets.left + tableCellInsets.right
+    // Scale with the insets: 10 would clip top-aligned compact items.
+    let additionalItemHeightTrim: CGFloat = compact ? 5.0 : 10.0
+    let totalCellPadding = cellInsets.left + cellInsets.right
     let cellWidthLimit = boundingWidth - totalCellPadding
     var tableRows: [TableRow] = []
     var columnCount: Int = 0
@@ -521,20 +527,20 @@ func layoutTableItem(rtl: Bool, rows: [InstantPageTableRow], styleStack: Instant
                 let (textItem, items, _) = layoutTextItemWithString(attributedStringForRichText(text, styleStack: styleStack, boundingWidth: cellWidth - totalCellPadding), boundingWidth: cellWidth - totalCellPadding, alignment: cell.alignment.textAlignment, offset: CGPoint(), media: media, webpage: webpage)
                 if let textItem = textItem {
                     isEmptyRow = false
-                    textItem.frame = textItem.frame.offsetBy(dx: tableCellInsets.left, dy: 0.0)
-                    cellHeight = ceil(textItem.frame.height) + tableCellInsets.top + tableCellInsets.bottom
+                    textItem.frame = textItem.frame.offsetBy(dx: cellInsets.left, dy: 0.0)
+                    cellHeight = ceil(textItem.frame.height) + cellInsets.top + cellInsets.bottom
                     
                     item = textItem
                 }
                 for var item in items where !(item is InstantPageTextItem) {
                     isEmptyRow = false
                     if textItem == nil {
-                        let offset = offsetForHorizontalAlignment(cell.alignment, width: item.frame.width, boundingWidth: cellWidth, insets: tableCellInsets)
+                        let offset = offsetForHorizontalAlignment(cell.alignment, width: item.frame.width, boundingWidth: cellWidth, insets: cellInsets)
                         item.frame = item.frame.offsetBy(dx: offset, dy: 0.0)
                     } else {
-                        item.frame = item.frame.offsetBy(dx: tableCellInsets.left, dy: 0.0)
+                        item.frame = item.frame.offsetBy(dx: cellInsets.left, dy: 0.0)
                     }
-                    let height = ceil(item.frame.height) + tableCellInsets.top + tableCellInsets.bottom - 10.0
+                    let height = ceil(item.frame.height) + cellInsets.top + cellInsets.bottom - additionalItemHeightTrim
                     if let currentCellHeight = cellHeight {
                         cellHeight = max(currentCellHeight, height)
                     } else {
@@ -584,7 +590,7 @@ func layoutTableItem(rtl: Bool, rows: [InstantPageTableRow], styleStack: Instant
         let finalizeCell: (InstantPageTableCellItem, inout [InstantPageTableCellItem], CGFloat) -> Void = { cell, cells, height in
             let updatedCell = cell.withRowHeight(height)
             if let textItem = updatedCell.textItem {
-                let offset = offestForVerticalAlignment(cell.verticalAlignment, height: textItem.frame.height, boundingHeight: height, insets: tableCellInsets)
+                let offset = offestForVerticalAlignment(cell.verticalAlignment, height: textItem.frame.height, boundingHeight: height, insets: cellInsets)
                 updatedCell.textItem!.frame = textItem.frame.offsetBy(dx: 0.0, dy: offset)
                 
                 for var item in updatedCell.additionalItems {
@@ -592,7 +598,7 @@ func layoutTableItem(rtl: Bool, rows: [InstantPageTableRow], styleStack: Instant
                 }
             } else {
                 for var item in updatedCell.additionalItems {
-                    let offset = offestForVerticalAlignment(cell.verticalAlignment, height: item.frame.height, boundingHeight: height, insets: tableCellInsets)
+                    let offset = offestForVerticalAlignment(cell.verticalAlignment, height: item.frame.height, boundingHeight: height, insets: cellInsets)
                     item.frame = item.frame.offsetBy(dx: 0.0, dy: offset)
                 }
             }
@@ -673,5 +679,5 @@ func layoutTableItem(rtl: Bool, rows: [InstantPageTableRow], styleStack: Instant
         finalizedCells = finalizedCells.map { $0.withRTL(totalWidth) }
     }
     
-    return InstantPageTableItem(frame: CGRect(x: 0.0, y: 0.0, width: boundingWidth + horizontalInset * 2.0, height: totalHeight), totalWidth: totalWidth, horizontalInset: horizontalInset, borderWidth: borderWidth, theme: theme, cells: finalizedCells, rtl: rtl)
+    return InstantPageTableItem(frame: CGRect(x: 0.0, y: 0.0, width: boundingWidth + horizontalInset * 2.0, height: totalHeight), totalWidth: totalWidth, horizontalInset: horizontalInset, borderWidth: borderWidth, cellInsets: cellInsets, theme: theme, cells: finalizedCells, rtl: rtl)
 }
