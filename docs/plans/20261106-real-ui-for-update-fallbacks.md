@@ -169,9 +169,9 @@ the form fetched at open for showing the price, and keep the balance check.
 - Create: `packages/FoundationUtils/Sources/FoundationUtils/TonAddress.swift`
 - Create: `packages/FoundationUtils/Tests/FoundationUtilsTests/TonAddressTests.swift`
 
-- [ ] write failing tests: both alphabets, wrong length, bad characters, empty string
-- [ ] implement a `public` `isValidTonAddress(_:)` using the rule in Technical Details
-- [ ] run `swift test --package-path packages/FoundationUtils` - must pass before task 2
+- [x] write failing tests: both alphabets, wrong length, bad characters, empty string
+- [x] implement a `public` `isValidTonAddress(_:)` using the rule in Technical Details
+- [x] run `swift test --package-path packages/FoundationUtils` - must pass before task 2
 
 ### Task 2: Make TON addresses clickable in chat messages
 
