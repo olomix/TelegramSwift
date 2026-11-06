@@ -1552,7 +1552,7 @@ class ChatServiceItem: ChatRowItem {
                         }
                     }
 
-                case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, saverId, resaleStars, canTransferDate, canResaleDate, _, _, _, _, _, _, _, nameHidden):
+                case let .starGiftUnique(gift, isUpgrade, isTransferred, savedToProfile, canExportDate, transferStars, refunded, _, peerId, senderId, saverId, resaleStars, canTransferDate, canResaleDate, _, _, _, _, _, noteText, noteEntities, nameHidden):
 
                     let authorPeer: EnginePeer?
                     if let authorId = gift.releasedBy {
@@ -1635,7 +1635,7 @@ class ChatServiceItem: ChatRowItem {
                         attributedString.detectBoldColorInString(with: .medium(.text))
                         
                         let senderHidden = isUniqueGiftSenderHidden(message: message, senderId: senderId, nameHidden: nameHidden, accountPeerId: context.account.peerId)
-                        let purpose: Star_TransactionPurpose = .starGift(gift: .unique(gift), convertStars: nil, text: text, entities: nil, nameHidden: nameHidden, savedToProfile: savedToProfile, converted: false, fromProfile: false, upgraded: true, transferStars: transferStars, canExportDate: canExportDate, reference: .message(messageId: message.id), sender: senderHidden ? nil : senderId.flatMap { message.peers[$0].flatMap(EnginePeer.init)}, saverId: saverId, canTransferDate: canTransferDate, canResaleDate: canResaleDate)
+                        let purpose: Star_TransactionPurpose = .starGift(gift: .unique(gift), convertStars: nil, text: noteText, entities: noteEntities, nameHidden: nameHidden, savedToProfile: savedToProfile, converted: false, fromProfile: false, upgraded: true, transferStars: transferStars, canExportDate: canExportDate, reference: .message(messageId: message.id), sender: senderHidden ? nil : senderId.flatMap { message.peers[$0].flatMap(EnginePeer.init)}, saverId: saverId, canTransferDate: canTransferDate, canResaleDate: canResaleDate)
                         
 
                         
@@ -1685,7 +1685,20 @@ class ChatServiceItem: ChatRowItem {
                         }
                         
                         
+                        if let noteText, !noteText.isEmpty {
+                            // Refunded gifts have no backdrop for white text to sit on.
+                            let noteColor = refunded ? grayTextColor : NSColor.white
+                            let attr = ChatMessageItem.applyMessageEntities(with: [TextEntitiesMessageAttribute(entities: noteEntities ?? [])], for: noteText, message: nil, context: context, fontSize: theme.fontSize, openInfo: { _, _, _, _ in }, textColor: noteColor, linkColor: noteColor, isDark: theme.colors.isDark, bubbled: true).mutableCopy() as! NSMutableAttributedString
+
+                            InlineStickerItem.apply(to: attr, associatedMedia: message.associatedMedia, entities: noteEntities ?? [], isPremium: context.isPremium)
+
+                            info.append(attr)
+                        }
+
                         if refunded {
+                            if !info.string.isEmpty {
+                                info.append(string: "\n", color: grayTextColor, font: .normal(theme.fontSize))
+                            }
                             info.append(string: strings().giftUpgradeRefunded, color: grayTextColor, font: .normal(theme.fontSize))
                         }
                         
@@ -2754,6 +2767,7 @@ class ChatServiceRowView: TableRowView {
             
             if let infoView {
                 transition.updateFrame(view: infoView, frame: infoView.centerFrameX(y: textView.frame.maxY + 4 + offset))
+                offset += 4 + infoView.frame.height
             }
 
             if let badgeView {

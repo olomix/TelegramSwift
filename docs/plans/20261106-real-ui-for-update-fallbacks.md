@@ -270,13 +270,13 @@ the form fetched at open for showing the price, and keep the balance check.
 - Modify: `Telegram-Mac/ChatServiceItem.swift`
 - Modify: `Telegram-Mac/StarGift_Nft_Controller.swift`
 
-- [ ] bind `text` and `entities` in the `.starGiftUnique` pattern (line 1555) under names that don't clash with the local `text`
-- [ ] fix line 1638: it passes the local `text`, the service message sentence, as the gift note, with `entities: nil`; pass the real note and entities instead
-- [ ] show the note as a row in the NFT controller, rendered as in `Star_Transaction.swift:1527`, with the gating at `GiftViewScreen.swift:3150`
-- [ ] show the note on the gift bubble (the `info` area at `ChatServiceItem.swift:1650-1692`), following `ChatMessageGiftBubbleContentNode.swift:839`
-- [ ] load the peers `.originalInfo` refers to, since it carries only IDs
-- [ ] handle `.originalInfo` in the attribute switch (line 1316 area) using the `giftUniqueOriginalInfo*` strings, shifting the note's entities to its position in the formatted string, as at `GiftViewScreen.swift:4905-4925`
-- [ ] run the Debug build - must pass before task 10
+- [x] bind `text` and `entities` in the `.starGiftUnique` pattern (line 1555) under names that don't clash with the local `text`
+- [x] fix line 1638: it passes the local `text`, the service message sentence, as the gift note, with `entities: nil`; pass the real note and entities instead
+- [x] show the note as a row in the NFT controller, rendered as in `Star_Transaction.swift:1527`, with the gating at `GiftViewScreen.swift:3150`
+- [x] show the note on the gift bubble (the `info` area at `ChatServiceItem.swift:1650-1692`), following `ChatMessageGiftBubbleContentNode.swift:839`
+- [x] load the peers `.originalInfo` refers to, since it carries only IDs
+- [x] handle `.originalInfo` in the attribute switch (line 1316 area) using the `giftUniqueOriginalInfo*` strings, shifting the note's entities to its position in the formatted string, as at `GiftViewScreen.swift:4905-4925`
+- [x] run the Debug build - must pass before task 10
 
 ### Task 10: Add resale hide-name and note options
 

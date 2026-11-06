@@ -1078,6 +1078,8 @@ private struct State : Equatable {
     
     var pinnedInfo: GiftPinnedInfo?
 
+    var originalInfoPeers: [PeerId: EnginePeer] = [:]
+
     var okText: String {
         switch source {
         case .preview:
@@ -1185,6 +1187,106 @@ private struct State : Equatable {
 }
 
 private let _id_ton_input = InputDataIdentifier("_id_ton_input")
+
+private func giftNoteAttributedText(_ text: String, entities: [MessageTextEntity]?, context: AccountContext) -> NSAttributedString {
+    let attr = ChatMessageItem.applyMessageEntities(with: [TextEntitiesMessageAttribute(entities: entities ?? [])], for: text, message: nil, context: context, fontSize: FontSize.text, openInfo: { _, _, _, _ in }, textColor: theme.colors.text, isDark: theme.colors.isDark, bubbled: true).mutableCopy() as! NSMutableAttributedString
+
+    InlineStickerItem.apply(to: attr, associatedMedia: [:], entities: entities ?? [], isPremium: context.isPremium)
+
+    return attr
+}
+
+private func giftNoteRow(_ text: String, entities: [MessageTextEntity]?, context: AccountContext) -> InputDataTableBasedItem.Row {
+    let layout = TextViewLayout(giftNoteAttributedText(text, entities: entities, context: context))
+    layout.interactions = globalLinkExecutor
+    return .init(left: nil, right: .init(name: layout))
+}
+
+// A profile note needs a known or deliberately hidden sender, as on iOS
+// (GiftViewScreen.swift:3150). Chat messages always have a sender there.
+private func uniqueGiftNote(_ purpose: Star_TransactionPurpose?) -> (text: String, entities: [MessageTextEntity]?)? {
+    guard case let .starGift(_, _, text, entities, nameHidden, _, _, fromProfile, _, _, _, _, sender, _, _, _) = purpose, let text, !text.isEmpty else {
+        return nil
+    }
+    if fromProfile, !nameHidden, sender == nil {
+        return nil
+    }
+    return (text, entities)
+}
+
+private func originalInfoPeerIds(_ gift: StarGift) -> [PeerId] {
+    var peerIds: [PeerId] = []
+    for attribute in gift.unique?.attributes ?? [] {
+        if case let .originalInfo(senderPeerId, recipientPeerId, _, _, _) = attribute {
+            if let senderPeerId {
+                peerIds.append(senderPeerId)
+            }
+            peerIds.append(recipientPeerId)
+        }
+    }
+    return peerIds
+}
+
+private func giftOriginalInfoRow(senderPeerId: PeerId?, recipientPeerId: PeerId, date: Int32, note: String?, noteEntities: [MessageTextEntity]?, state: State, arguments: Arguments) -> InputDataTableBasedItem.Row {
+    // The server pack may reorder arguments, so format with private-use slots
+    // and replace them afterwards; names and the note can't be mistaken for one.
+    let senderSlot = "\u{E000}"
+    let recipientSlot = "\u{E001}"
+    let noteSlot = "\u{E002}"
+
+    let dateFormatter = makeNewDateFormatter()
+    dateFormatter.dateStyle = .medium
+    dateFormatter.timeStyle = .none
+    let dateString = dateFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(date)))
+
+    let sender = senderPeerId.flatMap { state.originalInfoPeers[$0] }
+    let format: String
+    switch (sender, note) {
+    case (.some, .some):
+        format = strings().giftUniqueOriginalInfoSenderWithText(senderSlot, recipientSlot, dateString, noteSlot)
+    case (.some, .none):
+        format = strings().giftUniqueOriginalInfoSender(senderSlot, recipientSlot, dateString)
+    case (.none, .some):
+        format = strings().giftUniqueOriginalInfoWithText(recipientSlot, dateString, noteSlot)
+    case (.none, .none):
+        format = strings().giftUniqueOriginalInfo(recipientSlot, dateString)
+    }
+
+    func peerName(_ peer: EnginePeer?) -> NSAttributedString {
+        guard let peer else {
+            return NSAttributedString()
+        }
+        let name = NSMutableAttributedString()
+        name.append(string: peer._asPeer().displayTitle, color: theme.colors.text, font: .normal(.text))
+        let link = inAppLink.peerInfo(link: "", peerId: peer.id, action: nil, openChat: false, postId: nil, callback: { _, _, _, _ in
+            arguments.openPeer(peer, false)
+        })
+        name.add(link: link, for: name.range)
+        return name
+    }
+
+    var replacements: [(slot: String, value: NSAttributedString)] = [
+        (senderSlot, peerName(sender)),
+        (recipientSlot, peerName(state.originalInfoPeers[recipientPeerId]))
+    ]
+    if let note {
+        replacements.append((noteSlot, giftNoteAttributedText(note, entities: noteEntities, context: arguments.context)))
+    }
+
+    let result = NSMutableAttributedString()
+    result.append(string: format, color: theme.colors.text, font: .normal(.text))
+
+    // Back to front, so earlier ranges stay valid. Inserting the rendered note
+    // carries its entity ranges along, as on iOS.
+    let ranges = replacements.map { (range: format.nsstring.range(of: $0.slot), value: $0.value) }
+    for item in ranges.filter({ $0.range.location != NSNotFound }).sorted(by: { $0.range.location > $1.range.location }) {
+        result.replaceCharacters(in: item.range, with: item.value)
+    }
+
+    let layout = TextViewLayout(result)
+    layout.interactions = globalLinkExecutor
+    return .init(left: nil, right: .init(name: layout))
+}
 
 
 private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
@@ -1314,6 +1416,8 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
                         rows.append(.init(left: .init(.initialize(string: strings().giftUniqueSymbol, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity.permilleValue) / 10).string)%", callback: {}))))
                     case .backdrop(let name, _, _, _, _, _, let rarity):
                         rows.append(.init(left: .init(.initialize(string: strings().giftUniqueBackdrop, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: name, color: theme.colors.text, font: .normal(.text))), badge: .init(text: "\((Double(rarity.permilleValue) / 10).string)%", callback: {}))))
+                    case let .originalInfo(senderPeerId, recipientPeerId, date, text, entities):
+                        rows.append(giftOriginalInfoRow(senderPeerId: senderPeerId, recipientPeerId: recipientPeerId, date: date, note: text, noteEntities: entities, state: state, arguments: arguments))
                     default:
                         break
                     }
@@ -1321,8 +1425,10 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
                 
                 rows.append(.init(left: .init(.initialize(string: strings().starTransactionAvailability, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: strings().starTransactionGiftUpgradeIssued(Int(gift.availability.issued).formattedWithSeparator, Int(gift.availability.total).formattedWithSeparator), color: theme.colors.text, font: .normal(.text))))))
 
-               
-                
+                if let note = uniqueGiftNote(state.purpose) {
+                    rows.append(giftNoteRow(note.text, entities: note.entities, context: arguments.context))
+                }
+
             default:
                 break
             }
@@ -1495,6 +1601,21 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
     }))
     
     
+    // Watches the state because an upgrade only produces the unique gift later.
+    actionsDisposable.add((statePromise.get()
+    |> map { originalInfoPeerIds($0.gift) }
+    |> distinctUntilChanged
+    |> filter { !$0.isEmpty }
+    |> mapToSignal { peerIds in
+        return context.engine.data.get(EngineDataMap(peerIds.map(TelegramEngine.EngineData.Item.Peer.Peer.init(id:))))
+    }).start(next: { peers in
+        updateState { current in
+            var current = current
+            current.originalInfoPeers = peers.compactMapValues { $0 }
+            return current
+        }
+    }))
+
     switch source {
     case let .upgrade(_, _, messageId):
         actionsDisposable.add(context.engine.payments.fetchBotPaymentForm(source: .starGiftUpgrade(keepOriginalInfo: false, reference: messageId), themeParams: nil).start(next: { form in
