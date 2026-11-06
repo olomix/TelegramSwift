@@ -175,6 +175,7 @@ private final class Arguments {
 
 private struct State : Equatable {
     var data: ModalAlertData
+    var footerRevision: Int = 0
     
     var actionEnabled: Bool {
         var enabled: Bool = true
@@ -703,7 +704,8 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
     }))
     
     if let footer = state.data.footer {
-        entries.append(.custom(sectionId: 0, index: 0, value: .none, identifier: .init("footer"), equatable: .init(footer), comparable: nil, item: { initialSize, stableId in
+        let footerEquatable: InputDataEquatable = footer.rebuildsOnDataUpdate ? .init(state.footerRevision) : .init(footer)
+        entries.append(.custom(sectionId: 0, index: 0, value: .none, identifier: .init("footer"), equatable: footerEquatable, comparable: nil, item: { initialSize, stableId in
             return footer.value(initialSize, stableId, arguments.presentation, arguments.updateDatas)
         }))
         
@@ -742,6 +744,9 @@ struct ModalAlertData : Equatable {
     struct Footer : Equatable {
         var value:(NSSize, AnyHashable, TelegramPresentationTheme, @escaping()->Void)->TableRowItem
         var validateData: (([InputDataIdentifier : InputDataValue]) -> InputDataValidation)? = nil
+        /// For rows built from the caller's current state, whose height depends on it.
+        /// Other rows must keep their item: a rebuild would reset typed text.
+        var rebuildsOnDataUpdate: Bool = false
         static func ==(lhs: Footer, rhs: Footer) -> Bool {
             return true
         }
@@ -875,6 +880,13 @@ private func ModalAlertController(data: ModalAlertData, completion: @escaping(Mo
             cancel()
         }
     }, updateDatas: {
+        if data.footer?.rebuildsOnDataUpdate == true {
+            updateState { current in
+                var current = current
+                current.footerRevision += 1
+                return current
+            }
+        }
         getController?()?.updateInputValues()
     })
     

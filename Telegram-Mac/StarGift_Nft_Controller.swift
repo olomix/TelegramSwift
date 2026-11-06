@@ -14,6 +14,19 @@ import TelegramCore
 import Postbox
 import InputView
 
+private extension StarGift.UniqueGift {
+    /// The price resale charges: TON-only gifts can list a Stars amount too.
+    var resalePrice: CurrencyAmount? {
+        let currency: CurrencyAmount.Currency = self.resellForTonOnly ? .ton : .stars
+        return self.resellAmounts?.first(where: { $0.currency == currency })
+    }
+}
+
+// Telex-only text: the server language pack has no such string.
+private func resalePriceChangedText(from oldPrice: CurrencyAmount, to newPrice: CurrencyAmount) -> String {
+    return "The price of this gift changed from \(oldPrice.fullyFormatted) to \(newPrice.fullyFormatted). You were not charged. Check the new price and try again."
+}
+
 final class TransferUniqueGiftHeaderItem : GeneralRowItem {
     fileprivate let gift: StarGift.UniqueGift
     fileprivate let toPeer: EnginePeer
@@ -1109,8 +1122,8 @@ private struct State : Equatable {
                     break
                 }
             }
-            if let resellStars = gift.resellStars {
-                return strings().starNftBuyFor(strings().starListItemCountCountable(Int(resellStars)))
+            if let resalePrice = gift.resalePrice {
+                return strings().starNftBuyFor(resalePrice.fullyFormatted)
             }
             return strings().modalOK
         case .previewWear:
@@ -1659,19 +1672,20 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         }
     }
     
+    let loadResaleForm: (StarGift.UniqueGift) -> Void = { gift in
+        actionsDisposable.add(context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: gift.resellForTonOnly, hideName: false, text: nil, entities: nil), themeParams: nil).startStrict(next: { form in
+            updateState { current in
+                var current = current
+                current.form = form
+                return current
+            }
+        }))
+    }
+    
     switch source {
     case let .quickLook(_, gift):
-        if let _ = gift.resellStars {
-            let formAndMaybeValidatedInfo = context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: false, hideName: false, text: nil, entities: nil), themeParams: nil)
-            
-            actionsDisposable.add(formAndMaybeValidatedInfo.startStrict(next: { form in
-                updateState { current in
-                    var current = current
-                    current.form = form
-                    return current
-                }
-                
-            }))
+        if gift.resalePrice != nil {
+            loadResaleForm(gift)
         }
     default:
         break
@@ -1680,72 +1694,102 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
     
     
     let buyResellGift:(StarGift.UniqueGift, EnginePeer)->Void = { [weak giftsContext, weak resaleContext] gift, peer in
-        let state = stateValue.with { $0 }
-        let myBalance = state.myBalance ?? .init(value: 0, nanos: 0)
-                
-        let resellStars = state.form?.invoice.prices.first?.amount ?? gift.resellStars!
-        
-        let infoText: String
-        if peer.id == context.peerId {
-            infoText = strings().starNftGiftBuyConfirmSelf(gift.title, strings().starListItemCountCountable(Int(resellStars)))
-        } else {
-            infoText = strings().starNftGiftBuyConfirm(gift.title, strings().starListItemCountCountable(Int(resellStars)), peer._asPeer().displayTitle)
+        guard let listedPrice = gift.resalePrice else {
+            showModalText(for: window, text: strings().unknownError)
+            return
         }
         
-        verifyAlert(for: window, header: strings().starNftGiftConfirmTitle, information: infoText, ok: strings().starNftGiftConfirmOk(strings().starListItemCountCountable(Int(resellStars))), successHandler: { _ in
-            
-            if resellStars > myBalance.value {
-                let sourceValue: Star_ListScreenSource
-                sourceValue = .buy(suffix: nil, amount: resellStars)
-                showModal(with: Star_ListScreen(context: context, source: sourceValue), for: window)
-            } else if let form = state.form {
-                _ = showModalProgress(signal: context.engine.payments.sendStarsPaymentForm(formId: form.id, source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: false, hideName: false, text: nil, entities: nil)), for: window).startStandalone(next: { result in
-                    switch result {
-                    case let .done(receiptMessageId, subscriptionPeerId, _):
-                        PlayConfetti(for: window, stars: true)
-                        context.starsContext.load(force: true)
-                        context.starsSubscriptionsContext.load(force: true)
-                        giftsContext?.removeStarGift(gift: .unique(gift))
-                        resaleContext?.removeStarGift(gift: .unique(gift))
-                        
-                        let successText: String
-                        if peer.id == context.peerId {
-                            successText = strings().starNftGiftBuySuccessSelf(gift.title, strings().starListItemCountCountable(Int(resellStars)))
-                        } else {
-                            successText = strings().starNftGiftBuySuccess(gift.title, strings().starListItemCountCountable(Int(resellStars)), peer._asPeer().displayTitle)
-                        }
-                        showModalText(for: window, text: successText)
-                        
-                        close?()
-                    default:
-                        break
-                    }
-                }, error: { error in
-                    let text: String
-                    switch error {
-                    case .alreadyPaid:
-                        text = strings().checkoutErrorInvoiceAlreadyPaid
-                    case let .serverProvided(message):
-                        text = message
-                    case .generic:
-                        text = strings().unknownError
-                    case .paymentFailed:
-                        text = strings().checkoutErrorPaymentFailed
-                    case .precheckoutFailed:
-                        text = strings().checkoutErrorPrecheckoutFailed
-                    case .starGiftOutOfStock:
-                        text = strings().giftSoldOutError
-                    case .disallowedStarGift:
-                        text = strings().giftSendDisallowError
-                    case .starGiftUserLimit:
-                        text = strings().giftOptionsGiftBuyLimitReached
-                    }
-                    showModalText(for: window, text: text)
-                })
+        // buyStarGift rejects anything above this amount, so it must be the one the alert shows.
+        let confirmedPrice: CurrencyAmount
+        if let form = stateValue.with({ $0.form }), form.invoice.currency == listedPrice.currency.stringValue, let formAmount = form.invoice.prices.first?.amount {
+            confirmedPrice = CurrencyAmount(amount: StarsAmount(value: formAmount, nanos: 0), currency: listedPrice.currency)
+        } else {
+            confirmedPrice = listedPrice
+        }
+        let priceText = confirmedPrice.fullyFormatted
+        
+        let purchase: (Bool, String?, [MessageTextEntity]?) -> Void = { hideName, text, entities in
+            let required = confirmedPrice.amount.value
+            switch confirmedPrice.currency {
+            case .stars:
+                if required > stateValue.with({ $0.myBalance?.value ?? 0 }) {
+                    showModal(with: Star_ListScreen(context: context, source: .buy(suffix: nil, amount: required)), for: window)
+                    return
+                }
+            case .ton:
+                let balance = context.tonContext.currentState?.balance.value ?? 0
+                if required > balance {
+                    showModal(with: AddTonBalanceController(context: context, tonAmount: required - balance), for: window)
+                    return
+                }
             }
             
-        })
+            _ = showModalProgress(signal: context.engine.payments.buyStarGift(slug: gift.slug, peerId: peer.id, price: confirmedPrice, hideName: hideName, text: text, entities: entities), for: window).startStandalone(error: { error in
+                switch error {
+                case let .priceChanged(newPrice):
+                    alert(for: window, info: resalePriceChangedText(from: confirmedPrice, to: newPrice))
+                    // Otherwise the next attempt confirms the old price and fails the same way.
+                    loadResaleForm(gift)
+                case .serverProvided:
+                    // Silent on purpose, matching GiftViewBuyGift.swift:73.
+                    break
+                case .starGiftResellTooEarly, .generic:
+                    showModalText(for: window, text: strings().unknownError)
+                }
+            }, completed: {
+                PlayConfetti(for: window, stars: true)
+                switch confirmedPrice.currency {
+                case .stars:
+                    context.starsContext.load(force: true)
+                case .ton:
+                    context.tonContext.load(force: true)
+                }
+                context.starsSubscriptionsContext.load(force: true)
+                giftsContext?.removeStarGift(gift: .unique(gift))
+                resaleContext?.removeStarGift(gift: .unique(gift))
+                
+                let successText: String
+                if peer.id == context.peerId {
+                    successText = strings().starNftGiftBuySuccessSelf(gift.title, priceText)
+                } else {
+                    successText = strings().starNftGiftBuySuccess(gift.title, priceText, peer._asPeer().displayTitle)
+                }
+                showModalText(for: window, text: successText)
+                
+                close?()
+            })
+        }
         
+        if peer.id == context.peerId {
+            verifyAlert(for: window, header: strings().starNftGiftConfirmTitle, information: strings().starNftGiftBuyConfirmSelf(gift.title, priceText), ok: strings().starNftGiftConfirmOk(priceText), successHandler: { _ in
+                purchase(true, nil, nil)
+            })
+        } else {
+            let maxNoteLength: Int32 = context.appConfiguration.getGeneralValue("stargifts_message_length_max", orElse: 256)
+            let note = Atomic(value: Updated_ChatTextInputState())
+            let name = peer._asPeer().compactDisplayTitle
+            
+            let footer = ModalAlertData.Footer(value: { initialSize, stableId, _, updateData in
+                return InputTextDataRowItem(initialSize, stableId: stableId, context: context, state: note.with { $0 }, viewType: .singleItem, placeholder: nil, inputPlaceholder: strings().starsGiftPreviewMessagePlaceholder, filter: { $0 }, updateState: { updated in
+                    _ = note.swap(updated)
+                    DispatchQueue.main.async(execute: updateData)
+                }, limit: maxNoteLength, hasEmoji: true)
+            }, validateData: { _ in
+                // The row only reddens its counter, so enforce the limit before paying.
+                if note.with({ $0.string.length }) > Int(maxNoteLength) {
+                    return .fail(.fields([InputDataIdentifier("footer") : .shake]))
+                }
+                return .none
+            }, rebuildsOnDataUpdate: true)
+            
+            let data = ModalAlertData(title: strings().starNftGiftConfirmTitle, info: strings().starNftGiftBuyConfirm(gift.title, priceText, peer._asPeer().displayTitle), description: .init(string: strings().starsGiftPreviewHideMyNameInfo(name, name), onlyWhenEnabled: false), ok: strings().starNftGiftConfirmOk(priceText), options: [.init(string: strings().starsGiftPreviewHideMyName, isSelected: false)], mode: .confirm(text: strings().modalCancel, isThird: false), footer: footer)
+            
+            showModalAlert(for: window, data: data, completion: { result in
+                let noteState = note.with { $0 }
+                let hasNote = !noteState.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                purchase(result.selected[0] == true, hasNote ? noteState.string : nil, hasNote ? noteState.textInputState().messageTextEntities() : nil)
+            })
+        }
     }
 
     let arguments = Arguments(context: context, dismiss:{
@@ -2023,7 +2067,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                             giftsContext?.updateStarGiftAddedToProfile(reference: reference, added: !savedToProfile)
                         }
                         close?()
-                    } else if let _ = gift.resellStars {
+                    } else if gift.resalePrice != nil {
                         let signal = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: toPeerId)) |> deliverOnMainQueue
                         
                         _ = signal.start(next: { peer in

@@ -282,13 +282,14 @@ the form fetched at open for showing the price, and keep the balance check.
 
 **Files:**
 - Modify: `Telegram-Mac/StarGift_Nft_Controller.swift`
+- Modify: `Telegram-Mac/ModalAlertController.swift`
 
-- [ ] when buying for someone else, replace `verifyAlert` (line 1574) with `showModalAlert` holding an `InputTextDataRowItem` note and a hide-my-name option; check the footer refreshes on change, because `ModalAlertData.Footer` always compares equal (`ModalAlertController.swift:745`)
-- [ ] when buying for yourself, keep the plain alert and send `hideName: true` with no note, matching `GiftViewScreen.swift:503`
-- [ ] replace `sendStarsPaymentForm` with `buyStarGift`, passing the confirmed price, and keep the confetti, list updates and toast on completion
-- [ ] handle `.priceChanged` with the new string, and handle `.starGiftResellTooEarly`, `.serverProvided` and `.generic` as in `GiftViewBuyGift.swift:73-75`
-- [ ] replace the hard-coded `ton: false` at line 1544 with `gift.resellForTonOnly`, and build `price` in the matching currency
-- [ ] run the Debug build - must pass before task 11
+- [x] when buying for someone else, replace `verifyAlert` (line 1574) with `showModalAlert` holding an `InputTextDataRowItem` note and a hide-my-name option; check the footer refreshes on change, because `ModalAlertData.Footer` always compares equal (`ModalAlertController.swift:745`)
+- [x] when buying for yourself, keep the plain alert and send `hideName: true` with no note, matching `GiftViewScreen.swift:503`
+- [x] replace `sendStarsPaymentForm` with `buyStarGift`, passing the confirmed price, and keep the confetti, list updates and toast on completion
+- [x] handle `.priceChanged` with the new string, and handle `.starGiftResellTooEarly`, `.serverProvided` and `.generic` as in `GiftViewBuyGift.swift:73-75`
+- [x] replace the hard-coded `ton: false` at line 1544 with `gift.resellForTonOnly`, and build `price` in the matching currency
+- [x] run the Debug build - must pass before task 11
 
 ### Task 11: Support entities in bot verification
 
