@@ -207,7 +207,7 @@ func layoutInstantPageBlock(webpage: TelegramMediaWebpage, rtl: Bool, block: Ins
     case let .heading(text, level):
         let styleStack = InstantPageTextStyleStack()
         setupStyleStack(styleStack, theme: theme, attributes: theme.headingTextAttributes(level: level))
-        // The lower levels match body text in size, so weight has to set them apart.
+        // The lower levels match body text in size, so weight sets them apart.
         styleStack.push(.medium)
         let (_, items, contentSize) = layoutTextItemWithString(attributedStringForRichText(text, styleStack: styleStack), boundingWidth: boundingWidth - horizontalInset * 2.0, offset: CGPoint(x: horizontalInset, y: 0.0), media: media, webpage: webpage)
         return InstantPageLayout(origin: CGPoint(), contentSize: contentSize, items: items)

@@ -1,7 +1,6 @@
 import Foundation
 
-/// Replaces each slot's first occurrence in `format`. Slots are found in the
-/// format only, so a replacement containing another slot's text stays as is.
+/// Replaces each slot's first occurrence in `format`, never in a replacement.
 /// A slot the format lacks is skipped: language packs may drop arguments.
 public func fillingSlots(in format: NSAttributedString, replacements: [(slot: String, value: NSAttributedString)]) -> NSAttributedString {
     let result = NSMutableAttributedString(attributedString: format)

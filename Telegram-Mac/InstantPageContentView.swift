@@ -286,7 +286,7 @@ final class InstantPageContentView : View {
             self.visibleItemsWithViews.removeValue(forKey: index)
         }
         
-        sortInstantPageSubviews(of: self)
+        sortSubviewsWithClickablesOnTop(of: self)
         self.needsLayout = true
     }
     

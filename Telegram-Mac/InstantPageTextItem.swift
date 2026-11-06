@@ -630,13 +630,8 @@ private func attributedStringForPageButton(_ button: InstantPageButton, styleSta
     var styles: [InstantPageTextStyle] = [.link(false)]
     if !button.isLink {
         styles.append(.medium)
-        switch button.color {
-        case .danger:
-            styles.append(.linkColor(theme.colors.redUI))
-        case .success:
-            styles.append(.linkColor(theme.colors.greenUI))
-        case .primary, .none:
-            break
+        if let statusColor = button.statusColor {
+            styles.append(.linkColor(statusColor))
         }
     }
     styles.forEach { styleStack.push($0) }
@@ -651,7 +646,7 @@ private func attributedStringForPageButton(_ button: InstantPageButton, styleSta
         result.removeAttribute(.instantPageTextAction, range: range)
         result.enumerateAttribute(.foregroundColor, in: range) { value, runRange, _ in
             if let color = value as? NSColor {
-                result.addAttribute(.foregroundColor, value: color.withAlphaComponent(0.4), range: runRange)
+                result.addAttribute(.foregroundColor, value: color.withAlphaComponent(instantPageDisabledButtonAlpha), range: runRange)
             }
         }
     } else {

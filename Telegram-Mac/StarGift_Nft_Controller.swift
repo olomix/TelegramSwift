@@ -20,10 +20,10 @@ private let resaleBalanceUnknownText = "Your balance hasn't loaded yet. You were
 private let resaleListingChangedText = "This gift's listing has changed, so it can't be bought at the price shown. You were not charged."
 
 private func resalePriceChangedText(from oldPrice: CurrencyAmount, to newPrice: CurrencyAmount) -> String {
-    return "The price of this gift changed from \(oldPrice.exactlyFormatted) to \(newPrice.exactlyFormatted). You were not charged. Check the new price and try again."
+    return "The price of this gift changed from \(oldPrice.exactlyFullyFormatted) to \(newPrice.exactlyFullyFormatted). You were not charged. Check the new price and try again."
 }
 
-// A relist while the screen is open can leave a confirmed price in another currency.
+// A relist can leave the confirmed price in another currency.
 private func resaleChargePrice(confirmed: CurrencyAmount?, listed: CurrencyAmount) -> CurrencyAmount {
     if let confirmed, confirmed.currency == listed.currency {
         return confirmed
@@ -37,10 +37,34 @@ private enum ResalePurchaseError {
     case failed
 }
 
-// Not buyStarGift: it compares raw amounts, so a Stars form passes a nanoton cap.
-// The form checked here is the one paid, so nothing can change in between.
+private func resaleInvoiceSource(slug: String, peerId: PeerId, currency: CurrencyAmount.Currency, hideName: Bool, text: String?, entities: [MessageTextEntity]?) -> BotPaymentInvoiceSource {
+    return .starGiftResale(slug: slug, toPeerId: peerId, ton: currency == .ton, hideName: hideName, text: text, entities: entities)
+}
+
+private func resaleConfirmAlertData(context: AccountContext, gift: StarGift.UniqueGift, peer: EnginePeer, priceText: String, note: Atomic<Updated_ChatTextInputState>, hidesName: Atomic<Bool>) -> ModalAlertData {
+    let maxNoteLength: Int32 = context.appConfiguration.getGeneralValue("stargifts_message_length_max", orElse: 256)
+    let name = peer._asPeer().compactDisplayTitle
+    
+    let footer = ModalAlertData.Footer(value: { initialSize, stableId, _, updateData in
+        return InputTextDataRowItem(initialSize, stableId: stableId, context: context, state: note.with { $0 }, viewType: .singleItem, placeholder: nil, inputPlaceholder: strings().starsGiftPreviewMessagePlaceholder, filter: { $0 }, updateState: { updated in
+            _ = note.swap(updated)
+            DispatchQueue.main.async(execute: updateData)
+        }, limit: maxNoteLength, hasEmoji: true)
+    }, validateData: { _ in
+        // The row only reddens its counter, so check the limit before paying.
+        if note.with({ $0.string.length }) > Int(maxNoteLength) {
+            return .fail(.fields([InputDataIdentifier("footer") : .shake]))
+        }
+        return .none
+    }, rebuildsOnDataUpdate: true, keepsReturnKey: true)
+    
+    return ModalAlertData(title: strings().starNftGiftConfirmTitle, info: strings().starNftGiftBuyConfirm(gift.title, priceText, peer._asPeer().displayTitle), description: .init(string: strings().starsGiftPreviewHideMyNameInfo(name, name), onlyWhenEnabled: false), ok: strings().starNftGiftConfirmOk(priceText), options: [.init(string: strings().starsGiftPreviewHideMyName, isSelected: hidesName.with { $0 })], mode: .confirm(text: strings().modalCancel, isThird: false), footer: footer)
+}
+
+// Not buyStarGift: it compares raw amounts, so Stars pass a nanoton cap.
+// The form checked here is the one paid, so nothing changes in between.
 private func payResaleForm(context: AccountContext, slug: String, peerId: PeerId, confirmedPrice: CurrencyAmount, hideName: Bool, text: String?, entities: [MessageTextEntity]?) -> Signal<Never, ResalePurchaseError> {
-    let source: BotPaymentInvoiceSource = .starGiftResale(slug: slug, toPeerId: peerId, ton: confirmedPrice.currency == .ton, hideName: hideName, text: text, entities: entities)
+    let source = resaleInvoiceSource(slug: slug, peerId: peerId, currency: confirmedPrice.currency, hideName: hideName, text: text, entities: entities)
     return context.engine.payments.fetchBotPaymentForm(source: source, themeParams: nil)
     |> mapError { _ in ResalePurchaseError.failed }
     |> mapToSignal { form -> Signal<Never, ResalePurchaseError> in
@@ -1162,9 +1186,9 @@ private struct State : Equatable {
     }
 
     /// The one decision behind both the OK button's label and its action.
-    func quickLookOkAction(peer: EnginePeer?, gift: StarGift.UniqueGift) -> UniqueGiftOkAction {
-        let savedGiftManager = peer ?? owner
-        return uniqueGiftOkAction(managesSavedGift: savedGift != nil && savedGiftManager.map(managesGifts(of:)) == true, isListed: gift.resalePrice != nil, ownerAccess: ownerAccess(sourcePeer: peer, gift: gift))
+    func okAction(sourcePeer: EnginePeer?, gift: StarGift.UniqueGift) -> UniqueGiftOkAction {
+        let savedGiftManager = sourcePeer ?? owner
+        return uniqueGiftOkAction(managesSavedGift: savedGift != nil && savedGiftManager.map(managesGifts(of:)) == true, isListed: gift.resalePrice != nil, ownerAccess: ownerAccess(sourcePeer: sourcePeer, gift: gift))
     }
 
     var okText: String {
@@ -1172,7 +1196,7 @@ private struct State : Equatable {
         case .preview:
             return strings().modalOK
         case let .quickLook(peer, gift):
-            switch quickLookOkAction(peer: peer, gift: gift) {
+            switch okAction(sourcePeer: peer, gift: gift) {
             case .toggleProfileVisibility:
                 if savedGift?.savedToProfile == true {
                     return strings().starTransactionStarGiftChannelHideFromMyPage
@@ -1181,7 +1205,7 @@ private struct State : Equatable {
                 }
             case .buy:
                 if let listedPrice = gift.resalePrice, !isResaleListingUnpayable(gift) {
-                    return strings().starNftBuyFor(resaleChargePrice(confirmed: resaleConfirmedPrice, listed: listedPrice).exactlyFormatted)
+                    return strings().starNftBuyFor(resaleChargePrice(confirmed: resaleConfirmedPrice, listed: listedPrice).exactlyFullyFormatted)
                 }
                 return strings().modalOK
             case .close:
@@ -1284,7 +1308,7 @@ private func giftTextRow(_ text: NSAttributedString) -> InputDataTableBasedItem.
 }
 
 // A profile note needs a known or deliberately hidden sender, as on iOS
-// (GiftViewScreen.swift:3150). Chat messages always have a sender there.
+// (hasGiftMessage in GiftViewScreen). Chat messages always have one.
 private func uniqueGiftNote(_ purpose: Star_TransactionPurpose?) -> (text: String, entities: [MessageTextEntity]?)? {
     guard case let .starGift(_, _, text, entities, nameHidden, _, _, fromProfile, _, _, _, _, sender, _, _, _) = purpose, let text, !text.isEmpty else {
         return nil
@@ -1310,7 +1334,7 @@ private func originalInfoPeerIds(_ gift: StarGift) -> [PeerId] {
 
 private func giftOriginalInfoRow(senderPeerId: PeerId?, recipientPeerId: PeerId, date: Int32, note: String?, noteEntities: [MessageTextEntity]?, state: State, arguments: Arguments) -> InputDataTableBasedItem.Row {
     // The server pack may reorder arguments, so format with private-use slots
-    // and replace them afterwards; names and the note can't be mistaken for one.
+    // and replace them afterwards; names and notes can't be mistaken for one.
     let senderSlot = "\u{E000}"
     let recipientSlot = "\u{E001}"
     let noteSlot = "\u{E002}"
@@ -1466,7 +1490,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
                 
                 
                 if let resalePrice = gift.resalePrice, badge != nil {
-                    rows.append(.init(left: .init(.initialize(string: strings().starNftPriceSale, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: resalePrice.exactAmountText, color: theme.colors.text, font: .normal(.text))), leftView: { previous in
+                    rows.append(.init(left: .init(.initialize(string: strings().starNftPriceSale, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: resalePrice.exactlyFormatted, color: theme.colors.text, font: .normal(.text))), leftView: { previous in
                         let control: ImageView
                         if let previous = previous as? ImageView {
                             control = previous
@@ -1733,7 +1757,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         guard let listedPrice = gift.resalePrice else {
             return
         }
-        actionsDisposable.add(context.engine.payments.fetchBotPaymentForm(source: .starGiftResale(slug: gift.slug, toPeerId: toPeerId, ton: gift.resellForTonOnly, hideName: false, text: nil, entities: nil), themeParams: nil).startStrict(next: { form in
+        actionsDisposable.add(context.engine.payments.fetchBotPaymentForm(source: resaleInvoiceSource(slug: gift.slug, peerId: toPeerId, currency: listedPrice.currency, hideName: false, text: nil, entities: nil), themeParams: nil).startStrict(next: { form in
             updateState { current in
                 var current = current
                 switch resaleChargeCap(formCurrency: form.invoice.currency, formAmount: form.invoice.prices.first?.amount, listedCurrency: listedPrice.currency.stringValue, listedAmount: listedPrice.amount.value) {
@@ -1752,7 +1776,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
     case let .quickLook(_, gift):
         if let resalePrice = gift.resalePrice {
             loadResaleConfirmedPrice(gift)
-            // Nothing else here loads the TON balance, and the buy check needs it.
+            // Nothing else here loads the TON balance the buy check needs.
             if resalePrice.currency == .ton {
                 context.tonContext.load(force: false)
             }
@@ -1782,9 +1806,32 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
             return
         }
         
-        // The purchase stops at anything above this amount, so it must be the one the alert shows.
+        // The purchase stops above this amount, so the alert must show it.
         let confirmedPrice = resaleChargePrice(confirmed: stateValue.with({ $0.resaleConfirmedPrice }), listed: listedPrice)
-        let priceText = confirmedPrice.exactlyFormatted
+        let priceText = confirmedPrice.exactlyFullyFormatted
+        
+        let handleResaleError: (ResalePurchaseError) -> Void = { error in
+            switch error {
+            case let .priceRaised(newPrice):
+                // Otherwise a retry confirms the old price and fails again.
+                updateState { current in
+                    var current = current
+                    current.resaleConfirmedPrice = newPrice
+                    return current
+                }
+                alert(for: window, info: resalePriceChangedText(from: confirmedPrice, to: newPrice))
+            case .listingChanged:
+                // A retry would fail the same way, so don't offer one.
+                showModalText(for: window, text: resaleListingChangedText)
+                close?()
+            case .failed:
+                // The cause may be a stale price or balance, and server
+                // errors carry a raw RPC code, not a readable message.
+                reloadBalance(confirmedPrice.currency)
+                loadResaleConfirmedPrice(gift)
+                showModalText(for: window, text: strings().unknownError)
+            }
+        }
         
         let purchase: (Bool, String?, [MessageTextEntity]?) -> Void = { hideName, text, entities in
             let required = confirmedPrice.amount.value
@@ -1811,28 +1858,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 return
             }
             
-            _ = showModalProgress(signal: payResaleForm(context: context, slug: gift.slug, peerId: peer.id, confirmedPrice: confirmedPrice, hideName: hideName, text: text, entities: entities), for: window).startStandalone(error: { error in
-                switch error {
-                case let .priceRaised(newPrice):
-                    // Otherwise the next attempt confirms the old price and fails the same way.
-                    updateState { current in
-                        var current = current
-                        current.resaleConfirmedPrice = newPrice
-                        return current
-                    }
-                    alert(for: window, info: resalePriceChangedText(from: confirmedPrice, to: newPrice))
-                case .listingChanged:
-                    // A retry would fail the same way, so don't offer one.
-                    showModalText(for: window, text: resaleListingChangedText)
-                    close?()
-                case .failed:
-                    // The cause may be a stale price or balance, and server
-                    // errors carry a raw RPC code, not a readable message.
-                    reloadBalance(confirmedPrice.currency)
-                    loadResaleConfirmedPrice(gift)
-                    showModalText(for: window, text: strings().unknownError)
-                }
-            }, completed: {
+            _ = showModalProgress(signal: payResaleForm(context: context, slug: gift.slug, peerId: peer.id, confirmedPrice: confirmedPrice, hideName: hideName, text: text, entities: entities), for: window).startStandalone(error: handleResaleError, completed: {
                 PlayConfetti(for: window, stars: true)
                 reloadBalance(confirmedPrice.currency)
                 context.starsSubscriptionsContext.load(force: true)
@@ -1856,23 +1882,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 purchase(true, nil, nil)
             })
         } else {
-            let maxNoteLength: Int32 = context.appConfiguration.getGeneralValue("stargifts_message_length_max", orElse: 256)
-            let name = peer._asPeer().compactDisplayTitle
-            
-            let footer = ModalAlertData.Footer(value: { initialSize, stableId, _, updateData in
-                return InputTextDataRowItem(initialSize, stableId: stableId, context: context, state: resaleNote.with { $0 }, viewType: .singleItem, placeholder: nil, inputPlaceholder: strings().starsGiftPreviewMessagePlaceholder, filter: { $0 }, updateState: { updated in
-                    _ = resaleNote.swap(updated)
-                    DispatchQueue.main.async(execute: updateData)
-                }, limit: maxNoteLength, hasEmoji: true)
-            }, validateData: { _ in
-                // The row only reddens its counter, so enforce the limit before paying.
-                if resaleNote.with({ $0.string.length }) > Int(maxNoteLength) {
-                    return .fail(.fields([InputDataIdentifier("footer") : .shake]))
-                }
-                return .none
-            }, rebuildsOnDataUpdate: true, keepsReturnKey: true)
-            
-            let data = ModalAlertData(title: strings().starNftGiftConfirmTitle, info: strings().starNftGiftBuyConfirm(gift.title, priceText, peer._asPeer().displayTitle), description: .init(string: strings().starsGiftPreviewHideMyNameInfo(name, name), onlyWhenEnabled: false), ok: strings().starNftGiftConfirmOk(priceText), options: [.init(string: strings().starsGiftPreviewHideMyName, isSelected: resaleHidesName.with { $0 })], mode: .confirm(text: strings().modalCancel, isThird: false), footer: footer)
+            let data = resaleConfirmAlertData(context: context, gift: gift, peer: peer, priceText: priceText, note: resaleNote, hidesName: resaleHidesName)
             
             showModalAlert(for: window, data: data, completion: { result in
                 let hidesName = result.selected[0] == true
@@ -2143,7 +2153,7 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         case .preview:
             close?()
         case let .quickLook(peer, gift):
-            switch state.quickLookOkAction(peer: peer, gift: gift) {
+            switch state.okAction(sourcePeer: peer, gift: gift) {
             case .toggleProfileVisibility:
                 if let savedGift = state.savedGift {
                     giftsContext?.updateStarGiftAddedToProfile(reference: savedGift.reference, added: !savedGift.savedToProfile)

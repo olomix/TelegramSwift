@@ -47,7 +47,7 @@ final class InstantPageDocumentItem: InstantPageItem {
         return InstantPageDocumentView(item: self, context: arguments.context)
     }
 
-    // Reuse across resizes keeps a pending open; a theme change needs new colours.
+    // Reuse across resizes keeps a pending open; new themes need new colours.
     func matchesView(_ node: InstantPageView) -> Bool {
         guard let view = node as? InstantPageDocumentView else {
             return false

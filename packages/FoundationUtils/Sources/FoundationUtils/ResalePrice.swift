@@ -11,9 +11,8 @@ public enum ResaleChargeCap: Equatable {
     case currencyMismatch
 }
 
-/// The most a resale purchase may charge: the payment form's amount, or the
-/// listed one if the form has no price. A form in another currency means the
-/// listing is stale, and nanotons must never be compared with Stars.
+/// The most a resale may charge: the form's amount, or the listed one if it
+/// has no price. A form in another currency means the listing is stale.
 public func resaleChargeCap(formCurrency: String, formAmount: Int64?, listedCurrency: String, listedAmount: Int64) -> ResaleChargeCap {
     guard formCurrency == listedCurrency else {
         return .currencyMismatch
@@ -51,29 +50,4 @@ public func trimmingTrailingFractionZeros(_ amount: String) -> String {
         trimmed.removeLast()
     }
     return String(trimmed)
-}
-
-/// Whether the viewer can manage a unique gift, as far as the app can tell.
-public enum UniqueGiftOwnerAccess: Equatable {
-    case manages
-    case doesNotManage
-    case unknown
-}
-
-public enum UniqueGiftOkAction: Equatable {
-    case toggleProfileVisibility
-    case buy
-    case close
-}
-
-/// What the OK button of a unique gift screen does. Buying needs proof that the
-/// viewer doesn't manage the gift, so an unknown owner only closes the screen.
-public func uniqueGiftOkAction(managesSavedGift: Bool, isListed: Bool, ownerAccess: UniqueGiftOwnerAccess) -> UniqueGiftOkAction {
-    if managesSavedGift {
-        return .toggleProfileVisibility
-    }
-    if isListed && ownerAccess == .doesNotManage {
-        return .buy
-    }
-    return .close
 }

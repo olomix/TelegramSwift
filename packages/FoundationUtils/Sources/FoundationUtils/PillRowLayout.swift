@@ -4,7 +4,6 @@ public enum PillRowAlignment {
     case left
     case center
     case right
-    case justify
 }
 
 private let pillHeight: CGFloat = 40.0
@@ -34,7 +33,7 @@ public func justifiedPillFrames(count: Int, availableWidth: CGFloat, rtl: Bool) 
 }
 
 /// Frames for pills of the given widths, wrapped when a row is full, in the
-/// order of the pills. `.justify` is treated as `.left`.
+/// order of the pills.
 public func huggingPillFrames(widths: [CGFloat], alignment: PillRowAlignment, availableWidth: CGFloat, rtl: Bool) -> [CGRect] {
     var rows: [[Int]] = []
     var currentRow: [Int] = []
@@ -62,7 +61,7 @@ public func huggingPillFrames(widths: [CGFloat], alignment: PillRowAlignment, av
             x = slack / 2.0
         case .right:
             x = rtl ? 0.0 : slack
-        case .left, .justify:
+        case .left:
             x = rtl ? slack : 0.0
         }
         for index in rtl ? row.reversed() : row {

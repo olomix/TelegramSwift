@@ -18,7 +18,7 @@ protocol InstantPageClickableView: InstantPageView {}
 
 // Text tiles are transparent but take clicks meant for a row they cross, so
 // rows go on top. separatesTiles would clip the text around them instead.
-func sortInstantPageSubviews(of parent: NSView) {
+func sortSubviewsWithClickablesOnTop(of parent: NSView) {
     let sorted = parent.subviews.sorted(by: { $0.frame.minY < $1.frame.minY })
     parent.subviews = sorted.filter { !($0 is InstantPageClickableView) } + sorted.filter { $0 is InstantPageClickableView }
 }

@@ -10,8 +10,24 @@ import FoundationUtils
 
 let instantPageButtonRowFontSize: CGFloat = 16.0
 
+let instantPageDisabledButtonAlpha: CGFloat = 0.4
+
 private let comfortablePillPadding: CGFloat = 19.0
 private let tightPillPadding: CGFloat = 6.0
+
+extension InstantPageButton {
+    /// The danger or success colour; other styles take theirs from the context.
+    var statusColor: NSColor? {
+        switch color {
+        case .danger:
+            return theme.colors.redUI
+        case .success:
+            return theme.colors.greenUI
+        case .primary, .none:
+            return nil
+        }
+    }
+}
 
 private func comfortablePadding(for button: InstantPageButton) -> CGFloat {
     // A link button has no fill, so its label sits flush and reads as a link.
@@ -24,26 +40,20 @@ private func pillColors(for button: InstantPageButton, pageTheme: InstantPageThe
     if button.isLink {
         fill = .clear
         label = pageTheme.linkColor
+    } else if let statusColor = button.statusColor {
+        fill = statusColor
+        label = theme.colors.underSelectedColor
+    } else if button.color == .primary {
+        fill = theme.colors.accent
+        label = theme.colors.underSelectedColor
     } else {
-        switch button.color {
-        case .none:
-            fill = pageTheme.panelBackgroundColor
-            label = pageTheme.panelPrimaryColor
-        case .primary:
-            fill = theme.colors.accent
-            label = theme.colors.underSelectedColor
-        case .danger:
-            fill = theme.colors.redUI
-            label = theme.colors.underSelectedColor
-        case .success:
-            fill = theme.colors.greenUI
-            label = theme.colors.underSelectedColor
-        }
+        fill = pageTheme.panelBackgroundColor
+        label = pageTheme.panelPrimaryColor
     }
-    return (fill, button.action == .disabled ? label.withAlphaComponent(0.4) : label)
+    return (fill, button.action == .disabled ? label.withAlphaComponent(instantPageDisabledButtonAlpha) : label)
 }
 
-private func pillRowAlignment(_ alignment: InstantPageButtonRowAlignment) -> PillRowAlignment {
+private func huggingAlignment(_ alignment: InstantPageButtonRowAlignment) -> PillRowAlignment? {
     switch alignment {
     case .left:
         return .left
@@ -52,7 +62,7 @@ private func pillRowAlignment(_ alignment: InstantPageButtonRowAlignment) -> Pil
     case .right:
         return .right
     case .justify:
-        return .justify
+        return nil
     }
 }
 
@@ -75,13 +85,13 @@ func layoutInstantPageButtonRow(labelledButtons: [(button: InstantPageButton, la
     let naturalWidths = labels.map { $0.layoutSize.width }
 
     let frames: [CGRect]
-    if alignment == .justify {
-        frames = justifiedPillFrames(count: labels.count, availableWidth: availableWidth, rtl: rtl)
-    } else {
+    if let hugging = huggingAlignment(alignment) {
         let widths = labelledButtons.indices.map { index in
             min(availableWidth, naturalWidths[index] + comfortablePadding(for: labelledButtons[index].button) * 2.0)
         }
-        frames = huggingPillFrames(widths: widths, alignment: pillRowAlignment(alignment), availableWidth: availableWidth, rtl: rtl)
+        frames = huggingPillFrames(widths: widths, alignment: hugging, availableWidth: availableWidth, rtl: rtl)
+    } else {
+        frames = justifiedPillFrames(count: labels.count, availableWidth: availableWidth, rtl: rtl)
     }
 
     let pills = labelledButtons.indices.map { index -> InstantPageButtonRowItem.Pill in

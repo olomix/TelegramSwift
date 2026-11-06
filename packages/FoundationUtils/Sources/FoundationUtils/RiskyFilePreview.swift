@@ -17,9 +17,8 @@ private let riskyMimeTypes: Set<String> = [
     "application/vnd.ms-powerpoint.presentation.macroenabled.12",
 ]
 
-/// Whether opening a file could run code or mislead, so the user should be
-/// warned first. Only the last extension counts: `x.html.txt` opens as text.
-/// The name and the MIME type come from the sender, so either one is enough.
+/// Whether to warn before opening: only the last extension counts, and the
+/// sender sets both name and MIME type, so a risky one of either is enough.
 public func isRiskyToPreview(fileName: String?, mimeType: String) -> Bool {
     let name = (fileName ?? "").lowercased()
     if riskyExtensions.contains(where: { name.hasSuffix("." + $0) }) {

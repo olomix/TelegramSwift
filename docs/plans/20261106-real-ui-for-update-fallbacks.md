@@ -128,7 +128,7 @@ choice survive a retry. Other errors show the generic error, because server erro
 carry a raw RPC code. Return in the note field doesn't confirm; only the OK button
 pays.
 
-**Who can buy.** One decision (`quickLookOkAction`) drives both the OK button's
+**Who can buy.** One decision (`okAction`) drives both the OK button's
 label and its action. Someone who manages a saved gift toggles it on their
 profile. Otherwise a listed gift can be bought only when the viewer is shown not
 to manage it; a manager, or an owner the app can't resolve, gets OK, which closes.
@@ -164,11 +164,11 @@ errors, so these no longer need a core change:
   in `WalletEngineFFI`) has no source in this checkout, so a stricter rule could
   wrongly reject real addresses.
 - **Resale prices:** the button, alert, toast, price-changed text, sale row and
-  gift cards show TON in full through `CurrencyAmount.exactlyFormatted`, because
+  gift cards show TON in full through `CurrencyAmount.exactlyFullyFormatted`, because
   the charge uses every nanoton. Other TON amounts keep `fullyFormatted`.
 - **Row clicks over tiles:** text tiles are transparent sibling views that take
   clicks, so button rows and documents stay above them after each sort
-  (`sortInstantPageSubviews`). `separatesTiles` would clip the text around them.
+  (`sortSubviewsWithClickablesOnTop`). `separatesTiles` would clip the text around them.
 - **Verification entity offsets:** the Mac prefix is `"\(clown) "`, 3 UTF-16
   units (`UserInfoEntries.swift:2105`), so shift by 3. iOS uses a different prefix
   of 4 units, so don't copy its number. Merge with auto-detected links without

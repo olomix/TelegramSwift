@@ -743,7 +743,7 @@ struct ModalAlertData : Equatable {
     struct Footer : Equatable {
         var value:(NSSize, AnyHashable, TelegramPresentationTheme, @escaping()->Void)->TableRowItem
         var validateData: (([InputDataIdentifier : InputDataValue]) -> InputDataValidation)? = nil
-        /// For rows built from the caller's current state, whose height depends on it.
+        /// For rows built from the caller's state, whose height depends on it.
         /// Other rows must keep their item: a rebuild would reset typed text.
         var rebuildsOnDataUpdate: Bool = false
         /// Return stays in the row's input, so only the OK button confirms.
@@ -783,6 +783,9 @@ struct ModalAlertData : Equatable {
     var header: Header?
     var footer: Footer?
     var footer1: Footer?
+    var footers: [Footer] {
+        return [footer, footer1].compactMap { $0 }
+    }
 
     var hasClose: Bool {
         switch mode {
@@ -841,7 +844,7 @@ private func ModalAlertController(data: ModalAlertData, completion: @escaping(Mo
     
     let arguments = Arguments(presentation: presentation, action: {
         
-        for footer in [data.footer, data.footer1].compactMap({ $0 }) {
+        for footer in data.footers {
             if let result = footer.validateData?([:]) {
                 switch result {
                 case .fail:
@@ -885,7 +888,7 @@ private func ModalAlertController(data: ModalAlertData, completion: @escaping(Mo
             cancel()
         }
     }, updateDatas: {
-        if data.footer?.rebuildsOnDataUpdate == true || data.footer1?.rebuildsOnDataUpdate == true {
+        if data.footers.contains(where: { $0.rebuildsOnDataUpdate }) {
             updateState { current in
                 var current = current
                 current.footerRevision += 1
@@ -922,7 +925,7 @@ private func ModalAlertController(data: ModalAlertData, completion: @escaping(Mo
         return .none
     }
     
-    if data.footer?.keepsReturnKey == true || data.footer1?.keepsReturnKey == true {
+    if data.footers.contains(where: { $0.keepsReturnKey }) {
         controller.returnKeyInvocation = { _, _ in
             return .invokeEvent
         }

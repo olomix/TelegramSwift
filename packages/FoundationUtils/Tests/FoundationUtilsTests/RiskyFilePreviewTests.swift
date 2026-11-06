@@ -35,7 +35,7 @@ final class RiskyFilePreviewTests: XCTestCase {
         XCTAssertTrue(isRiskyToPreview(fileName: "photo.jpg", mimeType: "text/html"))
     }
 
-    // The old check compared the MIME type with extensions; keep that case warning.
+    // A bare extension in the MIME field still warns.
     func testBareExtensionAsMimeTypeWarns() {
         XCTAssertTrue(isRiskyToPreview(fileName: nil, mimeType: "html"))
     }

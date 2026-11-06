@@ -925,7 +925,7 @@ class ChatMessageItem: ChatRowItem {
                 let address = nsString!.substring(with: range)
                 if isValidTonAddress(address) {
                     string.addAttribute(NSAttributedString.Key.foregroundColor, value: linkColor, range: range)
-                    // The Mac app has no wallet, so copying is all a click can do.
+                    // The Mac app has no wallet, so a click can only copy.
                     string.addAttribute(NSAttributedString.Key.link, value: inAppLink.callback(address, { address in
                         copyToClipboard(address)
                         showModalText(for: context.window, text: strings().shareLinkCopied)

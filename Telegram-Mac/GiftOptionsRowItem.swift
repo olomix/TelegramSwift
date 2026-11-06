@@ -236,16 +236,15 @@ final class GiftOptionsRowItem : GeneralRowItem {
             }
             
             let type: TypeValue
-            switch option.resalePrice {
-            case .none:
-                type = .none
-            case let .some(price):
+            if let price = option.resalePrice {
                 switch price.currency {
                 case .stars:
                     type = .stars(price.amount.value, true, resale)
                 case .ton:
-                    type = .price(price.exactlyFormatted)
+                    type = .price(price.exactlyFullyFormatted)
                 }
+            } else {
+                type = .none
             }
 
             return .init(file: option.file!, image: nil, colors: [], text: nil, type: type, badge: badge, peer: nil, invisible: false, pinned: false, toggleSelect: nil, priceBadge: nil, nativeStarUniqueGift: option)
@@ -274,7 +273,7 @@ final class GiftOptionsRowItem : GeneralRowItem {
                     attr.append(.initialize(string: "\(clown_space)\(resalePrice.amount.value)", color: .white, font: .normal(.text)))
                     attr.insertEmbedded(.embeddedAnimated(LocalAnimatedSticker.star_currency_new.file), for: clown)
                 case .ton:
-                    attr.append(.initialize(string: resalePrice.exactlyFormatted, color: .white, font: .normal(.text)))
+                    attr.append(.initialize(string: resalePrice.exactlyFullyFormatted, color: .white, font: .normal(.text)))
                 }
                 
                 priceBadge = .init(attr)

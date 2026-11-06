@@ -4255,7 +4255,7 @@ extension CurrencyAmount {
     }
 
     // A resale charge uses every nanoton, so show them all.
-    var exactAmountText: String {
+    var exactlyFormatted: String {
         switch currency {
         case .ton:
             return trimmingTrailingFractionZeros(formatCurrencyAmount(self.amount.value, currency: TON))
@@ -4264,10 +4264,10 @@ extension CurrencyAmount {
         }
     }
 
-    var exactlyFormatted: String {
+    var exactlyFullyFormatted: String {
         switch currency {
         case .ton:
-            return self.exactAmountText + " " + TON
+            return self.exactlyFormatted + " " + TON
         case .stars:
             return self.fullyFormatted
         }

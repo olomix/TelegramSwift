@@ -1685,7 +1685,7 @@ class ChatServiceItem: ChatRowItem {
                         }
                         
                         
-                        // First, because the line cap below may cut a long note.
+                        // First: the line cap below may cut a long note.
                         if refunded {
                             info.append(string: strings().giftUpgradeRefunded, color: grayTextColor, font: .normal(theme.fontSize))
                         }
@@ -1694,7 +1694,7 @@ class ChatServiceItem: ChatRowItem {
                             if refunded {
                                 info.append(string: "\n", color: grayTextColor, font: .normal(theme.fontSize))
                             }
-                            // Refunded gifts have no backdrop for white text to sit on.
+                            // Refunded gifts have no backdrop for white text.
                             let noteColor = refunded ? grayTextColor : NSColor.white
                             let attr = ChatMessageItem.applyMessageEntities(with: [TextEntitiesMessageAttribute(entities: noteEntities ?? [])], for: noteText, message: nil, context: context, fontSize: theme.fontSize, openInfo: { _, _, _, _ in }, textColor: noteColor, linkColor: noteColor, isDark: theme.colors.isDark, bubbled: true).mutableCopy() as! NSMutableAttributedString
 

@@ -23,7 +23,8 @@ private let namelessDocumentId = MediaId(namespace: Namespaces.Media.LocalFile, 
 // The layout looks inline images up in this namespace.
 private let inlineImageId = MediaId(namespace: Namespaces.Media.CloudFile, id: 0x7E1E_F1CE)
 
-// .invalid never resolves: the page controller asks the server to refresh its URL.
+// .invalid never resolves: the page controller asks the server to refresh
+// its URL.
 private let ltrFixtureUrl = "https://telex.invalid/instant-page-fixture"
 private let rtlFixtureUrl = "https://telex.invalid/instant-page-fixture-rtl"
 // Passes isValidTonAddress but is no real wallet; a click copies it.
@@ -38,11 +39,13 @@ private func button(_ title: String, _ action: ReplyMarkupButtonAction, color: R
     return InstantPageButton(text: .plain(title), action: action, color: color, isLink: isLink)
 }
 
+private let copyTextButton = button("Copy text", .copyText(payload: "Copied from the fixture"), color: .danger)
+
 private func workingButtons(profilePeerId: PeerId) -> [InstantPageButton] {
     return [
         button("Open URL", .url("https://telegram.org"), color: .primary),
         button("My profile", .openUserProfile(peerId: profilePeerId), color: .success),
-        button("Copy text", .copyText(payload: "Copied from the fixture"), color: .danger),
+        copyTextButton,
     ]
 }
 
@@ -80,7 +83,7 @@ private func tableRows() -> [InstantPageTableRow] {
             cell(.plain("Centre, middle"), .center, .middle),
             cell(.plain("Right, bottom"), .right, .bottom),
         ]),
-        // An inline image becomes an additional item, the only user of the height trim.
+        // An inline image is an additional item, the height trim's only user.
         InstantPageTableRow(cells: [
             cell(.plain("Inline image")),
             cell(.image(id: inlineImageId, dimensions: PixelDimensions(width: 40, height: 40))),
@@ -133,8 +136,8 @@ private func buttonBlocks(profilePeerId: PeerId) -> [InstantPageBlock] {
     ]
 }
 
-// Tiles start every 256pt and exist only around text, so text sits between short
-// runs of rows: wherever the page starts, several rows cross a tile's edge.
+// Tiles start every 256pt and exist only around text, so text sits between
+// short runs of rows: wherever the page starts, some rows cross a tile's edge.
 private func tileBoundaryBlocks() -> [InstantPageBlock] {
     var blocks: [InstantPageBlock] = [
         .header(.plain("Clicks across text tiles")),
@@ -188,7 +191,7 @@ private func instantPageDebugFixture(profilePeerId: PeerId, rtl: Bool, storedDoc
         .document(id: namelessDocumentId, caption: caption("Stored, no name and an HTML MIME type: shows the fallback name and warns before opening.")),
         // Details items have their own hit-test path.
         .details(title: .plain("Details, expanded"), blocks: [
-            .paragraph(.concat([.plain("Address: "), .textTonAddress(text: .plain(validTonAddress)), .plain("  Button: "), .textButton(workingButtons(profilePeerId: profilePeerId)[2])])),
+            .paragraph(.concat([.plain("Address: "), .textTonAddress(text: .plain(validTonAddress)), .plain("  Button: "), .textButton(copyTextButton)])),
             .buttonRow(alignment: .center, buttons: workingButtons(profilePeerId: profilePeerId)),
             .document(id: storedDocumentId, caption: caption("Stored document inside details.")),
         ], expanded: true),
