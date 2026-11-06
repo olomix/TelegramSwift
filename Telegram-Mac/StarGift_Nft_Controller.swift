@@ -19,7 +19,15 @@ import FoundationUtils
 private let resaleBalanceUnknownText = "Your balance hasn't loaded yet. You were not charged. Try again in a moment."
 
 private func resalePriceChangedText(from oldPrice: CurrencyAmount, to newPrice: CurrencyAmount) -> String {
-    return "The price of this gift changed from \(oldPrice.fullyFormatted) to \(newPrice.fullyFormatted). You were not charged. Check the new price and try again."
+    return "The price of this gift changed from \(oldPrice.exactlyFormatted) to \(newPrice.exactlyFormatted). You were not charged. Check the new price and try again."
+}
+
+// The core compares raw amounts, so a cap in another currency would mix units.
+private func resaleChargePrice(confirmed: CurrencyAmount?, listed: CurrencyAmount) -> CurrencyAmount {
+    if let confirmed, confirmed.currency == listed.currency {
+        return confirmed
+    }
+    return listed
 }
 
 final class TransferUniqueGiftHeaderItem : GeneralRowItem {
@@ -1090,39 +1098,62 @@ private struct State : Equatable {
 
     var originalInfoPeers: [PeerId: EnginePeer] = [:]
 
+    private func managesGifts(of peer: EnginePeer) -> Bool {
+        return peer.id == accountPeerId || peer._asPeer().groupAccess.canManageGifts
+    }
+
+    var savedGift: (reference: StarGiftReference, savedToProfile: Bool)? {
+        if case let .starGift(_, _, _, _, _, savedToProfile, _, _, _, _, _, reference?, _, _, _, _) = purpose {
+            return (reference, savedToProfile)
+        }
+        return nil
+    }
+
+    private func ownerAccess(sourcePeer: EnginePeer?, gift: StarGift.UniqueGift) -> UniqueGiftOwnerAccess {
+        if let sourcePeer, managesGifts(of: sourcePeer) {
+            return .manages
+        }
+        switch gift.owner {
+        case let .peerId(ownerId):
+            if ownerId == accountPeerId {
+                return .manages
+            }
+            guard let owner, owner.id == ownerId else {
+                return .unknown
+            }
+            return managesGifts(of: owner) ? .manages : .doesNotManage
+        case .name, .address, .none:
+            // A hidden owner on a gift saved somewhere may be the viewer.
+            return sourcePeer == nil && savedGift != nil ? .unknown : .doesNotManage
+        }
+    }
+
+    /// The one decision behind both the OK button's label and its action.
+    func quickLookOkAction(peer: EnginePeer?, gift: StarGift.UniqueGift) -> UniqueGiftOkAction {
+        let savedGiftManager = peer ?? owner
+        return uniqueGiftOkAction(managesSavedGift: savedGift != nil && savedGiftManager.map(managesGifts(of:)) == true, isListed: gift.resalePrice != nil, ownerAccess: ownerAccess(sourcePeer: peer, gift: gift))
+    }
+
     var okText: String {
         switch source {
         case .preview:
             return strings().modalOK
         case let .quickLook(peer, gift):
-            if let purpose {
-                switch purpose {
-                case let .starGift(_, _, _, _, _, savedToProfile, _, _, _, _, _, reference, _, _, _, _):
-                    if let _ = reference {
-                        var canManage: Bool
-                        let peer = peer ?? owner
-                        
-                        if let peer, peer._asPeer().groupAccess.canManageGifts || peer.id == accountPeerId {
-                            canManage = true
-                        } else {
-                            canManage = false
-                        }
-                        if canManage {
-                            if !savedToProfile {
-                                return strings().starTransactionStarGiftChannelDisplayOnMyPage
-                            } else {
-                                return strings().starTransactionStarGiftChannelHideFromMyPage
-                            }
-                        }
-                    }
-                default:
-                    break
+            switch quickLookOkAction(peer: peer, gift: gift) {
+            case .toggleProfileVisibility:
+                if savedGift?.savedToProfile == true {
+                    return strings().starTransactionStarGiftChannelHideFromMyPage
+                } else {
+                    return strings().starTransactionStarGiftChannelDisplayOnMyPage
                 }
+            case .buy:
+                if let listedPrice = gift.resalePrice {
+                    return strings().starNftBuyFor(resaleChargePrice(confirmed: resaleConfirmedPrice, listed: listedPrice).exactlyFormatted)
+                }
+                return strings().modalOK
+            case .close:
+                return strings().modalOK
             }
-            if let resalePrice = resaleConfirmedPrice ?? gift.resalePrice {
-                return strings().starNftBuyFor(resalePrice.fullyFormatted)
-            }
-            return strings().modalOK
         case .previewWear:
             return strings().giftWearStart
         case .upgrade:
@@ -1402,7 +1433,7 @@ private func entries(_ state: State, arguments: Arguments) -> [InputDataEntry] {
                 
                 
                 if let resalePrice = gift.resalePrice, badge != nil {
-                    rows.append(.init(left: .init(.initialize(string: strings().starNftPriceSale, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: resalePrice.formatted, color: theme.colors.text, font: .normal(.text))), leftView: { previous in
+                    rows.append(.init(left: .init(.initialize(string: strings().starNftPriceSale, color: theme.colors.text, font: .normal(.text))), right: .init(name: .init(.initialize(string: resalePrice.exactAmountText, color: theme.colors.text, font: .normal(.text))), leftView: { previous in
                         let control: ImageView
                         if let previous = previous as? ImageView {
                             control = previous
@@ -1714,8 +1745,8 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         }
         
         // buyStarGift rejects anything above this amount, so it must be the one the alert shows.
-        let confirmedPrice = stateValue.with({ $0.resaleConfirmedPrice }) ?? listedPrice
-        let priceText = confirmedPrice.fullyFormatted
+        let confirmedPrice = resaleChargePrice(confirmed: stateValue.with({ $0.resaleConfirmedPrice }), listed: listedPrice)
+        let priceText = confirmedPrice.exactlyFormatted
         
         let purchase: (Bool, String?, [MessageTextEntity]?) -> Void = { hideName, text, entities in
             let required = confirmedPrice.amount.value
@@ -2070,38 +2101,21 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
         case .preview:
             close?()
         case let .quickLook(peer, gift):
-            if let purpose = state.purpose {
-                switch purpose {
-                case let.starGift(_, _, _, _, _, savedToProfile, _, _, _, _, _, reference, _, _, _, _):
-                    if let reference {
-                        var canManage: Bool
-                        let peer = peer ?? state.owner
-                        
-                        if let peer, peer._asPeer().groupAccess.canManageGifts || peer.id == context.peerId {
-                            canManage = true
-                        } else {
-                            canManage = false
-                        }
-                        if canManage {
-                            giftsContext?.updateStarGiftAddedToProfile(reference: reference, added: !savedToProfile)
-                        }
-                        close?()
-                    } else if gift.resalePrice != nil {
-                        let signal = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: toPeerId)) |> deliverOnMainQueue
-                        
-                        _ = signal.start(next: { peer in
-                            if let peer {
-                                buyResellGift(gift, peer)
-                            }
-                            
-                        })
-                    } else {
-                        close?()
-                    }
-                default:
-                    close?()
+            switch state.quickLookOkAction(peer: peer, gift: gift) {
+            case .toggleProfileVisibility:
+                if let savedGift = state.savedGift {
+                    giftsContext?.updateStarGiftAddedToProfile(reference: savedGift.reference, added: !savedGift.savedToProfile)
                 }
-            } else {
+                close?()
+            case .buy:
+                let signal = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: toPeerId)) |> deliverOnMainQueue
+                
+                _ = signal.start(next: { peer in
+                    if let peer {
+                        buyResellGift(gift, peer)
+                    }
+                })
+            case .close:
                 close?()
             }
         case let .previewWear(peer, gift):

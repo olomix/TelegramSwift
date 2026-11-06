@@ -127,6 +127,16 @@ and the price. The note and hide-name choice survive a retry. Every error except
 `.priceChanged` shows the generic error, because `.serverProvided` carries a raw
 RPC code. Return in the note field doesn't confirm; only the OK button pays.
 
+**Who can buy.** One decision (`quickLookOkAction`) drives both the OK button's
+label and its action. Someone who manages a saved gift toggles it on their
+profile. Otherwise a listed gift can be bought only when the viewer is shown not
+to manage it; a manager, or an owner the app can't resolve, gets OK, which closes.
+So price buttons that used to only close now reach `buyResellGift`, with its
+confirm alert and cap: `t.me/nft` links, chat bubbles, and saved gifts on someone
+else's profile (gifts tab and header pins). Those purchases go to the viewer's own
+account. A manager with no saved-gift reference used to get a working Buy button
+and now gets OK.
+
 **Still open in resale, because they need a core change.** `_internal_buyStarGift`
 applies `ignoreValues` and flattens errors, and this plan doesn't touch the core:
 
@@ -151,6 +161,12 @@ applies `ignoreValues` and flattens errors, and this plan doesn't touch the core
   No checksum: the action only copies, and iOS's real parser (`parseTonAddress`
   in `WalletEngineFFI`) has no source in this checkout, so a stricter rule could
   wrongly reject real addresses.
+- **Resale prices:** the button, alert, toast, price-changed text, sale row and
+  gift cards show TON in full through `CurrencyAmount.exactlyFormatted`, because
+  the charge uses every nanoton. Other TON amounts keep `fullyFormatted`.
+- **Row clicks over tiles:** text tiles are transparent sibling views that take
+  clicks, so button rows and documents stay above them after each sort
+  (`sortInstantPageSubviews`). `separatesTiles` would clip the text around them.
 - **Verification entity offsets:** the Mac prefix is `"\(clown) "`, 3 UTF-16
   units (`UserInfoEntries.swift:2105`), so shift by 3. iOS uses a different prefix
   of 4 units, so don't copy its number. Merge with auto-detected links without
@@ -375,6 +391,8 @@ them to Mac; it only exercises the rendering.
   Confirm the blocks stay after that refresh returns.
 - Click the link, address and button in table cells in both tables, and in details
   blocks. Check the hand cursor over addresses and inline buttons.
+- In "Clicks across text tiles", click the bottom edge of every pill and document;
+  each must respond. Repeat at another window width, since layout moves the edges.
 - Click the unfetchable document twice: fetching, then cancel. Check button row
   alignments and wrapping at a narrow width.
 - Also try real pages with tables, headings and formulas, and note any new block
@@ -398,6 +416,13 @@ them to Mac; it only exercises the rendering.
 - Buy a resale gift for another user with a note and a hidden name. Confirm what
   the recipient sees, and that the payment doesn't fail on a form mismatch.
 - Buy a resale gift for yourself.
+- A listed gift you don't own, from a `t.me/nft` link, a chat bubble and another
+  user's profile (gifts tab and header pin): the button says Buy, and the confirm
+  alert appears before any charge. Cancel, or buy a low-priced one.
+- A listed gift you own, and one in a channel you manage, from the same places:
+  no Buy button, and no route to the confirm alert.
+- A TON listing with more than two decimals, if one turns up: every digit shows on
+  the card, sale row, button, alert and toast.
 - Press Return in the note field: it must not confirm or pay. Check what it does
   to the text, and that the OK button still works.
 - Type a long multi-line note: the row and modal grow, the counter updates, the

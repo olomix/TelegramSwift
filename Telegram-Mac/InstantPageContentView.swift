@@ -286,8 +286,7 @@ final class InstantPageContentView : View {
             self.visibleItemsWithViews.removeValue(forKey: index)
         }
         
-        let subviews = self.subviews.sorted(by: {$0.frame.minY < $1.frame.minY})
-        self.subviews = subviews
+        sortInstantPageSubviews(of: self)
         self.needsLayout = true
     }
     

@@ -24,6 +24,7 @@ import TGModernGrowingTextView
 import InputView
 import TelegramMedia
 import CurrencyFormat
+import FoundationUtils
 
 func optionalMessageThreadId(_ messageId: MessageId?) -> Int64? {
     if let messageId = messageId {
@@ -4251,5 +4252,24 @@ extension CurrencyAmount {
     
     var formatted: String {
         return self.amount.string(currency)
+    }
+
+    // A resale charge uses every nanoton, so show them all.
+    var exactAmountText: String {
+        switch currency {
+        case .ton:
+            return trimmingTrailingFractionZeros(formatCurrencyAmount(self.amount.value, currency: TON))
+        case .stars:
+            return self.formatted
+        }
+    }
+
+    var exactlyFormatted: String {
+        switch currency {
+        case .ton:
+            return self.exactAmountText + " " + TON
+        case .stars:
+            return self.fullyFormatted
+        }
     }
 }

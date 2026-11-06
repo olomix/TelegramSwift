@@ -244,7 +244,7 @@ final class GiftOptionsRowItem : GeneralRowItem {
                 case .stars:
                     type = .stars(price.amount.value, true, resale)
                 case .ton:
-                    type = .price(price.fullyFormatted)
+                    type = .price(price.exactlyFormatted)
                 }
             }
 
@@ -274,7 +274,7 @@ final class GiftOptionsRowItem : GeneralRowItem {
                     attr.append(.initialize(string: "\(clown_space)\(resalePrice.amount.value)", color: .white, font: .normal(.text)))
                     attr.insertEmbedded(.embeddedAnimated(LocalAnimatedSticker.star_currency_new.file), for: clown)
                 case .ton:
-                    attr.append(.initialize(string: resalePrice.fullyFormatted, color: .white, font: .normal(.text)))
+                    attr.append(.initialize(string: resalePrice.exactlyFormatted, color: .white, font: .normal(.text)))
                 }
                 
                 priceBadge = .init(attr)

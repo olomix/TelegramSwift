@@ -68,7 +68,7 @@ final class InstantPageDocumentItem: InstantPageItem {
     }
 }
 
-private final class InstantPageDocumentView: Control, InstantPageView {
+private final class InstantPageDocumentView: Control, InstantPageClickableView {
     let item: InstantPageDocumentItem
     private let context: AccountContext
     private let statusView: RadialProgressView

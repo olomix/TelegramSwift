@@ -43,4 +43,38 @@ final class ResalePriceTests: XCTestCase {
     func testFormWithoutPricesKeepsTheListedAmount() {
         XCTAssertEqual(resaleChargeCap(formCurrency: "XTR", formAmount: nil, listedCurrency: "XTR", listedAmount: 100), 100)
     }
+
+    func testTonAmountKeepsEveryDigit() {
+        XCTAssertEqual(trimmingTrailingFractionZeros("1.239000000"), "1.239")
+        XCTAssertEqual(trimmingTrailingFractionZeros("1.234567891"), "1.234567891")
+    }
+
+    func testTonAmountBelowOneCentIsNotZero() {
+        XCTAssertEqual(trimmingTrailingFractionZeros("0.009000000"), "0.009")
+        XCTAssertEqual(trimmingTrailingFractionZeros("0.000000001"), "0.000000001")
+    }
+
+    func testWholeTonAmountDropsTheFraction() {
+        XCTAssertEqual(trimmingTrailingFractionZeros("5.000000000"), "5")
+        XCTAssertEqual(trimmingTrailingFractionZeros("1,000.100000000"), "1,000.1")
+    }
+
+    func testZerosOfAnIntegerAreKept() {
+        XCTAssertEqual(trimmingTrailingFractionZeros("100"), "100")
+        XCTAssertEqual(trimmingTrailingFractionZeros("100.000000000"), "100")
+    }
+
+    func testManagerOfASavedGiftTogglesItEvenWhenListed() {
+        XCTAssertEqual(uniqueGiftOkAction(managesSavedGift: true, isListed: true, ownerAccess: .manages), .toggleProfileVisibility)
+    }
+
+    func testOnlyAProvenNonManagerCanBuy() {
+        XCTAssertEqual(uniqueGiftOkAction(managesSavedGift: false, isListed: true, ownerAccess: .doesNotManage), .buy)
+        XCTAssertEqual(uniqueGiftOkAction(managesSavedGift: false, isListed: true, ownerAccess: .manages), .close)
+        XCTAssertEqual(uniqueGiftOkAction(managesSavedGift: false, isListed: true, ownerAccess: .unknown), .close)
+    }
+
+    func testUnlistedGiftOnlyCloses() {
+        XCTAssertEqual(uniqueGiftOkAction(managesSavedGift: false, isListed: false, ownerAccess: .doesNotManage), .close)
+    }
 }

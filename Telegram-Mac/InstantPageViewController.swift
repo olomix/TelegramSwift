@@ -864,8 +864,7 @@ class InstantPageViewController: TelegramGenericViewController<ScrollView> {
                 itemView.updateIsVisible(visibleBounds.intersects(itemFrame))
             }
         }
-        let subviews = documentView.subviews.sorted(by: {$0.frame.minY < $1.frame.minY})
-        documentView.subviews = subviews
+        sortInstantPageSubviews(of: documentView)
         documentView.needsLayout = true
         
         for index in removeItemIndices {

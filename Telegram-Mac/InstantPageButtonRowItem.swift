@@ -151,7 +151,7 @@ final class InstantPageButtonRowItem: InstantPageItem {
     }
 }
 
-private final class InstantPageButtonRowView: View, InstantPageView {
+private final class InstantPageButtonRowView: View, InstantPageClickableView {
     let item: InstantPageButtonRowItem
 
     init(item: InstantPageButtonRowItem, performAction: @escaping (InstantPageButton) -> Void) {

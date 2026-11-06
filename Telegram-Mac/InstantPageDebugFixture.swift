@@ -133,6 +133,25 @@ private func buttonBlocks(profilePeerId: PeerId) -> [InstantPageBlock] {
     ]
 }
 
+// Tiles start every 256pt and exist only around text, so text sits between short
+// runs of rows: wherever the page starts, several rows cross a tile's edge.
+private func tileBoundaryBlocks() -> [InstantPageBlock] {
+    var blocks: [InstantPageBlock] = [
+        .header(.plain("Clicks across text tiles")),
+        .paragraph(.plain("Every pill and document below must respond along its whole height.")),
+    ]
+    for group in 1 ... 6 {
+        blocks.append(.paragraph(.plain("Button rows, group \(group):")))
+        blocks += (1 ... 3).map { row in
+            .buttonRow(alignment: .justify, buttons: [button("Group \(group), row \(row)", .copyText(payload: "Group \(group), row \(row)"))])
+        }
+    }
+    blocks += (1 ... 8).map { document in
+        .document(id: storedDocumentId, caption: caption("Stored document \(document)."))
+    }
+    return blocks
+}
+
 private func instantPageDebugFixture(profilePeerId: PeerId, rtl: Bool, storedDocument: TelegramMediaFile, unfetchableDocument: TelegramMediaFile, riskyDocument: TelegramMediaFile, namelessDocument: TelegramMediaFile, inlineImage: TelegramMediaFile) -> TelegramMediaWebpage {
     let title = rtl ? "Instant Page fixture (RTL)" : "Instant Page fixture"
     let url = rtl ? rtlFixtureUrl : ltrFixtureUrl
@@ -159,6 +178,7 @@ private func instantPageDebugFixture(profilePeerId: PeerId, rtl: Bool, storedDoc
         .paragraph(.concat([.plain("Invalid, stays plain: "), .textTonAddress(text: .plain(invalidTonAddress))])),
     ]
     blocks += buttonBlocks(profilePeerId: profilePeerId)
+    blocks += tileBoundaryBlocks()
     blocks += [
         .header(.plain("Documents")),
         .document(id: storedDocumentId, caption: caption("Stored locally: opens in Quick Look, without a download.")),

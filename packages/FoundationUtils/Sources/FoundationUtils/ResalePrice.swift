@@ -14,3 +14,44 @@ public func resaleChargeCap(formCurrency: String?, formAmount: Int64?, listedCur
     }
     return listedAmount
 }
+
+/// Drops only the zeros that end a fraction, keeping every other digit:
+/// "1.239000000" becomes "1.239" and "5.000000000" becomes "5".
+public func trimmingTrailingFractionZeros(_ amount: String) -> String {
+    guard amount.contains(".") else {
+        return amount
+    }
+    var trimmed = Substring(amount)
+    while trimmed.hasSuffix("0") {
+        trimmed.removeLast()
+    }
+    if trimmed.hasSuffix(".") {
+        trimmed.removeLast()
+    }
+    return String(trimmed)
+}
+
+/// Whether the viewer can manage a unique gift, as far as the app can tell.
+public enum UniqueGiftOwnerAccess: Equatable {
+    case manages
+    case doesNotManage
+    case unknown
+}
+
+public enum UniqueGiftOkAction: Equatable {
+    case toggleProfileVisibility
+    case buy
+    case close
+}
+
+/// What the OK button of a unique gift screen does. Buying needs proof that the
+/// viewer doesn't manage the gift, so an unknown owner only closes the screen.
+public func uniqueGiftOkAction(managesSavedGift: Bool, isListed: Bool, ownerAccess: UniqueGiftOwnerAccess) -> UniqueGiftOkAction {
+    if managesSavedGift {
+        return .toggleProfileVisibility
+    }
+    if isListed && ownerAccess == .doesNotManage {
+        return .buy
+    }
+    return .close
+}
