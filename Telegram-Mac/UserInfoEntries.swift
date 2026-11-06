@@ -295,7 +295,7 @@ class UserInfoArguments : PeerInfoArguments {
                                 }
                                 ok = strings().botVerificationVerifyVerify
                                 footer = .init(value: { initialSize, stableId, presentation, updateData in
-                                    return InputTextDataRowItem(initialSize, stableId: stableId, context: context, state: description.with { $0 }, viewType: .singleItem, placeholder: nil, inputPlaceholder: strings().botVerificationVerifyPlaceholder, filter: { $0 }, updateState: { updated in
+                                    return InputTextDataRowItem(initialSize, stableId: stableId, context: context, state: description.with { $0 }, viewType: .singleItem, placeholder: nil, inputPlaceholder: strings().botVerificationVerifyPlaceholder, canMakeTransformations: true, showsFormatMenu: false, filter: { $0 }, updateState: { updated in
                                         _ = description.swap(updated)
                                         DispatchQueue.main.async(execute: updateData)
                                     }, limit: limit)

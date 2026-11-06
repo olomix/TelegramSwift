@@ -124,9 +124,9 @@ unknown rather than zero. After a price rise the next confirmation uses the new
 price, without a refetch; a currency mismatch at open or at purchase means the
 listing is stale, so the button says OK, a click shows why and closes, and nothing
 is sent; other errors reload the balance and the price. The note and hide-name
-choice survive a retry. Other errors show the generic error, because server errors
-carry a raw RPC code. Return in the note field doesn't confirm; only the OK button
-pays.
+choice survive a retry. Send errors show their own text, as described under Resale
+results and errors below. Return in the note field doesn't confirm; only the OK
+button pays.
 
 **Who can buy.** One decision (`okAction`) drives both the OK button's
 label and its action. Someone who manages a saved gift toggles it on their
@@ -138,16 +138,17 @@ else's profile (gifts tab and header pins). Those purchases go to the viewer's o
 account. A manager with no saved-gift reference used to get a working Buy button
 and now gets OK.
 
-**Still open in resale.** `payResaleForm` keeps what `buyStarGift` did here: it
-applies `ignoreValues` and flattens errors. It now sees the form's result and
-errors, so these no longer need a core change:
+**Resale results and errors.** In `payResaleForm` only `.done` completes, so only
+`.done` plays confetti, shows the bought toast and removes the gift.
+`.externalVerificationRequired` fails with the generic error and reloads the
+balance and price. It does not open `PaymentWebInteractionController`, because that
+reports only a redirect to t.me, which can't prove a purchase. Whether Stars and
+TON forms ever return it is unconfirmed. Send errors (already paid, payment failed,
+precheckout failed, out of stock, user limit) show their own text.
+`.serverProvided` stays generic, because it carries a raw RPC code.
 
-- A false success on `.externalVerificationRequired` remains possible. The result
-  is discarded and the signal completes normally, so the app would play confetti,
-  show the bought toast, remove the gift from the lists and close, though nothing
-  was paid. Whether Stars and TON forms ever return it is unconfirmed.
-- The specific errors (already paid, payment failed, precheckout failed, out of
-  stock, user limit) are flattened, so they show the generic error.
+**Still open in resale.** A failed purchase reloads the balance and price, not the
+gift lists, so a sold-out gift stays listed until they next reload.
 
 ## Technical Details
 
@@ -177,7 +178,10 @@ errors, so these no longer need a core change:
   (`ChatMessageItem.swift:73`). Use one shared helper for all three info screens.
 - **Verification input:** Task 11's input became `InputTextDataRowItem`, because
   `InputDataRowItem` reports a plain string and can't carry entities. The limit
-  now blocks confirm instead of stopping input.
+  now blocks confirm instead of stopping input. `canMakeTransformations` turns on
+  the `InputDataController` shortcuts and also the right-click format submenu, so
+  `showsFormatMenu: false` hides the submenu, matching iOS's
+  `formatMenuAvailability: .none`.
 - **Pure helpers:** TON validation, the risky file check, resale price selection,
   button row packing and original-info slot filling live in
   `packages/FoundationUtils`, where they are tested.
@@ -434,9 +438,9 @@ them to Mac; it only exercises the rendering.
   TON), too low a balance in each currency, a balance not yet loaded, the
   price-changed alert (the button and next alert show the new price, the note
   and hide-name choice stay), and a failed purchase (generic error, nothing
-  charged, balance reloaded).
-- Watch for a false success: if a purchase ever shows the bought toast without a
-  charge, it is the `.externalVerificationRequired` risk in Solution Overview.
+  charged, balance reloaded). A send failure shows its own text where one exists.
+- A form that asks for external verification, if one can be produced: the generic
+  error, no confetti or bought toast, the gift stays listed.
 - Gift bubbles: a refunded gift with a note (refund line first), a note with
   attributes and a badge, and a gift with no note. All rely on an offset change in
   the gift row. Profile notes with a hidden sender and an unknown sender (the
@@ -446,7 +450,9 @@ them to Mac; it only exercises the rendering.
 **Bot verification (needs a bot with verifier rights):**
 - Verify a peer with a formatted description, and check it in the user, group and
   channel info screens.
-- There is no format menu, so enter formatting by paste and command shortcuts.
+- Enter formatting with Cmd+B, Cmd+I, Cmd+U (link) and Cmd+Shift+K (monospace);
+  other formatting, such as a spoiler or custom emoji, only by paste. Right-click
+  on selected text must show no format submenu, and there is no emoji button.
   Check a pasted custom emoji (its offset), a spoiler reveal, a text link, a typed
   link overlapping an auto-detected one, a hashtag click, and an empty description.
 - The input row grows with long text, keeps caret and focus while typing, and over

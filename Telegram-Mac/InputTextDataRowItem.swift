@@ -53,10 +53,11 @@ class InputTextDataRowItem: GeneralRowItem, InputDataRowDataValue {
 
     fileprivate let rightItem: InputDataRightItem?
     fileprivate let canMakeTransformations: Bool
+    fileprivate let showsFormatMenu: Bool
     fileprivate let simpleTransform: Bool
     fileprivate let allowedLinkHosts: [String]
     fileprivate let playAnimation: Bool
-    init(_ initialSize: NSSize, stableId: AnyHashable, context: AccountContext, state: Updated_ChatTextInputState, viewType: GeneralViewType, placeholder: InputDataInputPlaceholder?, inputPlaceholder: String, rightItem: InputDataRightItem? = nil, canMakeTransformations: Bool = false, simpleTransform: Bool = true, filter:@escaping(String)->String, updateState:@escaping(Updated_ChatTextInputState)->Void, limit: Int32, hasEmoji: Bool = false, allowedLinkHosts: [String] = [], playAnimation: Bool = true, enabled: Bool = true) {
+    init(_ initialSize: NSSize, stableId: AnyHashable, context: AccountContext, state: Updated_ChatTextInputState, viewType: GeneralViewType, placeholder: InputDataInputPlaceholder?, inputPlaceholder: String, rightItem: InputDataRightItem? = nil, canMakeTransformations: Bool = false, showsFormatMenu: Bool = true, simpleTransform: Bool = true, filter:@escaping(String)->String, updateState:@escaping(Updated_ChatTextInputState)->Void, limit: Int32, hasEmoji: Bool = false, allowedLinkHosts: [String] = [], playAnimation: Bool = true, enabled: Bool = true) {
         self.filter = filter
         self.limit = limit
         self.context = context
@@ -64,6 +65,7 @@ class InputTextDataRowItem: GeneralRowItem, InputDataRowDataValue {
         self.hasEmoji = hasEmoji
         self.allowedLinkHosts = allowedLinkHosts
         self.canMakeTransformations = canMakeTransformations
+        self.showsFormatMenu = showsFormatMenu
         self.simpleTransform = simpleTransform
         self.rightItem = rightItem
         self.updateState = updateState
@@ -522,6 +524,7 @@ class InputTextDataRowView : GeneralContainableRowView {
         textView.interactions.min_height = 20
         textView.interactions.allowedLinkHosts = item.allowedLinkHosts
         textView.interactions.canTransform = item.canMakeTransformations
+        textView.interactions.showsFormatMenu = item.showsFormatMenu
         textView.interactions.simpleTransform = item.simpleTransform
         textView.interactions.inputIsEnabled = item.enabled
         

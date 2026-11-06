@@ -34,7 +34,27 @@ private func resaleChargePrice(confirmed: CurrencyAmount?, listed: CurrencyAmoun
 private enum ResalePurchaseError {
     case priceRaised(CurrencyAmount)
     case listingChanged
-    case failed
+    case failed(SendBotPaymentFormError)
+}
+
+private func resaleFailureText(_ error: SendBotPaymentFormError) -> String {
+    switch error {
+    case .alreadyPaid:
+        return strings().checkoutErrorInvoiceAlreadyPaid
+    case .paymentFailed:
+        return strings().checkoutErrorPaymentFailed
+    case .precheckoutFailed:
+        return strings().checkoutErrorPrecheckoutFailed
+    case .starGiftOutOfStock:
+        return strings().giftSoldOutError
+    case .disallowedStarGift:
+        return strings().giftSendDisallowError
+    case .starGiftUserLimit:
+        return strings().giftOptionsGiftBuyLimitReached
+    // .serverProvided carries a raw RPC code, not a readable message.
+    case .generic, .serverProvided:
+        return strings().unknownError
+    }
 }
 
 private func resaleInvoiceSource(slug: String, peerId: PeerId, currency: CurrencyAmount.Currency, hideName: Bool, text: String?, entities: [MessageTextEntity]?) -> BotPaymentInvoiceSource {
@@ -66,13 +86,22 @@ private func resaleConfirmAlertData(context: AccountContext, gift: StarGift.Uniq
 private func payResaleForm(context: AccountContext, slug: String, peerId: PeerId, confirmedPrice: CurrencyAmount, hideName: Bool, text: String?, entities: [MessageTextEntity]?) -> Signal<Never, ResalePurchaseError> {
     let source = resaleInvoiceSource(slug: slug, peerId: peerId, currency: confirmedPrice.currency, hideName: hideName, text: text, entities: entities)
     return context.engine.payments.fetchBotPaymentForm(source: source, themeParams: nil)
-    |> mapError { _ in ResalePurchaseError.failed }
+    |> mapError { _ in ResalePurchaseError.failed(.generic) }
     |> mapToSignal { form -> Signal<Never, ResalePurchaseError> in
         switch resaleFormDecision(formCurrency: form.invoice.currency, formAmount: form.invoice.prices.first?.amount, confirmedCurrency: confirmedPrice.currency.stringValue, confirmedAmount: confirmedPrice.amount.value) {
         case .send:
             return context.engine.payments.sendStarsPaymentForm(formId: form.id, source: source)
-            |> mapError { _ in ResalePurchaseError.failed }
-            |> ignoreValues
+            |> mapError { ResalePurchaseError.failed($0) }
+            |> mapToSignal { result -> Signal<Never, ResalePurchaseError> in
+                switch result {
+                case .done:
+                    return .complete()
+                case .externalVerificationRequired:
+                    // Nothing is paid yet. The web flow reports only a
+                    // redirect, which can't prove a purchase, so don't open it.
+                    return .fail(.failed(.generic))
+                }
+            }
         case let .priceRaised(amount):
             return .fail(.priceRaised(CurrencyAmount(amount: StarsAmount(value: amount, nanos: 0), currency: confirmedPrice.currency)))
         case .currencyMismatch:
@@ -1824,12 +1853,11 @@ func StarGift_Nft_Controller(context: AccountContext, gift: StarGift, source: St
                 // A retry would fail the same way, so don't offer one.
                 showModalText(for: window, text: resaleListingChangedText)
                 close?()
-            case .failed:
-                // The cause may be a stale price or balance, and server
-                // errors carry a raw RPC code, not a readable message.
+            case let .failed(failure):
+                // The cause may be a stale price or balance.
                 reloadBalance(confirmedPrice.currency)
                 loadResaleConfirmedPrice(gift)
-                showModalText(for: window, text: strings().unknownError)
+                showModalText(for: window, text: resaleFailureText(failure))
             }
         }
         
